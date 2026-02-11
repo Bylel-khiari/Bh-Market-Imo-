@@ -1,0 +1,43 @@
+.properties-page {
+  padding: 60px 0;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.properties-page h1 {
+  color: #003366;
+  margin-bottom: 10px;
+}
+
+.properties-page p {
+  color: #666;
+  margin-bottom: 40px;
+}
+
+.properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+.property-item {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.property-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 16px rgba(0,51,102,0.15);
+}
+
+.property-item h3 {
+  color: #003366;
+  margin-bottom: 10px;
+}
+
+.property-item p {
+  color: #666;
+}

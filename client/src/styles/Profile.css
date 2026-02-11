@@ -1,0 +1,31 @@
+.profile-page {
+  padding: 60px 0;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.profile-page h1 {
+  color: #003366;
+  margin-bottom: 40px;
+}
+
+.profile-content {
+  display: grid;
+  gap: 20px;
+}
+
+.profile-section {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.profile-section h2 {
+  color: #003366;
+  margin-bottom: 10px;
+}
+
+.profile-section p {
+  color: #666;
+}

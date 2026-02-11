@@ -1,49 +1,136 @@
-# Getting Started with Create React App
+# BH Marketplace Immobilier
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Plateforme de crédit immobilier avec chatbot et tableaux de bord analytiques pour BH Bank.
 
-## Available Scripts
+## 🏦 À propos
 
-In the project directory, you can run:
+BH Marketplace est une plateforme immobilière intégrée qui offre :
+- **Marketplace Immobilière** : Consultation de milliers de biens immobiliers
+- **Assistant Virtuel** : Chatbot intelligent pour accompagner les utilisateurs
+- **Tableaux de Bord** : Suivi des KPI et évolution du marché immobilier
+- **Simulation de Crédit** : Processus d'octroi simplifié et automatisé
+
+## 🚀 Installation
+
+### Prérequis
+- Node.js (version 14 ou supérieure)
+- npm ou yarn
+
+### Étapes d'installation
+
+1. Cloner le repository
+```bash
+git clone <repository-url>
+cd Bh-Market-Imo-
+```
+
+2. Installer les dépendances du client
+```bash
+cd client
+npm install
+```
+
+## 📦 Scripts disponibles
+
+Dans le répertoire `client`, vous pouvez exécuter :
 
 ### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Lance l'application en mode développement.\
+Ouvrez [http://localhost:3000](http://localhost:3000) pour la voir dans votre navigateur.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+La page se rechargera automatiquement quand vous ferez des modifications.\
+Les erreurs de lint s'afficheront dans la console.
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Lance le testeur en mode interactif.\
+Voir la section sur [running tests](https://facebook.github.io/create-react-app/docs/running-tests) pour plus d'informations.
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Construit l'application pour la production dans le dossier `build`.\
+Il regroupe correctement React en mode production et optimise la construction pour les meilleures performances.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+La construction est minifiée et les noms de fichiers incluent les hashes.\
+Votre application est prête à être déployée!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🛠️ Technologies utilisées
 
-### `npm run eject`
+- **React** 18.2.0 - Bibliothèque JavaScript pour construire l'interface utilisateur
+- **React Router DOM** 6.14.0 - Routage pour l'application
+- **Axios** 1.4.0 - Client HTTP pour les requêtes API
+- **Recharts** 2.7.2 - Bibliothèque de graphiques pour les tableaux de bord
+- **React Icons** 4.10.1 - Icônes pour l'interface utilisateur
+- **Material-UI** 5.13.6 - Composants UI Material Design
+- **React Slick** 0.29.0 - Carrousel pour les biens immobiliers
+- **Chart.js** 4.3.0 - Graphiques et visualisations de données
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 📂 Structure du projet
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+client/
+├── public/
+│   ├── index.html
+│   ├── manifest.json
+│   └── robots.txt
+├── src/
+│   ├── assets/           # Images et ressources
+│   ├── components/       # Composants réutilisables
+│   │   ├── Navbar.js
+│   │   ├── Footer.js
+│   │   ├── Chatbot.js
+│   │   └── PropertyCarousel.js
+│   ├── pages/           # Pages de l'application
+│   │   ├── Home.js
+│   │   ├── Properties.js
+│   │   ├── CreditSimulation.js
+│   │   ├── Dashboard.js
+│   │   ├── Login.js
+│   │   └── Profile.js
+│   ├── styles/          # Fichiers CSS
+│   ├── App.js           # Composant principal
+│   └── index.js         # Point d'entrée
+└── package.json
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 🎨 Fonctionnalités
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 1. Page d'accueil
+- Présentation des services BH Marketplace
+- Carrousel de biens immobiliers à la une
+- Accès rapide aux fonctionnalités principales
 
-## Learn More
+### 2. Simulation de crédit
+- Formulaire en 3 étapes
+- Calcul automatique des mensualités
+- Téléchargement de la simulation
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 3. Tableaux de bord analytiques
+- KPI en temps réel (visiteurs, consultations, demandes de crédit)
+- Graphiques d'évolution du trafic
+- Répartition par type de bien
+- Taux de simulation de crédit
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 4. Chatbot intelligent
+- Assistant virtuel pour accompagner les utilisateurs
+- Réponses en temps réel
+- Interface intuitive
+
+## 👥 Auteurs
+
+- Bilel Khiyari - bilel.khiyari@isgb.ucar.tn
+- Khemiri Iheb - khemiriiheb40@gmail.com
+
+## 📞 Contact
+
+- Téléphone: 96 128 401 / 58 407 459
+- Email: bilel.khiyari@isgb.ucar.tn / khemiriiheb40@gmail.com
+
+## 📄 Licence
+
+© 2024 BH Bank - Marketplace Immobilière. Tous droits réservés.
+
 
 ### Code Splitting
 
