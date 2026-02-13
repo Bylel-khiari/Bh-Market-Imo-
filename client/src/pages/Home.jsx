@@ -10,7 +10,7 @@ const Home = () => {
       <section className="hero-section">
         <div className="container">
           <div className="hero-content">
-            <h1> 🏠BH MARKET IMO 🏠</h1>
+            <h1> BH  MARKET IMO </h1>
             <p>Vous voulez suivre et gérer vos comptes, assurer vos transactions à distance  Plus besoin de passer par votre point de vente.</p>
             <p>La BH Bank s'approche encore plus de vous et met à votre disposition une panoplie de services en ligne dédiés dans le but de faciliter votre quotidien en toute sécurité.</p>
             <div className="hero-actions">
