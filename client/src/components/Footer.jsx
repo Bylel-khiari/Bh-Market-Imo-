@@ -31,12 +31,11 @@ const Footer = () => {
           </div>
           <div className="footer-section">
             <h4>Contact</h4>
-            <p>96 128 401<br/>58 407 459</p>
-            <p>bilel.khiyari@isgb.ucar.tn<br/>khemiriiheb40@gmail.com</p>
+            <p></p>
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2024 BH Bank - Marketplace Immobilière. Tous droits réservés.</p>
+          <p>&copy; 2026 BH Bank - Marketplace Immobilière. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

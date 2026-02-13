@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaSearch, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import '../styles/Navbar.css';
-import logo from '../assets/bh-bank-logo.png';
+import logo from '../assets/favicon.ico';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,24 +11,13 @@ const Navbar = () => {
   const navItems = [
     'ACCUEIL',
     'LA BANQUE',
-    'LE GROUPE BH BANK',
-    'NOTRE RÉSEAU',
     'CONFORMITE',
     'INDICATEURS FINANCIERS',
     'CONTACT',
-    'RECRUTEMENT',
-    'TRE'
   ];
-
   const userCategories = [
-    'Particuliers',
-    'Entreprises',
-    'Professionnels',
-    'Tunisiens résidents à l’étranger',
-    'Promoteurs immobiliers',
-    'Jeunes',
-    'Seniors'
-  ];
+   
+ ];
 
   return (
     <nav className="navbar">
@@ -46,7 +35,7 @@ const Navbar = () => {
                 <FaSearch />
               </button>
               <Link to="/login" className="login-btn">
-                <FaUser /> ESPACE CLIENT
+                <FaUser /> CONNEXION
               </Link>
               <button className="mobile-menu-btn" onClick={() => setIsOpen(!isOpen)}>
                 {isOpen ? <FaTimes /> : <FaBars />}
