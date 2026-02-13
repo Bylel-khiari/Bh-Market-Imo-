@@ -76,12 +76,6 @@ const Navbar = () => {
           </ul>
         </div>
       </div>
-
-      <div className="breadcrumb">
-        <div className="container">
-          <span>Accueil &gt; Professionnel &gt; La banque au quotidien &gt; La BH en ligne</span>
-        </div>
-      </div>
     </nav>
   );
 };

@@ -23,10 +23,9 @@ const Footer = () => {
           <div className="footer-section">
             <h4>Services</h4>
             <ul>
-              <li><Link to="/particulars">Particuliers</Link></li>
-              <li><Link to="/professionals">Professionnels</Link></li>
-              <li><Link to="/tre">Tunisiens résidents à l'étranger</Link></li>
-              <li><Link to="/promoters">Promoteurs immobiliers</Link></li>
+              <li><Link to="/">Particuliers</Link></li>
+              <li><Link to="/">Professionnels</Link></li>
+              <li><Link to="/">Promoteurs immobiliers</Link></li>
             </ul>
           </div>
           <div className="footer-section">

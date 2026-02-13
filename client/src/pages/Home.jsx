@@ -10,7 +10,7 @@ const Home = () => {
       <section className="hero-section">
         <div className="container">
           <div className="hero-content">
-            <h1>Votre Banque à portée de main pour simplifier votre quotidien...</h1>
+            <h1> 🏠BH MARKET IMO 🏠</h1>
             <p>Vous voulez suivre et gérer vos comptes, assurer vos transactions à distance ? Plus besoin de passer par votre point de vente.</p>
             <p>La BH Bank s'approche encore plus de vous et met à votre disposition une panoplie de services en ligne dédiés dans le but de faciliter votre quotidien en toute sécurité.</p>
             <div className="hero-actions">
@@ -27,7 +27,6 @@ const Home = () => {
 
       <section className="features-section">
         <div className="container">
-          <h2 className="section-title">Nos Services BH Marketplace</h2>
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">
@@ -60,17 +59,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      <section className="pgrow-section">
-        <div className="container">
-          <div className="pgrow-content">
-            <h2>P.GROW</h2>
-            <h3>Ennarrar Et Planifiar Vnc Driatic</h3>
-            <p>Solution innovante pour votre projet immobilier</p>
-          </div>
-        </div>
-      </section>
-
       <PropertyCarousel />
     </div>
   );
