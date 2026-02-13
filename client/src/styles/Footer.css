@@ -1,26 +1,26 @@
 .footer {
-  background: linear-gradient(135deg, #1a2634 0%, #0f1419 100%);
-  color: white;
-  padding: 60px 0 20px;
+  background: linear-gradient(135deg, #003366 0%, #004d99 100%);
+  color: #ff0000;
+  padding: 30px 0 15px;
   margin-top: auto;
 }
 
 .footer-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 40px;
-  margin-bottom: 40px;
+  gap: 25px;
+  margin-bottom: 25px;
 }
 
 .footer-section h3,
 .footer-section h4 {
-  margin-bottom: 20px;
-  color: #ff8c00;
+  margin-bottom: 12px;
+  color: #ff0000;
 }
 
 .footer-section p {
   line-height: 1.6;
-  color: #ccc;
+  color: #ff0000;
 }
 
 .footer-section ul {
@@ -29,23 +29,23 @@
 }
 
 .footer-section ul li {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .footer-section ul li a {
-  color: #ccc;
+  color: #ff0000;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
 .footer-section ul li a:hover {
-  color: #ff8c00;
+  color: #ff3333;
 }
 
 .footer-bottom {
   text-align: center;
-  padding-top: 20px;
+  padding-top: 15px;
   border-top: 1px solid rgba(255,255,255,0.1);
-  color: #999;
+  color: #ff0000;
   font-size: 14px;
 }

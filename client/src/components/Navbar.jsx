@@ -56,7 +56,11 @@ const Navbar = () => {
           <ul className={`nav-menu ${isOpen ? 'active' : ''}`}>
             {navItems.map((item, index) => (
               <li key={index}>
-                <Link to={`/${item.toLowerCase().replace(/\s+/g, '-')}`}>{item}</Link>
+                <Link to={
+                  item === 'ACCUEIL' ? '/' : 
+                  item === 'INDICATEURS FINANCIERS' ? '/dashboard' :
+                  `/${item.toLowerCase().replace(/\s+/g, '-')}`
+                }>{item}</Link>
               </li>
             ))}
           </ul>
