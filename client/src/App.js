@@ -15,7 +15,7 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const hideNavFooter = location.pathname === '/login';
+  const hideNavFooter = ['/login', '/register', '/forgot-password'].includes(location.pathname);
 
   return (
     <div className="App">
