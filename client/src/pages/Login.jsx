@@ -122,7 +122,7 @@ const Login = () => {
                 <input type="checkbox" />
                 <span>Se souvenir de moi</span>
               </label>
-              <Link to="/ForgotPassword.jsx" className="login-forgot">
+              <Link to="/forgot-password" className="login-forgot">
                 Mot de passe oublié ?
               </Link>
             </div>
@@ -138,7 +138,7 @@ const Login = () => {
             <div className="login-register">
               <p>
                 Vous n'avez pas de compte ?{' '}
-                <Link to="/Register.jsx">Créer un compte</Link>
+                <Link to="/register">Créer un compte</Link>
               </p>
             </div>
           </form>

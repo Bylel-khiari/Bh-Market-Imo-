@@ -17,7 +17,7 @@ const Footer = () => {
               <li><Link to="/properties">Biens immobiliers</Link></li>
               <li><Link to="/credit-simulation">Simulation crédit</Link></li>
               <li><Link to="/dashboard">Tableaux de bord</Link></li>
-              <li><Link to="/Contact.jsx">Contact</Link></li>
+              <li><Link to="/contact">Contact</Link></li>
             </ul>
           </div>
           <div className="footer-section">
