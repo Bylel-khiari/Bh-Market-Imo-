@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -11,9 +11,12 @@ import Profile from './pages/Profile';
 import './App.css';
 
 function App() {
+  const location = useLocation();
+  const hideNavFooter = location.pathname === '/login';
+
   return (
     <div className="App">
-      <Navbar />
+      {!hideNavFooter && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/properties" element={<Properties />} />
@@ -22,7 +25,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
-      <Footer />
+      {!hideNavFooter && <Footer />}
     </div>
   );
 }

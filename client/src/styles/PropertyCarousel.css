@@ -1,28 +1,29 @@
 .properties-section {
-  padding: 80px 0;
+  padding: 100px 0 90px;
   background: white;
 }
 
 .property-card-wrapper {
-  padding: 15px;
+  padding: 12px;
 }
 
 .property-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.35s ease;
 }
 
 .property-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0,51,102,0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0, 51, 102, 0.08);
+  border-color: transparent;
 }
 
 .property-image {
   position: relative;
-  height: 200px;
+  height: 220px;
   overflow: hidden;
 }
 
@@ -30,23 +31,24 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s ease;
 }
 
 .property-card:hover .property-image img {
-  transform: scale(1.1);
+  transform: scale(1.06);
 }
 
 .property-price {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background: linear-gradient(135deg, #ff8c00 0%, #ff6b00 100%);
+  bottom: 16px;
+  left: 16px;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
   color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 6px 14px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 15px;
+  letter-spacing: -0.2px;
 }
 
 .property-info {
@@ -54,54 +56,95 @@
 }
 
 .property-info h3 {
-  color: #003366;
-  margin-bottom: 10px;
-  font-size: 18px;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  font-size: 17px;
+  font-weight: 650;
 }
 
 .property-location {
-  color: #666;
-  margin-bottom: 15px;
+  color: #8a8fa3;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.property-location svg {
+  color: #ff0000;
+  font-size: 12px;
 }
 
 .property-features {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  color: #666;
-  font-size: 14px;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .property-features span {
   display: flex;
   align-items: center;
   gap: 5px;
+  color: #7a7f92;
+  font-size: 13px;
+  font-weight: 500;
 }
 
+.property-features span svg {
+  color: #003366;
+  opacity: 0.5;
+  font-size: 13px;
+}
+
+.property-info .btn {
+  width: 100%;
+  justify-content: center;
+  padding: 11px 20px;
+  font-size: 13px;
+}
+
+/* Slider controls */
+
 .slick-dots {
-  bottom: -40px;
+  bottom: -44px;
 }
 
 .slick-dots li button:before {
-  color: #003366;
+  color: #c0c4d0;
+  font-size: 8px;
+  opacity: 0.4;
+}
+
+.slick-dots li.slick-active button:before {
+  color: #ff0000;
+  opacity: 1;
 }
 
 .slick-prev, .slick-next {
   z-index: 1;
+  width: 40px;
+  height: 40px;
 }
 
 .slick-prev {
-  left: 10px;
+  left: -8px;
 }
 
 .slick-next {
-  right: 10px;
+  right: -8px;
 }
 
 .slick-prev:before, .slick-next:before {
   color: #003366;
-  font-size: 30px;
+  font-size: 28px;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.slick-prev:hover:before, .slick-next:hover:before {
+  opacity: 0.6;
 }

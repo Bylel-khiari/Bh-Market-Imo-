@@ -76,7 +76,11 @@ const PropertyCarousel = () => {
   return (
     <section className="properties-section">
       <div className="container">
-        <h2 className="section-title">Biens immobiliers à la une</h2>
+        <div className="section-header">
+          <span className="section-tag">A la une</span>
+          <h2 className="section-title">Biens immobiliers selectionnes</h2>
+          <p className="section-desc">Decouvrez notre selection de biens verifies et recommandes par nos experts</p>
+        </div>
         <Slider {...settings}>
           {properties.map(property => (
             <div key={property.id} className="property-card-wrapper">
