@@ -24,14 +24,30 @@ class TunisieAnnonceSpider(scrapy.Spider):
         title = og_title or response.css("title::text").get()
         description = meta_desc
 
+        page_text = " ".join(
+            t.strip()
+            for t in response.xpath("//body//*[not(self::script) and not(self::style)]/text()").getall()
+            if t and t.strip()
+        )
+        page_text = re.sub(r"\s+", " ", page_text)
+
         price = None
-        if title:
+        price_match = re.search(r"Prix\s+([0-9][0-9\s\.,]*)\s*(?:Dinar|DT|TND)", page_text, re.IGNORECASE)
+        if not price_match and title:
             price_match = re.search(r"(\d[\d\s\.,]*)\s*(dt|dinar|tnd)", title, re.IGNORECASE)
-            if price_match:
-                price = price_match.group(1).strip()
+        if price_match:
+            price = price_match.group(1).strip()
 
         location = None
-        if og_title:
+        loc_match = re.search(r"Localisation\s+Tunisie\s*>\s*(.*?)\s+Surface", page_text, re.IGNORECASE)
+        if loc_match:
+            parts = [p.strip() for p in loc_match.group(1).split(">") if p.strip()]
+            if len(parts) >= 2:
+                location = f"{parts[-2]}, {parts[-1]}"
+            elif parts:
+                location = parts[-1]
+
+        if not location and og_title:
             parts = og_title.split("-")
             if len(parts) >= 2:
                 location = parts[-2].strip()

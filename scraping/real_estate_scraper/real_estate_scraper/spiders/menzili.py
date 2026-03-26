@@ -40,9 +40,20 @@ class MenziliSpider(scrapy.Spider):
         price = price_match.group(1).strip() if price_match else None
 
         location = None
-        path = response.url.lower()
-        if "-" in path:
-            location = path.rsplit("-", 1)[-1].replace(".html", "").replace("/", " ")
+        city_match = re.search(r'var\s+geo_ville\s*=\s*"([^"]+)"', response.text, flags=re.IGNORECASE)
+        dep_match = re.search(r'var\s+geo_dep\s*=\s*"([^"]+)"', response.text, flags=re.IGNORECASE)
+        if city_match and dep_match:
+            location = f"{dep_match.group(1).strip()}, {city_match.group(1).strip()}"
+        elif city_match:
+            location = city_match.group(1).strip()
+        else:
+            bc = [
+                t.strip()
+                for t in response.css(".breadcrumb a::text, .breadcrumb span::text").getall()
+                if t and t.strip() and t.strip() not in {"/", "Acceuil", "Accueil"}
+            ]
+            if len(bc) >= 2:
+                location = bc[-2]
 
         yield {
             "title": title.strip() if isinstance(title, str) else title,

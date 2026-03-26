@@ -25,7 +25,24 @@ class RawPipeline:
         )
         self.cursor = self.conn.cursor()
 
+    def close_spider(self, spider):
+        try:
+            self.cursor.close()
+        finally:
+            self.conn.close()
+
     def process_item(self, item, spider):
+        url = item.get("url")
+        source = spider.name
+
+        if url:
+            self.cursor.execute(
+                "SELECT id FROM raw_properties WHERE source = %s AND url = %s LIMIT 1",
+                (source, url),
+            )
+            if self.cursor.fetchone():
+                return item
+
         self.cursor.execute("""
         INSERT INTO raw_properties (title, price, location, description, url, source)
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -34,8 +51,8 @@ class RawPipeline:
             item.get("price"),
             item.get("location"),
             item.get("description"),
-            item.get("url"),
-            spider.name
+            url,
+            source
         ))
 
         self.conn.commit()

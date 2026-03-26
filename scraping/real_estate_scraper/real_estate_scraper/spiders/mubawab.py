@@ -8,30 +8,41 @@ class MubawabSpider(scrapy.Spider):
     allowed_domains = ["mubawab.tn"]
     start_urls = ["https://www.mubawab.tn/fr/"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._seen_pages = set()
+        self._seen_details = set()
+
     def parse(self, response):
+        self._seen_pages.add(response.url)
+
         cards = response.css(".listingBox")
         for card in cards:
             url = card.css(".listingTit a::attr(href)").get()
-            yield {
-                "title": " ".join(t.strip() for t in card.css(".listingTit a::text").getall() if t.strip()) or None,
-                "price": " ".join(t.strip() for t in card.css(".priceTag *::text").getall() if t.strip()) or None,
-                "location": " ".join(t.strip() for t in card.css(".listingH3::text").getall() if t.strip()) or None,
-                "description": None,
-                "url": response.urljoin(url) if url else response.url,
-            }
             if url:
-                yield response.follow(url, callback=self.parse_detail)
+                detail_url = response.urljoin(url)
+                if detail_url in self._seen_details:
+                    continue
+                self._seen_details.add(detail_url)
+                yield response.follow(detail_url, callback=self.parse_detail)
 
         hrefs = response.css("a::attr(href)").getall()
         for href in hrefs:
             link = href.lower()
             if "/fr/a/" in link or "/fr/sc/" in link or "/fr/st/" in link:
-                yield response.follow(href, callback=self.parse)
+                next_url = response.urljoin(href)
+                if next_url in self._seen_pages:
+                    continue
+                self._seen_pages.add(next_url)
+                yield response.follow(next_url, callback=self.parse)
 
         # Mubawab stores pagination URLs inside script text (e.g. :p:2).
         body = response.text
         paginated = set(re.findall(r"https://www\\.mubawab\\.tn/fr/sc/[^\"&\\s]+:p:\\d+", body))
         for url in paginated:
+            if url in self._seen_pages:
+                continue
+            self._seen_pages.add(url)
             yield response.follow(url, callback=self.parse)
 
     def parse_detail(self, response):
@@ -45,7 +56,21 @@ class MubawabSpider(scrapy.Spider):
             or " ".join(t.strip() for t in response.css("p::text").getall() if t.strip())
         )
         price = " ".join(t.strip() for t in response.css(".orangeTit::text, .priceTag::text").getall() if t.strip()) or None
-        location = " ".join(t.strip() for t in response.css(".darkblue::text, .adMainFeatureContentValue::text").getall() if t.strip()) or None
+
+        darkblue_parts = [
+            t.strip()
+            for t in response.css(".darkblue::text").getall()
+            if t and t.strip()
+        ]
+        filtered = []
+        for part in darkblue_parts:
+            lower = part.lower()
+            if lower in {"se connecter", "favori", "partager", "appelez", "voir la carte"}:
+                continue
+            if lower.startswith("immobilier"):
+                continue
+            filtered.append(part)
+        location = filtered[-1] if filtered else None
 
         yield {
             "title": title.strip() if isinstance(title, str) else title,
