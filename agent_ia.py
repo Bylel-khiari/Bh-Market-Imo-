@@ -2,10 +2,10 @@ import os
 import re
 import hashlib
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict, Any
 
 import mysql.connector
-from mysql.connector import Error
 from rapidfuzz import fuzz
 
 
@@ -23,39 +23,186 @@ DB_CONFIG = {
 
 RAW_TABLE = os.getenv("RAW_TABLE", "raw_properties")
 
-# Optional startup check. Set DB_VALIDATE_ON_START=0 to skip.
-DB_VALIDATE_ON_START = os.getenv("DB_VALIDATE_ON_START", "1") == "1"
-
-# Country filter
 TARGET_COUNTRY = "tunisia"
+TARGET_GOVERNORATE = None  # e.g. "tunis" or None for all Tunisia
 
-# Optional city filter:
-# None = all Tunisia
-# "tunis", "sousse", "sfax", ...
-TARGET_CITY = None
+STATUS_NEW = 0
+STATUS_ACCEPTED = 1
+STATUS_DUPLICATE = 2
+STATUS_RENT = 3
+STATUS_OUTSIDE_TUNISIA = 4
+STATUS_TOO_OLD = 5
+
+MAX_AGE_DAYS = 365 * 3
+
+DELETE_OLD_RAW_ROWS = True
+PURGE_OLD_CLEAN_LISTINGS = False
+PURGE_OLD_DUPLICATE_LOGS = False
 
 
 # =========================
-# LOCATION HELPERS
+# RENT FILTER
+# =========================
+RENT_KEYWORDS = [
+    "for rent",
+    "rent",
+    "rental",
+    "to rent",
+    "location",
+    "a louer",
+    "a loué",
+    "à louer",
+    "louer",
+    "loyer",
+    "par mois",
+    "per month",
+    "monthly",
+    "day rent",
+    "daily rent",
+    "location vacances",
+    "vacances",
+    "studio a louer",
+    "studio à louer",
+    "appartement a louer",
+    "appartement à louer",
+    "maison a louer",
+    "maison à louer",
+    "villa a louer",
+    "villa à louer",
+    "كراء",
+    "للكراء",
+    "إيجار",
+    "للايجار",
+    "للإيجار",
+    "سومة شهرية",
+]
+
+
+# =========================
+# TUNISIA LOCATION HELPERS
 # =========================
 COUNTRY_ALIASES = {
     "tunisia": ["tunisia", "tunisie", "تونس"],
 }
 
-CITY_ALIASES = {
-    "tunis": ["tunis", "le bardo", "bardo", "lac", "centre ville tunis", "تونس", "باردو"],
-    "gabes": ["gabes", "gabès", "قابس"],
-    "sfax": ["sfax", "صفاقس"],
-    "sousse": ["sousse", "سوسة"],
-    "nabeul": ["nabeul", "نابل"],
-    "hammamet": ["hammamet", "الحمامات"],
-    "ariana": ["ariana", "أريانة"],
-    "monastir": ["monastir", "المنستير"],
-    "mahdia": ["mahdia", "المهدية"],
-    "bizerte": ["bizerte", "بنزرت"],
-    "medenine": ["medenine", "مدنين"],
-    "djerba": ["djerba", "jerba", "جربة"],
+GOVERNORATE_ALIASES = {
+    "tunis": [
+        "tunis", "تونس", "tunis centre", "centre ville tunis",
+        "lac 1", "lac 2", "la marsa", "carthage", "le bardo", "bardo"
+    ],
+    "ariana": [
+        "ariana", "أريانة", "ennasr", "ennaser", "soukra",
+        "la soukra", "raoued"
+    ],
+    "ben_arous": [
+        "ben arous", "بن عروس", "rades", "ezzahra",
+        "hammam lif", "mornag", "megrine", "mégrine"
+    ],
+    "manouba": [
+        "manouba", "منوبة", "douar hicher", "oued ellil",
+        "denden", "tebourba"
+    ],
+    "nabeul": [
+        "nabeul", "نابل", "hammamet", "الحمامات",
+        "kelibia", "kélibia", "korba", "soliman"
+    ],
+    "bizerte": [
+        "bizerte", "بنزرت", "mateur", "ras jebel",
+        "ras jbel", "menzel bourguiba"
+    ],
+    "beja": [
+        "beja", "béja", "باجة", "testour",
+        "medjez el bab", "majaz al bab"
+    ],
+    "jendouba": [
+        "jendouba", "جندوبة", "tabarka", "ain draham",
+        "aïn draham", "fernana"
+    ],
+    "kef": [
+        "kef", "le kef", "الكاف", "tajerouine", "dahmani"
+    ],
+    "siliana": [
+        "siliana", "سليانة", "makthar", "gaafour", "rouhia"
+    ],
+    "zaghouan": [
+        "zaghouan", "زغوان", "bir mcherga", "zriba", "fahs", "el fahs"
+    ],
+    "sousse": [
+        "sousse", "سوسة", "chott meriem", "kantaoui",
+        "port el kantaoui", "akouda", "hergla", "sahloul"
+    ],
+    "monastir": [
+        "monastir", "المنستير", "moknine", "ksar hellal",
+        "sahline", "jemmal"
+    ],
+    "mahdia": [
+        "mahdia", "المهدية", "ksour essaf", "chebba", "la chebba"
+    ],
+    "sfax": [
+        "sfax", "صفاقس", "sakiet ezzit", "mahres", "mharza"
+    ],
+    "kairouan": [
+        "kairouan", "القيروان", "bou hajla", "hajeb el ayoun", "chebika"
+    ],
+    "kasserine": [
+        "kasserine", "القصرين", "sbeitla", "sbiba", "feriana", "fériana"
+    ],
+    "sidi_bouzid": [
+        "sidi bouzid", "سيدي بوزيد", "meknassy", "regueb", "jilma", "jelma"
+    ],
+    "gafsa": [
+        "gafsa", "قفصة", "metlaoui", "métlaoui", "redeyef", "moulares"
+    ],
+    "tozeur": [
+        "tozeur", "توزر", "nefta", "degache", "deggache"
+    ],
+    "kebili": [
+        "kebili", "قبلي", "douz", "souk lahad"
+    ],
+    "gabes": [
+        "gabes", "gabès", "قابس", "mareth", "matmata", "el hamma", "hamma"
+    ],
+    "medenine": [
+        "medenine", "مدنين", "djerba", "jerba", "جربة",
+        "houmt souk", "zarzis", "ben gardane"
+    ],
+    "tataouine": [
+        "tataouine", "تطاوين", "remada", "dehiba", "dhéhiba"
+    ],
 }
+
+
+# =========================
+# DESCRIPTION DEDUPE NORMALIZATION
+# =========================
+COMMON_REAL_ESTATE_WORDS = {
+    "appartement", "villa", "maison", "studio", "terrain", "immeuble",
+    "vente", "vendre", "a", "à", "de", "du", "des", "dans", "avec",
+    "pour", "sur", "luxe", "standing", "moderne", "haut", "gamme",
+    "s1", "s2", "s3", "s4", "s5", "tnd", "dt", "immobiliere",
+    "immobilière", "agence", "bien", "propose", "proposer", "offre",
+    "annonce", "prix", "superbe", "magnifique"
+}
+
+DESCRIPTION_NOISE_PHRASES = [
+    "agence immobiliere",
+    "agence immobilière",
+    "pour plus d informations",
+    "pour plus d'information",
+    "pour plus d infos",
+    "contactez nous",
+    "contactez-nous",
+    "opportunite a ne pas rater",
+    "opportunité à ne pas rater",
+    "nous mettons en vente",
+    "a vendre chez",
+    "à vendre chez",
+    "découvrez ce bien",
+    "decouvrez ce bien",
+    "a saisir",
+    "à saisir",
+    "pour plus de renseignements",
+]
 
 
 # =========================
@@ -72,7 +219,7 @@ class Candidate:
     location_raw: str
     normalized_location: str
     country: Optional[str]
-    city: Optional[str]
+    governorate: Optional[str]
     description: str
     normalized_description: str
     image: str
@@ -82,7 +229,7 @@ class Candidate:
 
 
 # =========================
-# TEXT HELPERS
+# BASIC HELPERS
 # =========================
 def clean_spaces(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
@@ -113,7 +260,6 @@ def parse_price(value: Any) -> Optional[float]:
         return None
 
     num = match.group(0)
-
     if "," in num and "." not in num:
         num = num.replace(",", ".")
     else:
@@ -134,13 +280,58 @@ def hash_key(text: str) -> str:
 
 
 # =========================
-# LOCATION DETECTION
+# DATETIME HELPERS
 # =========================
-def detect_country_city(text: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    value = str(value).strip()
+    if not value:
+        return None
+
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            pass
+
+    return None
+
+
+def cutoff_datetime() -> datetime:
+    return datetime.utcnow() - timedelta(days=MAX_AGE_DAYS)
+
+
+def is_too_old(scraped_at: Any) -> bool:
+    dt = parse_datetime(scraped_at)
+    if dt is None:
+        return False
+    return dt < cutoff_datetime()
+
+
+# =========================
+# RENT DETECTION
+# =========================
+def is_for_rent(title: str, description: str, price_raw: str = "") -> bool:
+    text = normalize_text(f"{title} {description} {price_raw}")
+    for word in RENT_KEYWORDS:
+        if normalize_text(word) in text:
+            return True
+    return False
+
+
+# =========================
+# COUNTRY / GOVERNORATE DETECTION
+# =========================
+def detect_country_governorate(text: str) -> Tuple[Optional[str], Optional[str]]:
     text_norm = normalize_text(text)
 
     detected_country = None
-    detected_city = None
+    detected_governorate = None
 
     for country, aliases in COUNTRY_ALIASES.items():
         for alias in aliases:
@@ -150,24 +341,24 @@ def detect_country_city(text: str) -> Tuple[Optional[str], Optional[str]]:
         if detected_country:
             break
 
-    for city, aliases in CITY_ALIASES.items():
+    for governorate, aliases in GOVERNORATE_ALIASES.items():
         for alias in aliases:
             if normalize_text(alias) in text_norm:
-                detected_city = city
+                detected_governorate = governorate
                 break
-        if detected_city:
+        if detected_governorate:
             break
 
-    if detected_city and not detected_country:
+    if detected_governorate and not detected_country:
         detected_country = "tunisia"
 
-    return detected_country, detected_city
+    return detected_country, detected_governorate
 
 
-def build_normalized_location(country: Optional[str], city: Optional[str], location_raw: str) -> str:
+def build_normalized_location(country: Optional[str], governorate: Optional[str], location_raw: str) -> str:
     parts = []
-    if city:
-        parts.append(city)
+    if governorate:
+        parts.append(governorate)
     if country:
         parts.append(country)
     if not parts:
@@ -175,12 +366,132 @@ def build_normalized_location(country: Optional[str], city: Optional[str], locat
     return " | ".join(parts)
 
 
-def candidate_matches_target(country: Optional[str], city: Optional[str]) -> bool:
+def candidate_matches_target(country: Optional[str], governorate: Optional[str]) -> bool:
     if country != TARGET_COUNTRY:
         return False
-    if TARGET_CITY and city != TARGET_CITY:
+    if TARGET_GOVERNORATE and governorate != TARGET_GOVERNORATE:
         return False
     return True
+
+
+# =========================
+# DESCRIPTION DEDUPE HELPERS
+# =========================
+def normalize_description_for_dedupe(text: str) -> str:
+    text = normalize_text(text)
+
+    for phrase in DESCRIPTION_NOISE_PHRASES:
+        text = text.replace(normalize_text(phrase), " ")
+
+    words = text.split()
+    filtered = []
+
+    for w in words:
+        if len(w) <= 2:
+            continue
+        if w in COMMON_REAL_ESTATE_WORDS:
+                continue
+        filtered.append(w)
+
+    return " ".join(filtered)
+
+
+def desc_similarity_strict(a: Candidate, b: Candidate) -> float:
+    da = normalize_description_for_dedupe(a.description)
+    db = normalize_description_for_dedupe(b.description)
+
+    if not da or not db:
+        return 0.0
+
+    score_ratio = float(fuzz.ratio(da, db))
+    score_sort = float(fuzz.token_sort_ratio(da, db))
+    return min(score_ratio, score_sort)
+
+
+# =========================
+# FACT EXTRACTION / CONTRADICTIONS
+# =========================
+def extract_surface(text: str) -> Optional[float]:
+    if not text:
+        return None
+
+    lower = text.lower()
+    patterns = [
+        r'(\d+(?:[.,]\d+)?)\s*m\s*²',
+        r'(\d+(?:[.,]\d+)?)\s*m2',
+        r'superficie\s*(?:de)?\s*(\d+(?:[.,]\d+)?)',
+    ]
+
+    for pattern in patterns:
+        m = re.search(pattern, lower)
+        if m:
+            try:
+                return float(m.group(1).replace(",", "."))
+            except ValueError:
+                return None
+    return None
+
+
+def extract_bedrooms(text: str) -> Optional[int]:
+    if not text:
+        return None
+
+    lower = text.lower()
+    patterns = [
+        r'\bs\s*\+\s*(\d+)\b',
+        r'\bs(\d+)\b',
+        r'(\d+)\s*chambres?',
+        r'(\d+)\s*bedrooms?',
+        r'(\d+)\s*lits?',
+    ]
+
+    for pattern in patterns:
+        m = re.search(pattern, lower)
+        if m:
+            return int(m.group(1))
+
+    return None
+
+
+def extract_bathrooms(text: str) -> Optional[int]:
+    if not text:
+        return None
+
+    lower = text.lower()
+    patterns = [
+        r'(\d+)\s*salles?\s*de\s*bain',
+        r'(\d+)\s*sd[b]?',
+        r'(\d+)\s*bathrooms?',
+    ]
+
+    for pattern in patterns:
+        m = re.search(pattern, lower)
+        if m:
+            return int(m.group(1))
+
+    return None
+
+
+def contradictory_facts(a: Candidate, b: Candidate) -> bool:
+    text_a = f"{a.title} {a.description}"
+    text_b = f"{b.title} {b.description}"
+
+    surf_a = extract_surface(text_a)
+    surf_b = extract_surface(text_b)
+    if surf_a is not None and surf_b is not None and abs(surf_a - surf_b) >= 15:
+        return True
+
+    beds_a = extract_bedrooms(text_a)
+    beds_b = extract_bedrooms(text_b)
+    if beds_a is not None and beds_b is not None and beds_a != beds_b:
+        return True
+
+    baths_a = extract_bathrooms(text_a)
+    baths_b = extract_bathrooms(text_b)
+    if baths_a is not None and baths_b is not None and baths_a != baths_b:
+        return True
+
+    return False
 
 
 # =========================
@@ -195,22 +506,12 @@ def same_image_and_price(a: Candidate, b: Candidate) -> bool:
         return False
     if a.image.strip() != b.image.strip():
         return False
-
-    if a.city != b.city:
+    if a.governorate != b.governorate:
         return False
-
     if a.price_value is None or b.price_value is None:
         return False
 
     return abs(a.price_value - b.price_value) <= max(a.price_value, b.price_value) * 0.03
-
-
-def title_similarity(a: Candidate, b: Candidate) -> float:
-    return float(fuzz.token_set_ratio(a.normalized_title, b.normalized_title))
-
-
-def desc_similarity(a: Candidate, b: Candidate) -> float:
-    return float(fuzz.token_set_ratio(a.normalized_description, b.normalized_description))
 
 
 def same_price(a: Candidate, b: Candidate, tolerance_ratio: float = 0.03) -> bool:
@@ -224,18 +525,28 @@ def is_duplicate(candidate: Candidate, existing: Candidate) -> Tuple[bool, str, 
     if same_exact_key(candidate, existing):
         return True, "same_exact_key", 100.0
 
-    if same_image_and_price(candidate, existing):
-        return True, "same_image_price_city", 98.0
+    if contradictory_facts(candidate, existing):
+        return False, "", None
 
-    if candidate.city == existing.city and same_price(candidate, existing):
-        t_score = title_similarity(candidate, existing)
-        d_score = desc_similarity(candidate, existing)
+    if (
+        same_image_and_price(candidate, existing)
+        and candidate.governorate == existing.governorate
+    ):
+        return True, "same_image_price_governorate", 98.0
 
-        if t_score >= 93:
-            return True, "fuzzy_title", round(t_score, 2)
+    if candidate.governorate == existing.governorate and same_price(candidate, existing):
+        title_score = float(
+            fuzz.token_sort_ratio(candidate.normalized_title, existing.normalized_title)
+        )
+        desc_score = desc_similarity_strict(candidate, existing)
 
-        if t_score >= 85 and d_score >= 88:
-            return True, "fuzzy_title_description", round((t_score + d_score) / 2, 2)
+        # very strong description alone
+        if desc_score >= 97:
+            return True, "strict_description", round(desc_score, 2)
+
+        # both title and description must be strong
+        if title_score >= 96 and desc_score >= 94:
+            return True, "strict_title_desc", round((title_score + desc_score) / 2, 2)
 
     return False, "", None
 
@@ -245,25 +556,6 @@ def is_duplicate(candidate: Candidate, existing: Candidate) -> Tuple[bool, str, 
 # =========================
 def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
-
-
-def validate_db_connection() -> None:
-    conn = None
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.fetchone()
-        cur.close()
-        print("Database connection OK")
-    except Error as exc:
-        raise RuntimeError(
-            "Unable to connect to MySQL. Check MYSQL_HOST, MYSQL_PORT, MYSQL_USER, "
-            "MYSQL_PASSWORD, MYSQL_DATABASE."
-        ) from exc
-    finally:
-        if conn is not None and conn.is_connected():
-            conn.close()
 
 
 def fetch_raw_rows(conn) -> List[Dict[str, Any]]:
@@ -281,9 +573,9 @@ def fetch_raw_rows(conn) -> List[Dict[str, Any]]:
             processed,
             scraped_at
         FROM {RAW_TABLE}
-        WHERE processed = 0
+        WHERE processed = %s
         ORDER BY id ASC
-    """)
+    """, (STATUS_NEW,))
     rows = cur.fetchall()
     cur.close()
     return rows
@@ -328,7 +620,7 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
             location_raw=row["location_raw"] or "",
             normalized_location=row["normalized_location"] or "",
             country=row["country"],
-            city=row["city"],
+            governorate=row["city"],
             description=row["description"] or "",
             normalized_description=row["normalized_description"] or "",
             image=row["image"] or "",
@@ -354,7 +646,7 @@ def insert_clean_listing(conn, c: Candidate) -> int:
     """, (
         c.raw_id, c.source, c.title, c.normalized_title,
         c.price_raw, c.price_value,
-        c.location_raw, c.normalized_location, c.country, c.city,
+        c.location_raw, c.normalized_location, c.country, c.governorate,
         c.description, c.normalized_description,
         c.image, c.url, c.dedupe_key, c.scraped_at
     ))
@@ -385,9 +677,41 @@ def insert_duplicate_log(conn, raw_row: Dict[str, Any], reason: str, matched_cle
     cur.close()
 
 
-def mark_raw_processed(conn, raw_id: int):
+def update_raw_status(conn, raw_id: int, status_code: int):
     cur = conn.cursor()
-    cur.execute(f"UPDATE {RAW_TABLE} SET processed = 1 WHERE id = %s", (raw_id,))
+    cur.execute(f"UPDATE {RAW_TABLE} SET processed = %s WHERE id = %s", (status_code, raw_id))
+    cur.close()
+
+
+def delete_raw_row(conn, raw_id: int):
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM {RAW_TABLE} WHERE id = %s", (raw_id,))
+    cur.close()
+
+
+def handle_old_raw_row(conn, raw_id: int):
+    if DELETE_OLD_RAW_ROWS:
+        delete_raw_row(conn, raw_id)
+    else:
+        update_raw_status(conn, raw_id, STATUS_TOO_OLD)
+
+
+def purge_old_live_data(conn):
+    cur = conn.cursor()
+    cutoff = cutoff_datetime()
+
+    if PURGE_OLD_CLEAN_LISTINGS:
+        cur.execute(
+            "DELETE FROM clean_listings WHERE scraped_at IS NOT NULL AND scraped_at < %s",
+            (cutoff,)
+        )
+
+    if PURGE_OLD_DUPLICATE_LOGS:
+        cur.execute(
+            "DELETE FROM duplicates_log WHERE created_at IS NOT NULL AND created_at < %s",
+            (cutoff,)
+        )
+
     cur.close()
 
 
@@ -404,11 +728,11 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     price_raw = clean_spaces(raw_row.get("price", ""))
 
     combined_geo_text = f"{title} {location} {description}"
-    country, city = detect_country_city(combined_geo_text)
+    country, governorate = detect_country_governorate(combined_geo_text)
 
     normalized_title = normalize_text(title)
     normalized_description = normalize_text(description)
-    normalized_location = build_normalized_location(country, city, location)
+    normalized_location = build_normalized_location(country, governorate, location)
     price_value = parse_price(price_raw)
 
     dedupe_source = "|".join([
@@ -429,7 +753,7 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
         location_raw=location,
         normalized_location=normalized_location,
         country=country,
-        city=city,
+        governorate=governorate,
         description=description,
         normalized_description=normalized_description,
         image=image,
@@ -443,25 +767,36 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
 # MAIN
 # =========================
 def main():
-    if DB_VALIDATE_ON_START:
-        validate_db_connection()
-
     conn = get_connection()
 
     try:
+        purge_old_live_data(conn)
+
         raw_rows = fetch_raw_rows(conn)
         existing_clean = load_existing_clean(conn)
 
         accepted = 0
         duplicates = 0
-        skipped = 0
+        skipped_rent = 0
+        skipped_outside_tunisia = 0
+        skipped_too_old = 0
 
         for raw_row in raw_rows:
+            if is_too_old(raw_row.get("scraped_at")):
+                handle_old_raw_row(conn, int(raw_row["id"]))
+                skipped_too_old += 1
+                continue
+
             candidate = build_candidate(raw_row)
 
-            if not candidate_matches_target(candidate.country, candidate.city):
-                mark_raw_processed(conn, candidate.raw_id)
-                skipped += 1
+            if is_for_rent(candidate.title, candidate.description, candidate.price_raw):
+                update_raw_status(conn, candidate.raw_id, STATUS_RENT)
+                skipped_rent += 1
+                continue
+
+            if not candidate_matches_target(candidate.country, candidate.governorate):
+                update_raw_status(conn, candidate.raw_id, STATUS_OUTSIDE_TUNISIA)
+                skipped_outside_tunisia += 1
                 continue
 
             found_duplicate = False
@@ -470,7 +805,7 @@ def main():
                 dup, reason, score = is_duplicate(candidate, existing)
                 if dup:
                     insert_duplicate_log(conn, raw_row, reason, clean_id, score)
-                    mark_raw_processed(conn, candidate.raw_id)
+                    update_raw_status(conn, candidate.raw_id, STATUS_DUPLICATE)
                     duplicates += 1
                     found_duplicate = True
                     break
@@ -480,7 +815,7 @@ def main():
 
             new_clean_id = insert_clean_listing(conn, candidate)
             existing_clean.append((new_clean_id, candidate))
-            mark_raw_processed(conn, candidate.raw_id)
+            update_raw_status(conn, candidate.raw_id, STATUS_ACCEPTED)
             accepted += 1
 
         conn.commit()
@@ -488,7 +823,10 @@ def main():
         print(f"Read raw rows: {len(raw_rows)}")
         print(f"Accepted: {accepted}")
         print(f"Duplicates: {duplicates}")
-        print(f"Skipped (outside Tunisia filter): {skipped}")
+        print(f"Skipped rent: {skipped_rent}")
+        print(f"Skipped outside Tunisia: {skipped_outside_tunisia}")
+        print(f"Skipped too old: {skipped_too_old}")
+        print(f"Old raw rows deleted: {'yes' if DELETE_OLD_RAW_ROWS else 'no'}")
 
     except Exception:
         conn.rollback()

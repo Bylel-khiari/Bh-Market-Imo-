@@ -205,6 +205,12 @@
   gap: 24px;
 }
 
+.map-section-home {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;

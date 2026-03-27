@@ -1,43 +1,303 @@
 .properties-page {
-  padding: 60px 0;
-  background: #f5f7fa;
   min-height: 100vh;
+  background: #f5f7fa;
 }
 
-.properties-page h1 {
-  color: #003366;
-  margin-bottom: 10px;
+.properties-hero {
+  background: linear-gradient(160deg, #0a2240 0%, #0d2d52 42%, #071a30 100%);
+  padding: 70px 0 54px;
+  position: relative;
+  overflow: hidden;
 }
 
-.properties-page p {
-  color: #666;
-  margin-bottom: 40px;
+.properties-hero::before {
+  content: '';
+  position: absolute;
+  right: -140px;
+  top: -120px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 0, 0, 0.12) 0%, rgba(255, 0, 0, 0) 70%);
+}
+
+.properties-hero-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.properties-tag {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #ff7373;
+  margin-bottom: 14px;
+}
+
+.properties-hero h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 42px;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+}
+
+.properties-hero p {
+  max-width: 720px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.7;
+}
+
+.properties-toolbar {
+  margin-top: 26px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.properties-search {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  border: 1px solid rgba(10, 34, 64, 0.12);
+}
+
+.properties-search svg {
+  color: #6a768b;
+}
+
+.properties-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  padding: 12px 0;
+  color: #172437;
+}
+
+.properties-refresh-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.properties-refresh-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(204, 0, 0, 0.28);
+}
+
+.properties-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 40px 50px;
+}
+
+.properties-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: #5b6678;
+  font-size: 14px;
 }
 
 .properties-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
 }
 
-.property-item {
-  background: white;
-  padding: 30px;
+.property-card {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(10, 34, 64, 0.08);
+  box-shadow: 0 8px 24px rgba(10, 34, 64, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.property-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(10, 34, 64, 0.14);
+}
+
+.property-media {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  background: #d9e0eb;
+}
+
+.property-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.property-card:hover .property-media img {
+  transform: scale(1.05);
+}
+
+.property-price {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  background: rgba(10, 34, 64, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 11px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
 }
 
-.property-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 16px rgba(0,51,102,0.15);
+.property-body {
+  padding: 16px;
 }
 
-.property-item h3 {
-  color: #003366;
-  margin-bottom: 10px;
+.property-body h3 {
+  margin: 0 0 9px;
+  color: #0a2240;
+  font-size: 18px;
+  line-height: 1.3;
 }
 
-.property-item p {
-  color: #666;
+.property-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #5f6f88;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.property-description {
+  margin: 0;
+  color: #3f4b5e;
+  font-size: 13px;
+  line-height: 1.55;
+  min-height: 60px;
+}
+
+.property-meta {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.property-meta span {
+  background: #eef2f8;
+  color: #31425d;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+.property-link {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: #cc0000;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.properties-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.property-skeleton {
+  height: 240px;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #e9edf4 8%, #f6f8fb 18%, #e9edf4 33%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+.properties-error,
+.properties-empty {
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 14px;
+}
+
+.properties-error {
+  background: #fff1f1;
+  border: 1px solid #ffcbcb;
+  color: #9d1616;
+}
+
+.properties-empty {
+  background: #edf3ff;
+  border: 1px solid #c9d7f0;
+  color: #1d3d67;
+}
+
+@media (max-width: 1024px) {
+  .properties-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .properties-loading-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .properties-hero h1 {
+    font-size: 34px;
+  }
+}
+
+@media (max-width: 768px) {
+  .properties-hero-content,
+  .properties-content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .properties-grid,
+  .properties-loading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .properties-summary {
+    flex-direction: column;
+  }
+
+  .properties-hero h1 {
+    font-size: 30px;
+  }
 }

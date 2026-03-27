@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Slider from 'react-slick';
 import { FaHome, FaChartLine, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle, FaMapMarkerAlt, FaBed, FaBath, FaArrowsAlt } from 'react-icons/fa';
+import TunisiaMapHome from '../components/TunisiaMapHome';
 import '../styles/Home.css';
 
 const Home = () => {
@@ -111,6 +112,17 @@ const Home = () => {
 
       {/* ── Main Content ── */}
       <div className="content-wrapper">
+
+        {/* ── Tunisia Map Section ── */}
+        <div className="map-section-home">
+          <div className="section-header">
+            <div>
+              <div className="section-tag">Carte interactive</div>
+              <h2>Carte des gouvernorats</h2>
+            </div>
+          </div>
+          <TunisiaMapHome />
+        </div>
 
         {/* ── Services Section ── */}
         <div className="services-section">
