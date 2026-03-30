@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaMapMarkerAlt, FaExternalLinkAlt, FaSearch, FaSyncAlt } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaSearch, FaSyncAlt } from 'react-icons/fa';
 import '../styles/Properties.css';
 
 const Properties = () => {
@@ -56,14 +56,6 @@ const Properties = () => {
     return property.price_raw || 'Prix non communique';
   };
 
-  const resolveImage = (property) => {
-    const imageUrl = (property.image || '').trim();
-    if (!imageUrl) {
-      return 'https://images.unsplash.com/photo-1560185008-b033106af5c3?w=1200&auto=format&fit=crop';
-    }
-    return imageUrl;
-  };
-
   return (
     <div className="properties-page">
       <section className="properties-hero">
@@ -105,46 +97,46 @@ const Properties = () => {
         )}
 
         {!loading && !error && (
-          <div className="properties-grid">
-            {filteredProperties.map((property) => (
-              <article className="property-card" key={property.id}>
-                <div className="property-media">
-                  <img src={resolveImage(property)} alt={property.title || 'Bien immobilier'} loading="lazy" />
-                  <span className="property-price">{formatPrice(property)}</span>
-                </div>
-
-                <div className="property-body">
-                  <h3>{property.title || 'Titre non disponible'}</h3>
-                  <p className="property-location">
-                    <FaMapMarkerAlt /> {property.location_raw || property.city || 'Localisation non disponible'}
-                  </p>
-                  <p className="property-description">
-                    {(property.description || 'Description non disponible').slice(0, 160)}
-                    {(property.description || '').length > 160 ? '...' : ''}
-                  </p>
-
-                  <div className="property-meta">
-                    <span>{property.city || 'Ville N/A'}</span>
-                    <span>{property.source || 'Source N/A'}</span>
-                  </div>
-
-                  {property.url && (
-                    <a href={property.url} target="_blank" rel="noreferrer" className="property-link">
-                      Voir l annonce <FaExternalLinkAlt />
-                    </a>
-                  )}
-                </div>
-              </article>
-            ))}
+          <div className="properties-table-wrap">
+            <table className="properties-table">
+              <thead>
+                <tr>
+                  <th>Titre</th>
+                  <th>Ville</th>
+                  <th>Localisation</th>
+                  <th>Prix</th>
+                  <th>Source</th>
+                  <th>Publie</th>
+                  <th>Lien</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProperties.map((property) => (
+                  <tr key={property.id}>
+                    <td>{property.title || 'Titre non disponible'}</td>
+                    <td>{property.city || 'Ville N/A'}</td>
+                    <td>{property.location_raw || 'Localisation non disponible'}</td>
+                    <td className="properties-price-cell">{formatPrice(property)}</td>
+                    <td>{property.source || 'Source N/A'}</td>
+                    <td>{property.scraped_at ? new Date(property.scraped_at).toLocaleDateString('fr-TN') : 'N/A'}</td>
+                    <td>
+                      {property.url ? (
+                        <a href={property.url} target="_blank" rel="noreferrer" className="property-link">
+                          Ouvrir <FaExternalLinkAlt />
+                        </a>
+                      ) : (
+                        'N/A'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
         {loading && (
-          <div className="properties-loading-grid">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div className="property-skeleton" key={index} />
-            ))}
-          </div>
+          <div className="properties-loading">Chargement des biens nettoyes...</div>
         )}
 
         {!loading && !error && filteredProperties.length === 0 && (

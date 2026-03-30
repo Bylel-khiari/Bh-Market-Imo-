@@ -17,7 +17,7 @@ DB_CONFIG = {
     "port": int(os.getenv("MYSQL_PORT", "3306")),
     "user": os.getenv("MYSQL_USER", "root"),
     "password": os.getenv("MYSQL_PASSWORD", ""),
-    "database": os.getenv("MYSQL_DATABASE", "raw_db"),
+    "database": os.getenv("MYSQL_DATABASE", "data_base"),
     "autocommit": False,
 }
 
