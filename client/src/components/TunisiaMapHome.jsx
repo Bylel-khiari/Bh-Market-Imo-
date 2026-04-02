@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { geoCentroid, geoMercator, geoPath } from 'd3-geo';
-import { adaptDatabaseListings, groupListingsByGovernorate, normalizeGovernorateName } from '../lib/mapDataAdapter';
+import { adaptDatabaseListings, normalizeGovernorateName, normalizeText } from '../lib/mapDataAdapter';
 import '../styles/TunisiaMapHome.css';
 
 const GEOJSON_URL =
@@ -37,13 +37,14 @@ function formatPrice(price, currency = 'TND') {
   return `${Number(price).toLocaleString()} ${currency}`;
 }
 
-export default function TunisiaMapHome({ width = 980, height = 700 }) {
+export default function TunisiaMapHome({ width = 980, height = 700, rows = null }) {
   const [geoJson, setGeoJson] = useState(null);
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [listings, setListings] = useState([]);
   const [selectedGovernorate, setSelectedGovernorate] = useState(null);
   const [hoveredGovernorate, setHoveredGovernorate] = useState(null);
+  const usesExternalRows = Array.isArray(rows);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -77,6 +78,15 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
   }, []);
 
   useEffect(() => {
+    if (!usesExternalRows) return;
+
+    const adapted = adaptDatabaseListings(rows);
+    setListings(adapted);
+  }, [rows, usesExternalRows]);
+
+  useEffect(() => {
+    if (usesExternalRows) return;
+
     let ignore = false;
 
     async function loadListings() {
@@ -106,11 +116,9 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [usesExternalRows]);
 
-  const listingsByGovernorate = useMemo(() => groupListingsByGovernorate(listings), [listings]);
-
-  const mapModel = useMemo(() => {
+  const mapFeatures = useMemo(() => {
     if (!geoJson) return null;
 
     const projection = geoMercator().fitExtent(
@@ -123,28 +131,79 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
 
     const pathGenerator = geoPath(projection);
 
-    const features = geoJson.features.map((feature) => {
+    return geoJson.features.map((feature) => {
       const rawName = getFeatureName(feature);
       const normalizedName = normalizeGovernorateName(rawName);
       const centroid = projection(geoCentroid(feature));
-      const count = listingsByGovernorate[normalizedName]?.length ?? 0;
 
       return {
         rawName,
         normalizedName,
         centroid,
-        count,
         path: pathGenerator(feature),
       };
     });
+  }, [geoJson, width, height]);
 
-    return { features };
-  }, [geoJson, width, height, listingsByGovernorate]);
+  const listingsByGovernorate = useMemo(() => {
+    if (!mapFeatures?.length) return {};
+
+    const byGovernorate = mapFeatures.reduce((acc, feature) => {
+      acc[feature.normalizedName] = [];
+      return acc;
+    }, {});
+
+    const findMatchingGovernorate = (listing) => {
+      const directCandidates = [
+        listing.governorate,
+        listing.raw?.city,
+        listing.raw?.governorate,
+        listing.raw?.region,
+      ]
+        .map((value) => normalizeGovernorateName(value || ''))
+        .filter(Boolean);
+
+      const directMatch = directCandidates.find((candidate) => byGovernorate[candidate]);
+      if (directMatch) return directMatch;
+
+      const searchableText = normalizeText(
+        [
+          listing.governorate,
+          listing.location,
+          listing.raw?.city,
+          listing.raw?.location_raw,
+          listing.raw?.title,
+          listing.raw?.description,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+
+      if (!searchableText) return null;
+
+      const fuzzyMatch = mapFeatures.find((feature) => {
+        if (!feature.normalizedName) return false;
+        const tokens = feature.normalizedName.split(' ').filter(Boolean);
+        return searchableText.includes(feature.normalizedName) || tokens.every((token) => searchableText.includes(token));
+      });
+
+      return fuzzyMatch?.normalizedName || null;
+    };
+
+    listings.forEach((listing) => {
+      const match = findMatchingGovernorate(listing);
+      if (match) {
+        byGovernorate[match].push(listing);
+      }
+    });
+
+    return byGovernorate;
+  }, [listings, mapFeatures]);
 
   const selectedGovernorateData = useMemo(() => {
     if (!selectedGovernorate) return null;
-    return mapModel?.features.find((item) => item.normalizedName === selectedGovernorate) || null;
-  }, [mapModel, selectedGovernorate]);
+    return mapFeatures?.find((item) => item.normalizedName === selectedGovernorate) || null;
+  }, [mapFeatures, selectedGovernorate]);
 
   const visibleListings = useMemo(() => {
     if (!selectedGovernorate) return listings.slice(0, 8);
@@ -152,9 +211,9 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
   }, [listings, listingsByGovernorate, selectedGovernorate]);
 
   const markers = useMemo(() => {
-    if (!mapModel) return [];
+    if (!mapFeatures?.length) return [];
 
-    return mapModel.features.flatMap((featureEntry) => {
+    return mapFeatures.flatMap((featureEntry) => {
       const items = listingsByGovernorate[featureEntry.normalizedName] || [];
       const spreadItems = computeMarkerOffsets(items);
 
@@ -164,9 +223,9 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
         y: featureEntry.centroid?.[1] ?? height / 2,
       }));
     });
-  }, [mapModel, listingsByGovernorate, width, height]);
+  }, [mapFeatures, listingsByGovernorate, width, height]);
 
-  const totalGovernorates = mapModel?.features.length ?? 24;
+  const totalGovernorates = mapFeatures?.length ?? 24;
 
   return (
     <div className="tn-full-layout">
@@ -197,14 +256,15 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
             </div>
           )}
 
-          {status === 'ready' && mapModel && (
+          {status === 'ready' && mapFeatures && (
             <svg viewBox={`0 0 ${width} ${height}`} className="tn-full-map" role="img" aria-label="Interactive Tunisia real estate map">
               <rect x="0" y="0" width={width} height={height} rx="24" className="tn-full-map-bg" />
 
-              {mapModel.features.map((item) => {
+              {mapFeatures.map((item) => {
                 const isHovered = hoveredGovernorate === item.normalizedName;
                 const isSelected = selectedGovernorate === item.normalizedName;
-                const hasListings = item.count > 0;
+                const count = listingsByGovernorate[item.normalizedName]?.length ?? 0;
+                const hasListings = count > 0;
 
                 return (
                   <g key={item.normalizedName}>
@@ -218,9 +278,14 @@ export default function TunisiaMapHome({ width = 980, height = 700 }) {
                       onClick={() => setSelectedGovernorate(item.normalizedName)}
                     />
                     {item.centroid && (
-                      <text x={item.centroid[0]} y={item.centroid[1]} className="tn-full-label" textAnchor="middle">
-                        {item.rawName}
-                      </text>
+                      <g>
+                        <text x={item.centroid[0]} y={item.centroid[1]} className="tn-full-label" textAnchor="middle">
+                          {item.rawName}
+                        </text>
+                        <text x={item.centroid[0]} y={item.centroid[1] + 12} className="tn-full-label tn-full-label--count" textAnchor="middle">
+                          {count}
+                        </text>
+                      </g>
                     )}
                   </g>
                 );

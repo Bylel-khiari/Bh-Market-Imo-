@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FaExternalLinkAlt, FaSearch, FaSyncAlt } from 'react-icons/fa';
+import TunisiaMapHome from '../components/TunisiaMapHome';
 import '../styles/Properties.css';
 
 const Properties = () => {
@@ -10,7 +11,7 @@ const Properties = () => {
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -29,11 +30,11 @@ const Properties = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [fetchProperties]);
 
   const filteredProperties = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -85,6 +86,14 @@ const Properties = () => {
       </section>
 
       <div className="properties-content">
+        <section className="properties-map-section">
+          <div className="properties-map-header">
+            <h2>Carte des biens nettoyes</h2>
+            <p>Les memes elements charges depuis clean_listings sont aussi affiches sur la carte.</p>
+          </div>
+          <TunisiaMapHome rows={properties} width={980} height={620} />
+        </section>
+
         <div className="properties-summary">
           <span>{loading ? 'Chargement...' : `${filteredProperties.length} bien(s) affiches`}</span>
           {query && <span>Filtre actif: "{query}"</span>}

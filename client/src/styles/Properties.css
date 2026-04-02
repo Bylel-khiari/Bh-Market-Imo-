@@ -114,6 +114,26 @@
   padding: 30px 40px 50px;
 }
 
+.properties-map-section {
+  margin-bottom: 18px;
+}
+
+.properties-map-header {
+  margin-bottom: 12px;
+}
+
+.properties-map-header h2 {
+  margin: 0;
+  color: #0a2240;
+  font-size: 24px;
+}
+
+.properties-map-header p {
+  margin: 6px 0 0;
+  color: #5b6678;
+  font-size: 14px;
+}
+
 .properties-summary {
   display: flex;
   justify-content: space-between;

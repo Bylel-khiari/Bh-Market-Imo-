@@ -122,6 +122,12 @@
   user-select: none;
 }
 
+.tn-full-label--count {
+  fill: rgba(110, 243, 255, 0.9);
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .tn-full-marker-ring {
   fill: rgba(110, 243, 255, 0.14);
   stroke: rgba(110, 243, 255, 0.8);
