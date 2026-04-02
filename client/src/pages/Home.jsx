@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Slider from 'react-slick';
 import { FaHome, FaChartLine, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle, FaMapMarkerAlt, FaBed, FaBath, FaArrowsAlt } from 'react-icons/fa';
@@ -6,6 +6,36 @@ import TunisiaMapHome from '../components/TunisiaMapHome';
 import '../styles/Home.css';
 
 const Home = () => {
+  const [mapRows, setMapRows] = useState([]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadMapRows() {
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/api/properties?limit=200`);
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const rows = Array.isArray(payload) ? payload : payload.data || payload.items || [];
+
+        if (!ignore) {
+          setMapRows(rows);
+        }
+      } catch {
+        if (!ignore) {
+          setMapRows([]);
+        }
+      }
+    }
+
+    loadMapRows();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const properties = [
     {
       id: 1,
@@ -121,7 +151,7 @@ const Home = () => {
               <h2>Carte des gouvernorats</h2>
             </div>
           </div>
-          <TunisiaMapHome />
+          <TunisiaMapHome rows={mapRows} />
         </div>
 
         {/* ── Services Section ── */}

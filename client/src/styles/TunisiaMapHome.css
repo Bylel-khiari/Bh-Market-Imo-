@@ -1,4 +1,14 @@
 .tn-full-layout {
+  --map-water: #8fcde8;
+  --map-water-soft: #bfe4f4;
+  --map-land: #f2efe7;
+  --map-land-active: #d9e8d5;
+  --map-border: #9fb4c4;
+  --map-panel-border: rgba(164, 182, 197, 0.42);
+  --map-text: #2f4353;
+  --map-muted: #6f808f;
+  --map-accent: #4f88b8;
+  --map-marker: #32a483;
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) 330px;
   gap: 16px;
@@ -6,12 +16,12 @@
 
 .tn-full-map-panel,
 .tn-full-side-card {
-  background: linear-gradient(180deg, rgba(9, 24, 32, 0.95), rgba(7, 18, 25, 0.95));
-  border: 1px solid rgba(110, 243, 255, 0.14);
+  background: linear-gradient(180deg, rgba(247, 250, 253, 0.98), rgba(236, 243, 248, 0.98));
+  border: 1px solid var(--map-panel-border);
   border-radius: 20px;
   box-shadow:
-    0 14px 38px rgba(0, 0, 0, 0.28),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    0 12px 28px rgba(40, 65, 86, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 .tn-full-map-panel {
@@ -34,14 +44,14 @@
 
 .tn-full-header h3,
 .tn-full-side-card h3 {
-  color: #e9fcff;
+  color: var(--map-text);
 }
 
 .tn-full-eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-size: 0.72rem;
-  color: #76f4ff;
+  color: var(--map-accent);
   margin-bottom: 6px;
 }
 
@@ -55,87 +65,107 @@
   min-width: 112px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: rgba(12, 32, 43, 0.86);
-  border: 1px solid rgba(110, 243, 255, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(168, 186, 201, 0.46);
 }
 
 .tn-full-stat-card span {
   display: block;
-  color: #96b3bc;
+  color: var(--map-muted);
   font-size: 0.75rem;
   margin-bottom: 4px;
 }
 
 .tn-full-stat-card strong {
-  color: #ecfdff;
+  color: var(--map-text);
   font-size: 1.1rem;
 }
 
 .tn-full-map-stage {
   position: relative;
-  min-height: 680px;
+  min-height: 780px;
   border-radius: 18px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 34% 24%, rgba(110, 243, 255, 0.1), transparent 24%),
-    linear-gradient(180deg, rgba(7, 18, 25, 0.95), rgba(4, 11, 16, 0.98));
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.44), transparent 30%),
+    radial-gradient(circle at 78% 78%, rgba(178, 219, 239, 0.34), transparent 42%),
+    linear-gradient(180deg, var(--map-water-soft) 0%, var(--map-water) 100%);
+}
+
+.tn-full-map-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(28deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(-34deg, rgba(102, 131, 150, 0.06) 0 1px, transparent 1px 30px);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 
 .tn-full-map {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: block;
 }
 
 .tn-full-map-bg {
-  fill: rgba(4, 13, 18, 0.98);
+  fill: rgba(143, 205, 232, 0.96);
 }
 
 .tn-full-path {
-  fill: rgba(123, 150, 161, 0.12);
-  stroke: rgba(120, 234, 255, 0.3);
-  stroke-width: 1.2;
+  fill: rgba(242, 239, 231, 0.95);
+  stroke: rgba(150, 170, 183, 0.8);
+  stroke-width: 1;
   transition: fill 150ms ease, stroke 150ms ease;
   cursor: pointer;
 }
 
 .tn-full-path--hovered,
 .tn-full-path:hover {
-  fill: rgba(110, 243, 255, 0.15);
-  stroke: rgba(110, 243, 255, 0.72);
+  fill: rgba(231, 239, 227, 0.97);
+  stroke: rgba(104, 139, 164, 0.96);
 }
 
 .tn-full-path--has-listings {
-  fill: rgba(110, 243, 255, 0.08);
+  fill: rgba(227, 238, 223, 0.97);
 }
 
 .tn-full-path--selected {
-  fill: rgba(110, 243, 255, 0.24);
-  stroke: rgba(120, 234, 255, 0.84);
+  fill: var(--map-land-active);
+  stroke: rgba(77, 123, 151, 1);
 }
 
 .tn-full-label {
-  fill: rgba(233, 253, 255, 0.72);
-  font-size: 10px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  fill: rgba(62, 82, 97, 0.92);
+  font-size: 9px;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.76);
   pointer-events: none;
   user-select: none;
 }
 
 .tn-full-label--count {
-  fill: rgba(110, 243, 255, 0.9);
+  fill: rgba(58, 123, 159, 0.95);
   font-size: 9px;
   font-weight: 700;
 }
 
-.tn-full-marker-ring {
-  fill: rgba(110, 243, 255, 0.14);
-  stroke: rgba(110, 243, 255, 0.8);
-  stroke-width: 1.4;
+.tn-full-marker {
+  pointer-events: none;
 }
 
-.tn-full-marker-dot {
-  fill: #e2ffff;
+.tn-full-marker-pin {
+  fill: var(--map-marker);
+  stroke: rgba(34, 114, 90, 0.92);
+  stroke-width: 1.1;
+  filter: drop-shadow(0 2px 2px rgba(20, 36, 49, 0.35));
+}
+
+.tn-full-marker-hole {
+  fill: rgba(244, 252, 250, 0.96);
 }
 
 .tn-full-side-panel {
@@ -149,7 +179,7 @@
 }
 
 .tn-full-muted {
-  color: #98b6bf;
+  color: var(--map-muted);
   line-height: 1.55;
 }
 
@@ -162,7 +192,7 @@
 }
 
 .tn-full-feed-header span {
-  color: #97b4bd;
+  color: var(--map-muted);
   font-size: 0.86rem;
 }
 
@@ -176,17 +206,17 @@
   text-align: left;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid rgba(110, 243, 255, 0.1);
-  background: rgba(9, 29, 39, 0.78);
-  color: #e9fcff;
+  border: 1px solid rgba(168, 185, 199, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--map-text);
   display: grid;
   gap: 5px;
   cursor: pointer;
 }
 
 .tn-full-listing-card:hover {
-  border-color: rgba(110, 243, 255, 0.38);
-  background: rgba(12, 37, 48, 0.95);
+  border-color: rgba(111, 152, 177, 0.72);
+  background: rgba(247, 251, 255, 0.98);
 }
 
 .tn-full-listing-source {
@@ -196,15 +226,15 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #6ef3ff;
-  background: rgba(110, 243, 255, 0.1);
+  color: #2c7f9a;
+  background: rgba(124, 190, 219, 0.24);
 }
 
 .tn-full-listing-meta {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  color: #8eaeb8;
+  color: var(--map-muted);
   font-size: 0.9rem;
 }
 
@@ -215,11 +245,11 @@
   min-height: 100%;
   text-align: center;
   padding: 20px;
-  color: #95b4bd;
+  color: var(--map-muted);
 }
 
 .tn-full-state-panel strong {
-  color: #e9fcff;
+  color: var(--map-text);
   display: block;
   margin-bottom: 6px;
 }
@@ -236,7 +266,7 @@
 
 @media (max-width: 768px) {
   .tn-full-map-stage {
-    min-height: 520px;
+    min-height: 620px;
   }
 
   .tn-full-header {

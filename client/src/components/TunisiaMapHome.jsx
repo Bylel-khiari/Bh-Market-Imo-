@@ -1,14 +1,76 @@
 import { useEffect, useMemo, useState } from 'react';
-import { geoCentroid, geoMercator, geoPath } from 'd3-geo';
+import { geoCentroid, geoMercator, geoPath, geoArea } from 'd3-geo';
 import { adaptDatabaseListings, normalizeGovernorateName, normalizeText } from '../lib/mapDataAdapter';
 import '../styles/TunisiaMapHome.css';
 
-const GEOJSON_URL =
+const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
+const FALLBACK_GEOJSON_URL =
   'https://raw.githubusercontent.com/riatelab/tunisie/refs/heads/master/data/TN-gouvernorats.geojson';
+
+const GOVERNORATE_NAME_BY_CODE = {
+  'TN-11': 'Tunis',
+  'TN-12': 'Ariana',
+  'TN-13': 'Ben Arous',
+  'TN-14': 'Manouba',
+  'TN-21': 'Nabeul',
+  'TN-22': 'Zaghouan',
+  'TN-23': 'Bizerte',
+  'TN-31': 'Beja',
+  'TN-32': 'Jendouba',
+  'TN-33': 'El Kef',
+  'TN-34': 'Siliana',
+  'TN-41': 'Kairouan',
+  'TN-42': 'Kasserine',
+  'TN-43': 'Sidi Bouzid',
+  'TN-51': 'Sousse',
+  'TN-52': 'Monastir',
+  'TN-53': 'Mahdia',
+  'TN-61': 'Sfax',
+  'TN-71': 'Gafsa',
+  'TN-72': 'Tozeur',
+  'TN-73': 'Kebili',
+  'TN-81': 'Gabes',
+  'TN-82': 'Medenine',
+  'TN-83': 'Tataouine',
+};
+
+function cleanGovernorateLabel(value = '') {
+  return String(value)
+    .replace(/BÃ©ja/gi, 'Beja')
+    .replace(/GabÃ¨s/gi, 'Gabes')
+    .replace(/KÃ©bili/gi, 'Kebili')
+    .replace(/MÃ©denine/gi, 'Medenine')
+    .trim();
+}
+
+function canonicalGovernorateKey(value = '') {
+  const base = normalizeGovernorateName(cleanGovernorateLabel(value));
+  const aliasMap = {
+    'le kef': 'kef',
+    'el kef': 'kef',
+    kef: 'kef',
+    mannouba: 'manouba',
+    manouba: 'manouba',
+    mednine: 'medenine',
+    medenine: 'medenine',
+    jandouba: 'jendouba',
+    'sidi bou zid': 'sidi bouzid',
+  };
+
+  return aliasMap[base] || base;
+}
 
 function getFeatureName(feature) {
   const props = feature?.properties ?? {};
-  return (
+  const code = props.shapeISO || props.gouv_id;
+  if (code && GOVERNORATE_NAME_BY_CODE[code]) {
+    return GOVERNORATE_NAME_BY_CODE[code];
+  }
+
+  const raw =
+    props.shapeName ||
+    props.gouv_fr ||
+    props.gouv_ar ||
     props.name ||
     props.NAME_1 ||
     props.nom ||
@@ -16,20 +78,29 @@ function getFeatureName(feature) {
     props.lib ||
     props.shapeName ||
     props.NAME ||
-    'Unknown'
-  );
+    'Unknown';
+
+  return cleanGovernorateLabel(raw);
 }
 
-function computeMarkerOffsets(items) {
-  return items.map((item, index) => {
-    const angle = (index / Math.max(1, items.length)) * Math.PI * 2;
-    const radius = Math.min(16, 4 + index * 2.6);
+function rewindGeometry(geometry) {
+  if (!geometry || !geometry.type || !geometry.coordinates) return geometry;
+
+  if (geometry.type === 'Polygon') {
     return {
-      ...item,
-      offsetX: Math.cos(angle) * radius,
-      offsetY: Math.sin(angle) * radius,
+      ...geometry,
+      coordinates: geometry.coordinates.map((ring) => [...ring].reverse()),
     };
-  });
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((polygon) => polygon.map((ring) => [...ring].reverse())),
+    };
+  }
+
+  return geometry;
 }
 
 function formatPrice(price, currency = 'TND') {
@@ -37,7 +108,7 @@ function formatPrice(price, currency = 'TND') {
   return `${Number(price).toLocaleString()} ${currency}`;
 }
 
-export default function TunisiaMapHome({ width = 980, height = 700, rows = null }) {
+export default function TunisiaMapHome({ width = 980, height = 820, rows = null }) {
   const [geoJson, setGeoJson] = useState(null);
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -54,17 +125,35 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
         setStatus('loading');
         setErrorMessage('');
 
-        const response = await fetch(GEOJSON_URL, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`GeoJSON request failed with ${response.status}`);
+        let data = null;
+
+        try {
+          const localResponse = await fetch(LOCAL_GEOJSON_URL, { signal: controller.signal });
+          if (!localResponse.ok) {
+            throw new Error(`Local GeoJSON request failed with ${localResponse.status}`);
+          }
+          data = await localResponse.json();
+        } catch {
+          const fallbackResponse = await fetch(FALLBACK_GEOJSON_URL, { signal: controller.signal });
+          if (!fallbackResponse.ok) {
+            throw new Error(`Fallback GeoJSON request failed with ${fallbackResponse.status}`);
+          }
+          data = await fallbackResponse.json();
         }
 
-        const data = await response.json();
         if (!data?.features?.length) {
           throw new Error('GeoJSON loaded but no features were found.');
         }
 
-        setGeoJson(data);
+        const rewoundData = {
+          ...data,
+          features: data.features.map((feature) => ({
+            ...feature,
+            geometry: rewindGeometry(feature.geometry),
+          })),
+        };
+
+        setGeoJson(rewoundData);
         setStatus('ready');
       } catch (error) {
         if (error.name === 'AbortError') return;
@@ -123,8 +212,8 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
 
     const projection = geoMercator().fitExtent(
       [
-        [36, 28],
-        [width - 36, height - 42],
+        [18, 18],
+        [width - 18, height - 18],
       ],
       geoJson
     );
@@ -132,11 +221,15 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
     const pathGenerator = geoPath(projection);
 
     return geoJson.features.map((feature) => {
+      const props = feature?.properties ?? {};
+      const governorateCode = props.shapeISO || props.gouv_id || null;
       const rawName = getFeatureName(feature);
-      const normalizedName = normalizeGovernorateName(rawName);
+      const normalizedName = canonicalGovernorateKey(rawName);
       const centroid = projection(geoCentroid(feature));
 
       return {
+        feature,
+        governorateCode,
         rawName,
         normalizedName,
         centroid,
@@ -145,11 +238,45 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
     });
   }, [geoJson, width, height]);
 
+  const governorateLabels = useMemo(() => {
+    if (!mapFeatures?.length) return [];
+
+    const byGovernorate = new Map();
+
+    mapFeatures.forEach((entry) => {
+      const key = entry.governorateCode || entry.normalizedName || canonicalGovernorateKey(entry.rawName) || entry.rawName;
+      if (!key) return;
+
+      const existing = byGovernorate.get(key);
+      const area = geoArea(entry.feature);
+
+      if (!existing || area > existing.area) {
+        byGovernorate.set(key, {
+          key,
+          label: GOVERNORATE_NAME_BY_CODE[entry.governorateCode] || entry.rawName,
+          x: entry.centroid?.[0],
+          y: entry.centroid?.[1],
+          area,
+        });
+      }
+    });
+
+    return Array.from(byGovernorate.values());
+  }, [mapFeatures]);
+
   const listingsByGovernorate = useMemo(() => {
     if (!mapFeatures?.length) return {};
 
+    const codeByNormalizedName = mapFeatures.reduce((acc, feature) => {
+      if (feature.normalizedName && feature.governorateCode) {
+        acc[feature.normalizedName] = feature.governorateCode;
+      }
+      return acc;
+    }, {});
+
     const byGovernorate = mapFeatures.reduce((acc, feature) => {
-      acc[feature.normalizedName] = [];
+      const key = feature.governorateCode || feature.normalizedName;
+      if (key) acc[key] = [];
       return acc;
     }, {});
 
@@ -160,10 +287,10 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
         listing.raw?.governorate,
         listing.raw?.region,
       ]
-        .map((value) => normalizeGovernorateName(value || ''))
+        .map((value) => canonicalGovernorateKey(value || ''))
         .filter(Boolean);
 
-      const directMatch = directCandidates.find((candidate) => byGovernorate[candidate]);
+      const directMatch = directCandidates.find((candidate) => codeByNormalizedName[candidate]);
       if (directMatch) return directMatch;
 
       const searchableText = normalizeText(
@@ -192,8 +319,9 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
 
     listings.forEach((listing) => {
       const match = findMatchingGovernorate(listing);
-      if (match) {
-        byGovernorate[match].push(listing);
+      const key = codeByNormalizedName[match] || null;
+      if (key && byGovernorate[key]) {
+        byGovernorate[key].push(listing);
       }
     });
 
@@ -202,7 +330,7 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
 
   const selectedGovernorateData = useMemo(() => {
     if (!selectedGovernorate) return null;
-    return mapFeatures?.find((item) => item.normalizedName === selectedGovernorate) || null;
+    return mapFeatures?.find((item) => item.governorateCode === selectedGovernorate) || null;
   }, [mapFeatures, selectedGovernorate]);
 
   const visibleListings = useMemo(() => {
@@ -211,21 +339,19 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
   }, [listings, listingsByGovernorate, selectedGovernorate]);
 
   const markers = useMemo(() => {
-    if (!mapFeatures?.length) return [];
+    if (!governorateLabels?.length) return [];
 
-    return mapFeatures.flatMap((featureEntry) => {
-      const items = listingsByGovernorate[featureEntry.normalizedName] || [];
-      const spreadItems = computeMarkerOffsets(items);
+    return governorateLabels
+      .map((item) => ({
+        key: item.key,
+        x: item.x,
+        y: item.y,
+        count: listingsByGovernorate[item.key]?.length ?? 0,
+      }))
+      .filter((item) => item.count > 0 && item.x != null && item.y != null);
+  }, [governorateLabels, listingsByGovernorate]);
 
-      return spreadItems.map((item) => ({
-        ...item,
-        x: featureEntry.centroid?.[0] ?? width / 2,
-        y: featureEntry.centroid?.[1] ?? height / 2,
-      }));
-    });
-  }, [mapFeatures, listingsByGovernorate, width, height]);
-
-  const totalGovernorates = mapFeatures?.length ?? 24;
+  const totalGovernorates = governorateLabels.length || 24;
 
   return (
     <div className="tn-full-layout">
@@ -260,45 +386,54 @@ export default function TunisiaMapHome({ width = 980, height = 700, rows = null 
             <svg viewBox={`0 0 ${width} ${height}`} className="tn-full-map" role="img" aria-label="Interactive Tunisia real estate map">
               <rect x="0" y="0" width={width} height={height} rx="24" className="tn-full-map-bg" />
 
-              {mapFeatures.map((item) => {
-                const isHovered = hoveredGovernorate === item.normalizedName;
-                const isSelected = selectedGovernorate === item.normalizedName;
-                const count = listingsByGovernorate[item.normalizedName]?.length ?? 0;
+              {mapFeatures.map((item, index) => {
+                const isHovered = hoveredGovernorate === item.governorateCode;
+                const isSelected = selectedGovernorate === item.governorateCode;
+                const count = listingsByGovernorate[item.governorateCode]?.length ?? 0;
                 const hasListings = count > 0;
 
                 return (
-                  <g key={item.normalizedName}>
+                  <g key={`${item.governorateCode || item.normalizedName || 'gov'}-${index}`}>
                     <path
                       d={item.path}
                       className={`tn-full-path ${hasListings ? 'tn-full-path--has-listings' : ''} ${
                         isHovered ? 'tn-full-path--hovered' : ''
                       } ${isSelected ? 'tn-full-path--selected' : ''}`}
-                      onMouseEnter={() => setHoveredGovernorate(item.normalizedName)}
+                      onMouseEnter={() => setHoveredGovernorate(item.governorateCode)}
                       onMouseLeave={() => setHoveredGovernorate(null)}
-                      onClick={() => setSelectedGovernorate(item.normalizedName)}
+                      onClick={() => setSelectedGovernorate(item.governorateCode)}
                     />
-                    {item.centroid && (
-                      <g>
-                        <text x={item.centroid[0]} y={item.centroid[1]} className="tn-full-label" textAnchor="middle">
-                          {item.rawName}
-                        </text>
-                        <text x={item.centroid[0]} y={item.centroid[1] + 12} className="tn-full-label tn-full-label--count" textAnchor="middle">
-                          {count}
-                        </text>
-                      </g>
-                    )}
+                  </g>
+                );
+              })}
+
+              {governorateLabels.map((item) => {
+                const count = listingsByGovernorate[item.key]?.length ?? 0;
+                if (item.x == null || item.y == null) return null;
+
+                return (
+                  <g key={`label-${item.key}`}>
+                    <text x={item.x} y={item.y} className="tn-full-label" textAnchor="middle">
+                      {item.label}
+                    </text>
+                    <text x={item.x} y={item.y + 12} className="tn-full-label tn-full-label--count" textAnchor="middle">
+                      {count}
+                    </text>
                   </g>
                 );
               })}
 
               {markers.map((marker) => (
                 <g
-                  key={marker.id}
-                  transform={`translate(${marker.x + marker.offsetX}, ${marker.y + marker.offsetY})`}
+                  key={marker.key}
+                  transform={`translate(${marker.x}, ${marker.y - 6})`}
                   className="tn-full-marker"
                 >
-                  <circle r="8" className="tn-full-marker-ring" />
-                  <circle r="4" className="tn-full-marker-dot" />
+                  <path
+                    className="tn-full-marker-pin"
+                    d="M0 -10 C5 -10 9 -6 9 -1 C9 5 3 10 0 15 C-3 10 -9 5 -9 -1 C-9 -6 -5 -10 0 -10 Z"
+                  />
+                  <circle r="3" cy="-2" className="tn-full-marker-hole" />
                 </g>
               ))}
             </svg>
