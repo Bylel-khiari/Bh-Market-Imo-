@@ -9,10 +9,17 @@ class PropertySpider(scrapy.Spider):
         ads = response.css("div.card")
 
         for ad in ads:
+            image = (
+                ad.css("img::attr(src)").get()
+                or ad.css("img::attr(data-src)").get()
+                or ad.css("img::attr(data-lazy-src)").get()
+            )
             yield {
                 "title": ad.css("h2::text").get(),
                 "price": ad.css(".price::text").get(),
                 "location": ad.css(".location::text").get(),
+                "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
+                "url": response.url,
             }
 
         # pagination (page suivante)

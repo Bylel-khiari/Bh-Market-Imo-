@@ -91,11 +91,17 @@ class TecnocasaSpider(scrapy.Spider):
                 end = page_text.find("REF.:")
                 if end > start:
                     description = page_text[start:end].strip()
+        image = (
+            response.css("meta[property='og:image']::attr(content)").get()
+            or response.css("meta[name='twitter:image']::attr(content)").get()
+            or response.css("img::attr(src)").get()
+        )
 
         yield {
             "title": title,
             "price": price,
             "location": location,
             "description": description,
+            "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
             "url": response.url,
         }

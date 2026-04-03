@@ -27,12 +27,22 @@ app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
 
+app.get("/api/health/db", async (req, res) => {
+  try {
+    const [rows] = await dbPool.query("SELECT 1 AS ok");
+    res.json({ ok: true, db: rows?.[0]?.ok === 1 ? "connected" : "unknown" });
+  } catch (error) {
+    console.error("DB health check failed:", error);
+    res.status(500).json({ ok: false, db: "disconnected", message: error.message });
+  }
+});
+
 app.get("/api/properties", async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 24, 1), 200);
     const city = (req.query.city || "").toString().trim().toLowerCase();
 
-    const sql = `
+    let sql = `
       SELECT
         id,
         title,
@@ -40,6 +50,7 @@ app.get("/api/properties", async (req, res) => {
         price_value,
         location_raw,
         city,
+        city AS governorate,
         country,
         image,
         description,
@@ -47,13 +58,21 @@ app.get("/api/properties", async (req, res) => {
         url,
         scraped_at
       FROM clean_listings
-      WHERE (? = '' OR city = ?)
-      ORDER BY COALESCE(scraped_at, NOW()) DESC, id DESC
-      LIMIT ?
     `;
 
-    const [rows] = await dbPool.execute(sql, [city, city, limit]);
-    res.json({ count: rows.length, data: rows });
+    const params = [];
+    if (city) {
+      sql += " WHERE LOWER(city) = ?";
+      params.push(city);
+    }
+
+    sql += `
+      ORDER BY COALESCE(scraped_at, NOW()) DESC, id DESC
+      LIMIT ${limit}
+    `;
+
+    const [rows] = await dbPool.execute(sql, params);
+    res.json({ count: rows.length, data: rows, items: rows });
   } catch (error) {
     console.error("Failed to fetch properties:", error);
     res.status(500).json({ message: "Failed to fetch properties" });

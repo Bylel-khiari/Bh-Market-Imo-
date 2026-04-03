@@ -71,11 +71,17 @@ class ImmoParticuliersSpider(scrapy.Spider):
             description = response.css("meta[property='og:description']::attr(content)").get()
         if isinstance(description, str):
             description = re.sub(r"\s+", " ", description).strip()
+        image = (
+            response.css("meta[property='og:image']::attr(content)").get()
+            or response.css("meta[name='twitter:image']::attr(content)").get()
+            or response.css("img::attr(src)").get()
+        )
 
         yield {
             "title": title,
             "price": price,
             "location": location,
             "description": description,
+            "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
             "url": response.url,
         }

@@ -107,11 +107,17 @@ class ImmobiliereSallouhaSpider(scrapy.Spider):
                     amount = match.group(1).strip()
                     currency = match.group(2).upper()
                     price = f"{amount} {currency}"
+        image = (
+            response.css("meta[property='og:image']::attr(content)").get()
+            or response.css("meta[name='twitter:image']::attr(content)").get()
+            or response.css("img::attr(src)").get()
+        )
 
         yield {
             "title": title,
             "price": price,
             "location": location,
             "description": description,
+            "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
             "url": response.url,
         }

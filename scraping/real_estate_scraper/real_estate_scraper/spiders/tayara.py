@@ -38,11 +38,26 @@ class TayaraSpider(scrapy.Spider):
             governorate = location_data.get("governorate")
             delegation = location_data.get("delegation")
             location = ", ".join([part for part in [delegation, governorate] if part])
+            image = (
+                ad.get("image")
+                or ad.get("imageUrl")
+                or ad.get("thumbnail")
+                or ad.get("thumbnailUrl")
+            )
+            if not image:
+                images = ad.get("images")
+                if isinstance(images, list) and images:
+                    first = images[0]
+                    if isinstance(first, dict):
+                        image = first.get("url") or first.get("src")
+                    elif isinstance(first, str):
+                        image = first
 
             yield {
                 "title": ad.get("title"),
                 "price": str(ad.get("price")) if ad.get("price") is not None else None,
                 "location": location or None,
                 "description": ad.get("description"),
+                "image": image,
                 "url": response.url,
             }

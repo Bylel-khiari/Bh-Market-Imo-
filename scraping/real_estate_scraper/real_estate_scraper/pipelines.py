@@ -4,12 +4,7 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
 import mysql.connector
-import re
-from urllib.parse import urljoin
-from urllib.request import Request, urlopen
 
 
 class RealEstateScraperPipeline:
@@ -39,51 +34,23 @@ class RawPipeline:
             database="data_base"
         )
         self.cursor = self.conn.cursor()
-        self._image_cache = {}
-
-    def _extract_image_from_url(self, url):
-        if not url:
-            return None
-
-        if url in self._image_cache:
-            return self._image_cache[url]
-
-        image = None
-        try:
-            req = Request(
-                url,
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
-            with urlopen(req, timeout=12) as resp:
-                html = resp.read(512000).decode("utf-8", errors="ignore")
-
-            patterns = [
-                r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
-                r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-                r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)',
-                r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
-                r'<img[^>]+src=["\']([^"\']+)',
-            ]
-
-            for pattern in patterns:
-                m = re.search(pattern, html, flags=re.IGNORECASE)
-                if not m:
-                    continue
-                candidate = (m.group(1) or "").strip()
-                if not candidate:
-                    continue
-                if candidate.startswith("data:"):
-                    continue
-                image = urljoin(url, candidate)
-                break
-        except Exception:
-            image = None
-
-        self._image_cache[url] = image
-        return image
+        self._pending_writes = 0
+        self._commit_every = 50
+        self._existing_by_source = {}
+        self.cursor.execute(
+            "SELECT id, url, image FROM raw_properties WHERE source = %s",
+            (spider.name,),
+        )
+        self._existing_by_source[spider.name] = {
+            (row[1] or ""): {"id": row[0], "image": row[2]}
+            for row in self.cursor.fetchall()
+            if row and row[1]
+        }
 
     def close_spider(self, spider):
         try:
+            if self._pending_writes:
+                self.conn.commit()
             self.cursor.close()
         finally:
             self.conn.close()
@@ -120,23 +87,20 @@ class RawPipeline:
         source = spider.name
         image = self._extract_image_from_item(item)
 
-        if not image and url:
-            image = self._extract_image_from_url(url)
-
+        source_cache = self._existing_by_source.get(source, {})
         if url:
-            self.cursor.execute(
-                "SELECT id, image FROM raw_properties WHERE source = %s AND url = %s LIMIT 1",
-                (source, url),
-            )
-            existing = self.cursor.fetchone()
+            existing = source_cache.get(url)
             if existing:
-                existing_id, existing_image = existing
-                if (not existing_image or not str(existing_image).strip()) and image:
+                if (not existing.get("image") or not str(existing.get("image")).strip()) and image:
                     self.cursor.execute(
                         "UPDATE raw_properties SET image = %s WHERE id = %s",
-                        (image, existing_id),
+                        (image, existing["id"]),
                     )
-                    self.conn.commit()
+                    existing["image"] = image
+                    self._pending_writes += 1
+                    if self._pending_writes >= self._commit_every:
+                        self.conn.commit()
+                        self._pending_writes = 0
                 return item
 
         self.cursor.execute("""
@@ -152,5 +116,11 @@ class RawPipeline:
             source
         ))
 
-        self.conn.commit()
+        if url:
+            source_cache[url] = {"id": self.cursor.lastrowid, "image": image}
+
+        self._pending_writes += 1
+        if self._pending_writes >= self._commit_every:
+            self.conn.commit()
+            self._pending_writes = 0
         return item
