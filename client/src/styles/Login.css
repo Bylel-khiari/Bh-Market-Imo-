@@ -392,6 +392,13 @@
 }
 
 .login-submit-btn:hover::before {
+
+.login-error-message {
+  margin: 14px 0 0;
+  color: #a11b1b;
+  font-size: 13px;
+  font-weight: 500;
+}
   left: 100%;
 }
 

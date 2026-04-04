@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaEnvelope, FaHome, FaCalculator, FaChartLine, FaShieldAlt } from 'react-icons/fa';
+import { FaEnvelope, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
@@ -50,28 +50,6 @@ const ForgotPassword = () => {
             </div>
           </div>
 
-          <div className="login-trust">
-            <div className="login-trust-stats">
-              <div className="login-stat">
-                <strong>15K+</strong>
-                <span>Clients</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>3K+</strong>
-                <span>Biens</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>98%</strong>
-                <span>Satisfaction</span>
-              </div>
-            </div>
-            <div className="login-trust-badge">
-              <FaShieldAlt />
-              <span>Reinitialisation securisee - Donnees protegees</span>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ const Properties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [focusedId, setFocusedId] = useState(null);
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -40,6 +41,7 @@ const Properties = () => {
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
   const searchLocation = (searchParams.get('location') || '').trim().toLowerCase();
   const searchType = (searchParams.get('type') || '').trim().toLowerCase();
+  const focusId = (searchParams.get('focusId') || '').trim();
 
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
@@ -65,6 +67,20 @@ const Properties = () => {
       return matchesQuery && matchesLocation && matchesType;
     });
   }, [properties, searchQuery, searchLocation, searchType]);
+
+  useEffect(() => {
+    if (loading || !focusId) return;
+
+    const selector = `[data-property-id="${focusId}"]`;
+    const target = document.querySelector(selector);
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFocusedId(String(focusId));
+
+    const timeoutId = setTimeout(() => setFocusedId(null), 2200);
+    return () => clearTimeout(timeoutId);
+  }, [focusId, loading, filteredProperties]);
 
   const formatPrice = (property) => {
     const numeric = Number(property.price_value);
@@ -121,7 +137,11 @@ const Properties = () => {
         {!loading && !error && (
           <div className="properties-grid">
             {filteredProperties.map((property) => (
-              <article className="property-card" key={property.id}>
+              <article
+                className={`property-card ${focusedId === String(property.id) ? 'property-card--focused' : ''}`}
+                key={property.id}
+                data-property-id={property.id}
+              >
                 <div className="property-card-image-wrap">
                   {property.image ? (
                     <img src={property.image} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />

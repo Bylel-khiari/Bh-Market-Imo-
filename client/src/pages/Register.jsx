@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FaUser,
   FaEnvelope,
@@ -9,21 +9,53 @@ import {
   FaHome,
   FaCalculator,
   FaChartLine,
-  FaShieldAlt,
 } from 'react-icons/fa';
 import logo from '../assets/favicon.ico';
+import { registerApi, saveAuthSession } from '../lib/auth';
 import '../styles/Login.css';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setErrorMessage('Veuillez remplir tous les champs obligatoires.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const payload = await registerApi({
+        name: fullName.trim(),
+        email: email.trim(),
+        password,
+        role: 'client',
+      });
+
+      saveAuthSession({ token: payload.token, user: payload.user });
+      navigate('/');
+    } catch (error) {
+      setErrorMessage(error.message || "Echec de l'inscription.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,28 +97,6 @@ const Register = () => {
             </div>
           </div>
 
-          <div className="login-trust">
-            <div className="login-trust-stats">
-              <div className="login-stat">
-                <strong>15K+</strong>
-                <span>Clients</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>3K+</strong>
-                <span>Biens</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>98%</strong>
-                <span>Satisfaction</span>
-              </div>
-            </div>
-            <div className="login-trust-badge">
-              <FaShieldAlt />
-              <span>Inscription securisee - Protection des donnees</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -161,8 +171,10 @@ const Register = () => {
             </div>
 
             <button type="submit" className="login-submit-btn">
-              S'inscrire
+              {isSubmitting ? 'Inscription...' : "S'inscrire"}
             </button>
+
+            {errorMessage && <p className="login-error-message">{errorMessage}</p>}
 
             <div className="login-divider">
               <span>ou</span>

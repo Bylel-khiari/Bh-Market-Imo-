@@ -155,6 +155,11 @@
   flex-direction: column;
 }
 
+.property-card--focused {
+  border-color: #e10000;
+  box-shadow: 0 0 0 3px rgba(225, 0, 0, 0.18), 0 12px 30px rgba(10, 34, 64, 0.14);
+}
+
 .property-card-image-wrap {
   position: relative;
   height: 190px;

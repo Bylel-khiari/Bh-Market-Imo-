@@ -32,27 +32,6 @@
   text-align: center;
 }
 
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 18px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 28px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.hero-badge svg {
-  color: #ff3333;
-  font-size: 12px;
-}
-
 .hero-section h1 {
   font-size: 48px;
   font-weight: 700;
@@ -138,54 +117,6 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* ── Stats Bar ── */
-
-.stats-section {
-  max-width: 1200px;
-  margin: -40px auto 0;
-  padding: 0 40px;
-  position: relative;
-  z-index: 2;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px 20px;
-  text-align: center;
-  box-shadow: 0 4px 20px rgba(10, 34, 64, 0.08);
-  border: 1px solid rgba(10, 34, 64, 0.04);
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(10, 34, 64, 0.12);
-}
-
-.stat-number {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0A2240;
-  letter-spacing: -0.5px;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #8a8fa3;
-  margin-top: 6px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 /* ── Content Wrapper ── */
 
 .content-wrapper {
@@ -209,6 +140,13 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.map-section-home .tn-full-layout {
+  --map-stage-height: 760px;
+  --side-feed-max-height: 620px;
+  grid-template-columns: minmax(0, 1.5fr) 360px;
+  max-width: 100%;
 }
 
 .section-header {
@@ -237,6 +175,11 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
+}
+
+.services-grid--client {
+  grid-template-columns: repeat(3, minmax(240px, 280px));
+  justify-content: center;
 }
 
 .service-card {
@@ -542,6 +485,10 @@
   .services-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .services-grid--client {
+    grid-template-columns: repeat(2, minmax(240px, 320px));
+  }
 }
 
 @media (max-width: 768px) {
@@ -592,6 +539,10 @@
   .services-grid {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .services-grid--client {
+    grid-template-columns: 1fr;
   }
 
   .service-card {

@@ -9,9 +9,14 @@
   --map-muted: #6f808f;
   --map-accent: #4f88b8;
   --map-marker: #32a483;
+  --map-stage-height: 700px;
+  --side-feed-max-height: 560px;
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) 330px;
+  grid-template-columns: minmax(0, 1.4fr) 350px;
   gap: 16px;
+  align-items: start;
+  max-width: 1460px;
+  margin: 0 auto;
 }
 
 .tn-full-map-panel,
@@ -83,24 +88,15 @@
 
 .tn-full-map-stage {
   position: relative;
-  min-height: 780px;
+  height: var(--map-stage-height);
+  min-height: var(--map-stage-height);
   border-radius: 18px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.44), transparent 30%),
-    radial-gradient(circle at 78% 78%, rgba(178, 219, 239, 0.34), transparent 42%),
-    linear-gradient(180deg, var(--map-water-soft) 0%, var(--map-water) 100%);
+  background: rgba(143, 205, 232, 0.96);
 }
 
 .tn-full-map-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(28deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 28px),
-    repeating-linear-gradient(-34deg, rgba(102, 131, 150, 0.06) 0 1px, transparent 1px 30px);
-  mix-blend-mode: soft-light;
-  pointer-events: none;
+  content: none;
 }
 
 .tn-full-map {
@@ -109,6 +105,8 @@
   width: 100%;
   height: 100%;
   display: block;
+  transform: scale(1.08);
+  transform-origin: center center;
 }
 
 .tn-full-map-bg {
@@ -154,7 +152,7 @@
 }
 
 .tn-full-marker {
-  pointer-events: none;
+  display: none;
 }
 
 .tn-full-marker-pin {
@@ -199,6 +197,9 @@
 .tn-full-listing-feed {
   display: grid;
   gap: 10px;
+  max-height: var(--side-feed-max-height);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .tn-full-listing-card {
@@ -261,12 +262,19 @@
 @media (max-width: 1120px) {
   .tn-full-layout {
     grid-template-columns: 1fr;
+    max-width: none;
   }
 }
 
 @media (max-width: 768px) {
   .tn-full-map-stage {
     min-height: 620px;
+  }
+
+  .tn-full-listing-feed {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
   }
 
   .tn-full-header {

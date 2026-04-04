@@ -1,0 +1,74 @@
+.profile-management-page {
+  min-height: 100vh;
+  background: #f4f7fb;
+  padding: 44px 20px;
+}
+
+.profile-management-container {
+  max-width: 980px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.profile-management-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-management-head h1 {
+  margin: 0;
+  color: #0a2240;
+}
+
+.pm-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(10, 34, 64, 0.08);
+  box-shadow: 0 6px 20px rgba(10, 34, 64, 0.06);
+  padding: 20px;
+}
+
+.pm-card h2 {
+  margin: 0 0 14px;
+  color: #10335d;
+}
+
+.pm-card p {
+  margin: 0;
+  color: #586b86;
+  line-height: 1.6;
+}
+
+.pm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pm-field {
+  display: grid;
+  gap: 6px;
+}
+
+.pm-field label {
+  font-size: 13px;
+  color: #516583;
+  font-weight: 600;
+}
+
+.pm-field input {
+  border: 1px solid #cfdaeb;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #f8fbff;
+  color: #1f3555;
+}
+
+@media (max-width: 700px) {
+  .pm-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,16 +1,38 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine, FaShieldAlt } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import logo from '../assets/favicon.ico';
+import { loginApi, saveAuthSession } from '../lib/auth';
 import '../styles/Login.css';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!identifier.trim() || !password.trim()) {
+      setErrorMessage('Veuillez saisir votre email et votre mot de passe.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const payload = await loginApi({ email: identifier.trim(), password });
+      saveAuthSession({ token: payload.token, user: payload.user });
+      navigate('/');
+    } catch (error) {
+      setErrorMessage(error.message || 'Echec de connexion.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -52,28 +74,6 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="login-trust">
-            <div className="login-trust-stats">
-              <div className="login-stat">
-                <strong>15K+</strong>
-                <span>Clients</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>3K+</strong>
-                <span>Biens</span>
-              </div>
-              <div className="login-stat-divider"></div>
-              <div className="login-stat">
-                <strong>98%</strong>
-                <span>Satisfaction</span>
-              </div>
-            </div>
-            <div className="login-trust-badge">
-              <FaShieldAlt />
-              <span>Connexion 100% securisee — SSL</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -91,8 +91,8 @@ const Login = () => {
                 <FaUser />
               </div>
               <input
-                type="text"
-                placeholder="Identifiant"
+                type="email"
+                placeholder="Adresse email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
               />
@@ -128,8 +128,10 @@ const Login = () => {
             </div>
 
             <button type="submit" className="login-submit-btn">
-              Se connecter
+              {isSubmitting ? 'Connexion...' : 'Se connecter'}
             </button>
+
+            {errorMessage && <p className="login-error-message">{errorMessage}</p>}
 
             <div className="login-divider">
               <span>ou</span>

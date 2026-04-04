@@ -9,6 +9,22 @@
   margin-bottom: 40px;
 }
 
+.profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.profile-logout-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #d91616;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .profile-content {
   display: grid;
   gap: 20px;

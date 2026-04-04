@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { geoCentroid, geoMercator, geoPath, geoArea } from 'd3-geo';
 import { adaptDatabaseListings, normalizeGovernorateName, normalizeText } from '../lib/mapDataAdapter';
 import '../styles/TunisiaMapHome.css';
@@ -109,6 +110,7 @@ function formatPrice(price, currency = 'TND') {
 }
 
 export default function TunisiaMapHome({ width = 980, height = 820, rows = null }) {
+  const navigate = useNavigate();
   const [geoJson, setGeoJson] = useState(null);
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -353,6 +355,11 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
 
   const totalGovernorates = governorateLabels.length || 24;
 
+  const handleListingClick = (listing) => {
+    if (!listing?.id) return;
+    navigate(`/properties?focusId=${encodeURIComponent(listing.id)}`);
+  };
+
   return (
     <div className="tn-full-layout">
       <section className="tn-full-map-panel">
@@ -456,7 +463,12 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
 
           <div className="tn-full-listing-feed">
             {visibleListings.map((listing) => (
-              <button key={listing.id} className="tn-full-listing-card" type="button">
+              <button
+                key={listing.id}
+                className="tn-full-listing-card"
+                type="button"
+                onClick={() => handleListingClick(listing)}
+              >
                 <span className="tn-full-listing-source">{listing.source || 'source'}</span>
                 <strong>{listing.title || listing.reference || `Listing #${listing.id}`}</strong>
                 <span>{listing.location || listing.city || listing.governorate}</span>
