@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaUser, FaBars, FaTimes, FaMapMarkerAlt, FaHome, FaBuilding, FaWarehouse, FaStore, FaArrowRight } from 'react-icons/fa';
 import '../styles/Navbar.css';
 import logo from '../assets/favicon.ico';
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +53,27 @@ const Navbar = () => {
     }
   };
 
+  const runSearch = (overrides = {}) => {
+    const q = (overrides.q ?? searchQuery).trim();
+    const city = (overrides.location ?? location).trim();
+    const type = (overrides.type ?? selectedType).trim();
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (city) params.set('location', city);
+    if (type) params.set('type', type);
+
+    const queryString = params.toString();
+    navigate(queryString ? `/properties?${queryString}` : '/properties');
+    setIsSearchOpen(false);
+    setIsOpen(false);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    runSearch();
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-top">
@@ -80,7 +102,7 @@ const Navbar = () => {
 
       <div className={`search-panel ${isSearchOpen ? 'open' : ''}`}>
         <div className="search-panel-inner">
-          <div className="search-main-row">
+          <form className="search-main-row" onSubmit={handleSearchSubmit}>
             <div className="search-input-group">
               <FaSearch className="search-input-icon" />
               <input
@@ -100,10 +122,10 @@ const Navbar = () => {
                 onChange={(e) => setLocation(e.target.value)}
               />
             </div>
-            <button className="search-submit-btn">
+            <button className="search-submit-btn" type="submit">
               <FaSearch /> Rechercher
             </button>
-          </div>
+          </form>
 
           <div className="search-filters-row">
             <span className="search-filter-label">Type de bien :</span>
@@ -111,6 +133,7 @@ const Navbar = () => {
               {propertyTypes.map((type) => (
                 <button
                   key={type.label}
+                  type="button"
                   className={`search-type-pill ${selectedType === type.label ? 'active' : ''}`}
                   onClick={() => setSelectedType(selectedType === type.label ? '' : type.label)}
                 >
@@ -126,8 +149,9 @@ const Navbar = () => {
               {popularSearches.map((term) => (
                 <button
                   key={term}
+                  type="button"
                   className="search-popular-tag"
-                  onClick={() => setSearchQuery(term)}
+                  onClick={() => runSearch({ q: term })}
                 >
                   {term} <FaArrowRight />
                 </button>

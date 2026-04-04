@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaExternalLinkAlt, FaSearch, FaSyncAlt } from 'react-icons/fa';
-import TunisiaMapHome from '../components/TunisiaMapHome';
+import { useLocation } from 'react-router-dom';
+import { FaExternalLinkAlt, FaSyncAlt } from 'react-icons/fa';
 import '../styles/Properties.css';
 
 const Properties = () => {
+  const location = useLocation();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -36,18 +36,35 @@ const Properties = () => {
     fetchProperties();
   }, [fetchProperties]);
 
-  const filteredProperties = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return properties;
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
+  const searchLocation = (searchParams.get('location') || '').trim().toLowerCase();
+  const searchType = (searchParams.get('type') || '').trim().toLowerCase();
 
+  const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
       const title = (property.title || '').toLowerCase();
       const city = (property.city || '').toLowerCase();
-      const location = (property.location_raw || '').toLowerCase();
+      const rawLocation = (property.location_raw || '').toLowerCase();
       const source = (property.source || '').toLowerCase();
-      return title.includes(q) || city.includes(q) || location.includes(q) || source.includes(q);
+
+      const matchesQuery =
+        !searchQuery ||
+        title.includes(searchQuery) ||
+        city.includes(searchQuery) ||
+        rawLocation.includes(searchQuery) ||
+        source.includes(searchQuery);
+
+      const matchesLocation =
+        !searchLocation ||
+        city.includes(searchLocation) ||
+        rawLocation.includes(searchLocation);
+
+      const matchesType = !searchType || title.includes(searchType);
+
+      return matchesQuery && matchesLocation && matchesType;
     });
-  }, [properties, query]);
+  }, [properties, searchQuery, searchLocation, searchType]);
 
   const formatPrice = (property) => {
     const numeric = Number(property.price_value);
@@ -57,27 +74,22 @@ const Properties = () => {
     return property.price_raw || 'Prix non communique';
   };
 
+  const formatDate = (value) => {
+    if (!value) return 'Date non disponible';
+    return new Date(value).toLocaleDateString('fr-TN');
+  };
+
   return (
     <div className="properties-page">
       <section className="properties-hero">
         <div className="properties-hero-content">
-          <span className="properties-tag">Catalogue test</span>
-          <h1>Biens depuis la table clean_listings</h1>
+          <span className="properties-tag">Catalogue immobilier</span>
+          <h1>Biens disponibles</h1>
           <p>
-            Cette page charge directement les donnees nettoyees depuis votre base MySQL
-            pour valider l integration frontend/backend.
+            Parcourez les annonces avec photos et prix. La recherche se fait depuis la barre de navigation.
           </p>
 
           <div className="properties-toolbar">
-            <div className="properties-search">
-              <FaSearch />
-              <input
-                type="text"
-                placeholder="Rechercher par titre, ville, localisation, source..."
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
             <button type="button" onClick={fetchProperties} className="properties-refresh-btn">
               <FaSyncAlt /> Actualiser
             </button>
@@ -86,17 +98,18 @@ const Properties = () => {
       </section>
 
       <div className="properties-content">
-        <section className="properties-map-section">
-          <div className="properties-map-header">
-            <h2>Carte des biens nettoyes</h2>
-            <p>Les memes elements charges depuis clean_listings sont aussi affiches sur la carte.</p>
-          </div>
-          <TunisiaMapHome rows={properties} width={980} height={620} />
+        <section className="properties-list-header">
+          <h2>Selection de biens</h2>
+          <p>Affichage catalogue style ecommerce avec image, prix, localisation et source.</p>
         </section>
 
         <div className="properties-summary">
           <span>{loading ? 'Chargement...' : `${filteredProperties.length} bien(s) affiches`}</span>
-          {query && <span>Filtre actif: "{query}"</span>}
+          {!loading && (searchQuery || searchLocation || searchType) && (
+            <span>
+              Filtres actifs: {searchQuery || '-'} | {searchLocation || '-'} | {searchType || '-'}
+            </span>
+          )}
         </div>
 
         {error && (
@@ -106,41 +119,37 @@ const Properties = () => {
         )}
 
         {!loading && !error && (
-          <div className="properties-table-wrap">
-            <table className="properties-table">
-              <thead>
-                <tr>
-                  <th>Titre</th>
-                  <th>Ville</th>
-                  <th>Localisation</th>
-                  <th>Prix</th>
-                  <th>Source</th>
-                  <th>Publie</th>
-                  <th>Lien</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProperties.map((property) => (
-                  <tr key={property.id}>
-                    <td>{property.title || 'Titre non disponible'}</td>
-                    <td>{property.city || 'Ville N/A'}</td>
-                    <td>{property.location_raw || 'Localisation non disponible'}</td>
-                    <td className="properties-price-cell">{formatPrice(property)}</td>
-                    <td>{property.source || 'Source N/A'}</td>
-                    <td>{property.scraped_at ? new Date(property.scraped_at).toLocaleDateString('fr-TN') : 'N/A'}</td>
-                    <td>
-                      {property.url ? (
-                        <a href={property.url} target="_blank" rel="noreferrer" className="property-link">
-                          Ouvrir <FaExternalLinkAlt />
-                        </a>
-                      ) : (
-                        'N/A'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="properties-grid">
+            {filteredProperties.map((property) => (
+              <article className="property-card" key={property.id}>
+                <div className="property-card-image-wrap">
+                  {property.image ? (
+                    <img src={property.image} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />
+                  ) : (
+                    <div className="property-card-image-placeholder">Image non disponible</div>
+                  )}
+                  <span className="property-card-source">{property.source || 'Source N/A'}</span>
+                </div>
+
+                <div className="property-card-body">
+                  <h3>{property.title || 'Titre non disponible'}</h3>
+                  <p className="property-card-location">{property.location_raw || property.city || 'Localisation non disponible'}</p>
+                  <div className="property-card-meta">
+                    <span>{property.city || 'Ville N/A'}</span>
+                    <span>{formatDate(property.scraped_at)}</span>
+                  </div>
+                  <p className="property-card-price">{formatPrice(property)}</p>
+
+                  {property.url ? (
+                    <a href={property.url} target="_blank" rel="noreferrer" className="property-card-link">
+                      Voir le detail <FaExternalLinkAlt />
+                    </a>
+                  ) : (
+                    <span className="property-card-link-disabled">Lien indisponible</span>
+                  )}
+                </div>
+              </article>
+            ))}
           </div>
         )}
 
@@ -150,7 +159,7 @@ const Properties = () => {
 
         {!loading && !error && filteredProperties.length === 0 && (
           <div className="properties-empty">
-            Aucun resultat pour ce filtre.
+            Aucun bien ne correspond a votre recherche.
           </div>
         )}
       </div>

@@ -181,7 +181,7 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
     async function loadListings() {
       try {
         const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiBaseUrl}/api/properties?limit=200`);
+        const response = await fetch(`${apiBaseUrl}/api/properties?limit=500`);
 
         if (!response.ok) {
           throw new Error(`Listings request failed with ${response.status}`);

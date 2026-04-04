@@ -31,7 +31,7 @@ class RawPipeline:
             host="localhost",
             user="root",
             password="",
-            database="data_base"
+            database="database"
         )
         self.cursor = self.conn.cursor()
         self._pending_writes = 0

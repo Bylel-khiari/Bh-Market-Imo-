@@ -8,13 +8,14 @@ dotenv.config();
 const app = express();
 
 const PORT = Number(process.env.PORT || 5000);
+const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 1000);
 
 const dbPool = mysql.createPool({
   host: process.env.MYSQL_HOST || "127.0.0.1",
   port: Number(process.env.MYSQL_PORT || 3306),
   user: process.env.MYSQL_USER || "root",
   password: process.env.MYSQL_PASSWORD || "",
-  database: process.env.MYSQL_DATABASE || "data_base",
+  database: process.env.MYSQL_DATABASE || "database",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -39,7 +40,7 @@ app.get("/api/health/db", async (req, res) => {
 
 app.get("/api/properties", async (req, res) => {
   try {
-    const limit = Math.min(Math.max(Number(req.query.limit) || 24, 1), 200);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 24, 1), MAX_PROPERTIES_LIMIT);
     const city = (req.query.city || "").toString().trim().toLowerCase();
 
     let sql = `
