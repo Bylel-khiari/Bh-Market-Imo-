@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Properties from './pages/Properties';
 import CreditSimulation from './pages/CreditSimulation';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
@@ -30,6 +31,10 @@ function App() {
         <Route
           path="/dashboard"
           element={role === 'responsable_decisionnel' ? <Dashboard /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/admin/dashboard"
+          element={role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />}
         />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

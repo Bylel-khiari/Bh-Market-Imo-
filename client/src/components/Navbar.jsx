@@ -22,11 +22,16 @@ const Navbar = () => {
     'LA BANQUE',
     'CONFORMITE',
     'INDICATEURS FINANCIERS',
+    'ADMIN DASHBOARD',
     'CONTACT',
   ];
   const currentRole = authSession?.user?.role || null;
   const visibleNavItems = navItems.filter(
-    (item) => item !== 'INDICATEURS FINANCIERS' || currentRole === 'responsable_decisionnel'
+    (item) => {
+      if (item === 'INDICATEURS FINANCIERS') return currentRole === 'responsable_decisionnel';
+      if (item === 'ADMIN DASHBOARD') return currentRole === 'admin';
+      return true;
+    }
   );
   const userCategories = [
 
@@ -205,6 +210,7 @@ const Navbar = () => {
                   item === 'ACCUEIL' ? '/' : 
                   item === 'BIEN IMMOBILIERE' ? '/properties' :
                   item === 'INDICATEURS FINANCIERS' ? '/dashboard' :
+                  item === 'ADMIN DASHBOARD' ? '/admin/dashboard' :
                   `/${item.toLowerCase().replace(/\s+/g, '-')}`
                 }>{item}</Link>
               </li>
