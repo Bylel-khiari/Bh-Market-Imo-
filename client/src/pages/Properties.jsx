@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaExternalLinkAlt, FaSyncAlt } from 'react-icons/fa';
 import '../styles/Properties.css';
 
 const Properties = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -95,6 +96,15 @@ const Properties = () => {
     return new Date(value).toLocaleDateString('fr-TN');
   };
 
+  const openSimulationForProperty = (property) => {
+    const params = new URLSearchParams();
+    if (property.id) params.set('propertyId', String(property.id));
+    if (property.title) params.set('title', property.title);
+    if (property.location_raw || property.city) params.set('location', property.location_raw || property.city);
+    if (property.price_value) params.set('price', String(property.price_value));
+    navigate(`/credit-simulation?${params.toString()}`);
+  };
+
   return (
     <div className="properties-page">
       <section className="properties-hero">
@@ -167,6 +177,14 @@ const Properties = () => {
                   ) : (
                     <span className="property-card-link-disabled">Lien indisponible</span>
                   )}
+
+                  <button
+                    type="button"
+                    className="property-card-simulate"
+                    onClick={() => openSimulationForProperty(property)}
+                  >
+                    Simuler ce bien
+                  </button>
                 </div>
               </article>
             ))}

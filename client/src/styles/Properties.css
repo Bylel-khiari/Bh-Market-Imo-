@@ -263,6 +263,24 @@
   background: #edf2fa;
 }
 
+.property-card-simulate {
+  margin-top: 8px;
+  border: 1px solid #c9d7ee;
+  background: #f4f8ff;
+  color: #153a66;
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.property-card-simulate:hover {
+  background: #e9f1ff;
+  border-color: #9db9e5;
+}
+
 .properties-loading {
   border-radius: 10px;
   padding: 14px 16px;

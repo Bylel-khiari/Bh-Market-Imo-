@@ -19,6 +19,7 @@ const Navbar = () => {
   const navItems = [
     'ACCUEIL',
     'BIEN IMMOBILIERE',
+    'SIMULATION HABITAT',
     'LA BANQUE',
     'CONFORMITE',
     'INDICATEURS FINANCIERS',
@@ -209,6 +210,7 @@ const Navbar = () => {
                 <Link to={
                   item === 'ACCUEIL' ? '/' : 
                   item === 'BIEN IMMOBILIERE' ? '/properties' :
+                  item === 'SIMULATION HABITAT' ? '/credit-simulation' :
                   item === 'INDICATEURS FINANCIERS' ? '/dashboard' :
                   item === 'ADMIN DASHBOARD' ? '/admin/dashboard' :
                   `/${item.toLowerCase().replace(/\s+/g, '-')}`
