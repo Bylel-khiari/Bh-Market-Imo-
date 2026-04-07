@@ -20,6 +20,7 @@ const Navbar = () => {
     'ACCUEIL',
     'BIEN IMMOBILIERE',
     'SIMULATION HABITAT',
+    'CREDIT IMMOBILIER BH',
     'LA BANQUE',
     'CONFORMITE',
     'INDICATEURS FINANCIERS',
@@ -105,7 +106,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="navbar">
+    <nav className="bh-navbar">
       <div className="navbar-top">
         <div className="container">
           <div className="nav-top-content">
@@ -211,6 +212,7 @@ const Navbar = () => {
                   item === 'ACCUEIL' ? '/' : 
                   item === 'BIEN IMMOBILIERE' ? '/properties' :
                   item === 'SIMULATION HABITAT' ? '/credit-simulation' :
+                  item === 'CREDIT IMMOBILIER BH' ? '/credit-immobilier-bh' :
                   item === 'INDICATEURS FINANCIERS' ? '/dashboard' :
                   item === 'ADMIN DASHBOARD' ? '/admin/dashboard' :
                   `/${item.toLowerCase().replace(/\s+/g, '-')}`
