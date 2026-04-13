@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/web",
+    "apps/api"
   ],
   "scripts": {
     "dev:web": "npm run start --workspace apps/web",
     "dev:api": "npm run dev --workspace apps/api",
+    "start:api": "npm run start --workspace apps/api",
     "build:web": "npm run build --workspace apps/web",
-    "build:api": "npm run start --workspace apps/api",
     "test:web": "npm run test --workspace apps/web -- --watchAll=false --passWithNoTests",
     "test:api": "npm run test --workspace apps/api",
+    "cleaner": "python tools/listing_cleaner.py",
     "dev:map-example": "npm --prefix examples/map-integration run dev",
     "build:map-example": "npm --prefix examples/map-integration run build"
   }

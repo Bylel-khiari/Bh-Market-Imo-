@@ -9,7 +9,7 @@
 - Scrapy project config: services/scraper/scrapy.cfg
 - Spider package: services/scraper/real_estate_scraper/spiders
 - Pipeline: services/scraper/real_estate_scraper/pipelines.py
-- Cleaner tool: tools/listing-cleaner.py
+- Cleaner tool: tools/listing_cleaner.py
 
 ## Run Spiders
 
@@ -25,13 +25,13 @@ scrapy crawl afariat
 From repository root:
 
 ```bash
-python tools/listing-cleaner.py
+python tools/listing_cleaner.py
 ```
 
 ## Data Responsibilities
 
 - Scraper writes raw rows to raw_properties.
-- listing-cleaner.py filters rent and out-of-scope rows, deduplicates entries, and writes clean_listings and duplicates_log.
+- listing_cleaner.py filters rent and out-of-scope rows, deduplicates entries, and writes clean_listings and duplicates_log.
 
 ## Environment Variables
 

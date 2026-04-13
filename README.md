@@ -12,7 +12,7 @@ BH-Market-Imo/
   services/
     scraper/              # Scrapy crawler service
   tools/
-    listing-cleaner.py    # Listing normalization/dedup tool
+    listing_cleaner.py    # Listing normalization/dedup tool
   examples/
     map-integration/      # Standalone map integration reference
   docs/
@@ -65,8 +65,13 @@ npm run dev:web
 Build:
 
 ```bash
-npm run build:api
 npm run build:web
+```
+
+Run API in production mode:
+
+```bash
+npm run start:api
 ```
 
 Tests:
@@ -88,7 +93,7 @@ scrapy crawl afariat
 Run listing cleaner:
 
 ```bash
-python tools/listing-cleaner.py
+python tools/listing_cleaner.py
 ```
 
 ## Optional Example Project

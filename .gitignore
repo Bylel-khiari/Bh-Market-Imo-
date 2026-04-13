@@ -1,45 +1,56 @@
-# Node
+# Node dependencies and package managers
 node_modules/
+**/node_modules/
 .npm/
 .pnpm-store/
+.yarn/
 .pnp
 .pnp.js
+
+# Node logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
 
-# Build and coverage artifacts
+# Build and test artifacts
 coverage/
+**/coverage/
+.nyc_output/
 dist/
 build/
 htmlcov/
+.coverage
+.coverage.*
 
 # Environment files
 .env
 .env.*
 !.env.example
-apps/api/.env
-apps/web/.env
-examples/map-integration/.env
 
 # Python
 .venv/
 venv/
+ENV/
+env/
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
+*.pyd
+*.py[cod]
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.hypothesis/
+.python-version
+
+# Scrapy
 .scrapy/
 
-# Logs
-logs/
-*.log
-
 # IDE/editor
-.idea/
 .vscode/
+.idea/
 
 # OS files
 .DS_Store
