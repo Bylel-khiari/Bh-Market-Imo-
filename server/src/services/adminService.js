@@ -1,13 +1,8 @@
 import bcrypt from "bcrypt";
 import { dbPool } from "../config/db.js";
+import { httpError } from "../utils/httpError.js";
 
 const VALID_ROLES = ["client", "agent_bancaire", "responsable_decisionnel", "admin"];
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 async function syncUserProfileByRole(connection, userId, role, payload = {}) {
   await connection.query("DELETE FROM client_profiles WHERE user_id = ?", [userId]);

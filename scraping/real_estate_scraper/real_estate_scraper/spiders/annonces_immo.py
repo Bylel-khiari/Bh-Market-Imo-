@@ -1,39 +1,120 @@
-import scrapy
 import json
+import re
+from urllib.parse import parse_qs, urlparse
+
+import scrapy
 
 
 class AnnoncesImmoSpider(scrapy.Spider):
     name = "annonces_immo"
     allowed_domains = ["annonces-immobilieres.tn"]
     start_urls = ["https://annonces-immobilieres.tn/annonces"]
+    custom_settings = {
+        "CONCURRENT_REQUESTS": 10,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 5,
+        "DOWNLOAD_DELAY": 0.3,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2.0,
+    }
 
-    def __init__(self, *args, **kwargs):
+    PAGE_PATH_RE = re.compile(r"/annonces/(\d+)$", re.IGNORECASE)
+
+    def __init__(self, max_pages=200, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.max_pages = max(1, int(max_pages))
         self._seen_pages = set()
         self._seen_listings = set()
+        self._consecutive_zero_new_pages = 0
+
+    def _normalize_url(self, value):
+        if not value:
+            return None
+        return self._response.urljoin(value).split("#", 1)[0].rstrip("/")
+
+    def _extract_page_number(self, url):
+        parsed = urlparse(url)
+        match = self.PAGE_PATH_RE.search(parsed.path.rstrip("/"))
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                return 1
+
+        query_page = parse_qs(parsed.query).get("page", ["1"])[0]
+        try:
+            return int(query_page)
+        except ValueError:
+            return 1
+
+    def _is_listing_scope_page(self, url):
+        if not url:
+            return False
+        lower = url.lower()
+        if not lower.startswith("https://annonces-immobilieres.tn/annonces"):
+            return False
+        parsed = urlparse(url)
+        if self.PAGE_PATH_RE.search(parsed.path.rstrip("/")):
+            return True
+        if parsed.path.rstrip("/") == "/annonces":
+            return True
+        return "page=" in parsed.query
 
     def parse(self, response):
-        self._seen_pages.add(response.url)
+        self._response = response
 
+        normalized_page_url = self._normalize_url(response.url)
+        if normalized_page_url in self._seen_pages:
+            return
+        self._seen_pages.add(normalized_page_url)
+
+        page_number = self._extract_page_number(normalized_page_url)
+        if page_number > self.max_pages:
+            return
+
+        new_details = 0
         for href in response.css("a[href*='/annonce/details/']::attr(href)").getall():
-            detail_url = response.urljoin(href)
+            detail_url = self._normalize_url(href)
+            if not detail_url:
+                continue
             if detail_url in self._seen_listings:
                 continue
             self._seen_listings.add(detail_url)
+            new_details += 1
             yield response.follow(detail_url, callback=self.parse_detail)
 
-        # Follow numeric pagination pages (e.g. /annonces/2).
-        for href in response.css("a[href]::attr(href)").getall():
-            if not href:
-                continue
-            if "/annonces/" not in href:
+        if new_details == 0:
+            self._consecutive_zero_new_pages += 1
+        else:
+            self._consecutive_zero_new_pages = 0
+
+        if self._consecutive_zero_new_pages >= 3:
+            return
+
+        next_links = response.css(
+            "a[rel='next']::attr(href), .pagination a::attr(href), a[href*='/annonces/']::attr(href), a[href*='?page=']::attr(href)"
+        ).getall()
+
+        emitted_next = False
+        for href in next_links:
+            next_page = self._normalize_url(href)
+            if not self._is_listing_scope_page(next_page):
                 continue
 
-            next_page = response.urljoin(href)
+            next_page_number = self._extract_page_number(next_page)
+            if next_page_number <= page_number:
+                continue
+            if next_page_number > self.max_pages:
+                continue
             if next_page in self._seen_pages:
                 continue
-            self._seen_pages.add(next_page)
+
+            emitted_next = True
             yield response.follow(next_page, callback=self.parse)
+
+        if not emitted_next and page_number < self.max_pages:
+            fallback_next = f"https://annonces-immobilieres.tn/annonces/{page_number + 1}"
+            if fallback_next not in self._seen_pages:
+                yield response.follow(fallback_next, callback=self.parse)
 
     def parse_detail(self, response):
         title = None
@@ -42,7 +123,6 @@ class AnnoncesImmoSpider(scrapy.Spider):
         description = None
         image = None
 
-        # Primary extraction from structured data.
         for script in response.css("script[type='application/ld+json']::text").getall():
             try:
                 payload = json.loads(script)
@@ -75,7 +155,6 @@ class AnnoncesImmoSpider(scrapy.Spider):
             if title and price and description and location:
                 break
 
-        # Fallback extraction from page markup.
         title = title or response.css("h1::text").get() or response.css("title::text").get()
 
         if not price:

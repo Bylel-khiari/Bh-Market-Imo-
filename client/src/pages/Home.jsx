@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHome, FaChartLine, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
 import TunisiaMapHome from '../components/TunisiaMapHome';
+import PropertyCarousel from '../components/PropertyCarousel';
 import { getAuthSession } from '../lib/auth';
 import '../styles/Home.css';
 
@@ -44,6 +45,8 @@ const Home = () => {
           </div>
           <TunisiaMapHome />
         </div>
+
+        <PropertyCarousel />
 
         {/* ── Services Section ── */}
         <div className="services-section">

@@ -17,27 +17,23 @@ const Navbar = () => {
   const searchInputRef = useRef(null);
 
   const navItems = [
-    'ACCUEIL',
-    'BIEN IMMOBILIERE',
-    'SIMULATION HABITAT',
-    'CREDIT IMMOBILIER BH',
-    'LA BANQUE',
-    'CONFORMITE',
-    'INDICATEURS FINANCIERS',
-    'ADMIN DASHBOARD',
-    'CONTACT',
+    { label: 'Accueil', to: '/' },
+    { label: 'Biens immobiliers', to: '/properties' },
+    { label: 'Simulation habitat', to: '/credit-simulation' },
+    { label: 'Credit immobilier BH', to: '/credit-immobilier-bh' },
+    { label: 'La banque', to: '/la-banque' },
+    { label: 'Contact', to: '/contact' },
   ];
-  const currentRole = authSession?.user?.role || null;
-  const visibleNavItems = navItems.filter(
-    (item) => {
-      if (item === 'INDICATEURS FINANCIERS') return currentRole === 'responsable_decisionnel';
-      if (item === 'ADMIN DASHBOARD') return currentRole === 'admin';
-      return true;
-    }
-  );
-  const userCategories = [
 
- ];
+  const currentRole = authSession?.user?.role || null;
+
+  if (currentRole === 'responsable_decisionnel') {
+    navItems.push({ label: 'Indicateurs financiers', to: '/dashboard' });
+  }
+
+  if (currentRole === 'admin') {
+    navItems.push({ label: 'Admin dashboard', to: '/admin/dashboard' });
+  }
 
   const propertyTypes = [
     { label: 'Appartement', icon: <FaBuilding /> },
@@ -126,12 +122,12 @@ const Navbar = () => {
                     <FaUserCircle />
                   </Link>
                   <button type="button" className="login-btn" onClick={handleLogout}>
-                    <FaUser /> DECONNEXION
+                    <FaUser /> Deconnexion
                   </button>
                 </>
               ) : (
                 <Link to="/login" className="login-btn">
-                  <FaUser /> CONNEXION
+                  <FaUser /> Connexion
                 </Link>
               )}
               <button className="mobile-menu-btn" onClick={() => setIsOpen(!isOpen)}>
@@ -206,38 +202,14 @@ const Navbar = () => {
       <div className="navbar-main">
         <div className="container">
           <ul className={`nav-menu ${isOpen ? 'active' : ''}`}>
-            {visibleNavItems.map((item, index) => (
-              <li key={index}>
-                <Link to={
-                  item === 'ACCUEIL' ? '/' : 
-                  item === 'BIEN IMMOBILIERE' ? '/properties' :
-                  item === 'SIMULATION HABITAT' ? '/credit-simulation' :
-                  item === 'CREDIT IMMOBILIER BH' ? '/credit-immobilier-bh' :
-                  item === 'INDICATEURS FINANCIERS' ? '/dashboard' :
-                  item === 'ADMIN DASHBOARD' ? '/admin/dashboard' :
-                  `/${item.toLowerCase().replace(/\s+/g, '-')}`
-                }>{item}</Link>
+            {navItems.map((item) => (
+              <li key={item.to}>
+                <Link to={item.to}>{item.label}</Link>
               </li>
             ))}
           </ul>
         </div>
       </div>
-
-      {userCategories.length > 0 && (
-        <div className="navbar-categories">
-          <div className="container">
-            <ul className="category-menu">
-              {userCategories.map((category, index) => (
-                <li key={index}>
-                  <Link to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}>
-                    {category}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
     </nav>
   );
 };

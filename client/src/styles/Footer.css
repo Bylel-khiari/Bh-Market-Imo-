@@ -30,6 +30,8 @@
 
 .footer-section ul li {
   margin-bottom: 6px;
+  color: white;
+  line-height: 1.5;
 }
 
 .footer-section ul li a {

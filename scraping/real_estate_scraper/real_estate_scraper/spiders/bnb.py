@@ -9,15 +9,17 @@ class BnbSpider(scrapy.Spider):
     start_urls = ["https://www.bnb.tn/contract/vente/"]
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
-        "CONCURRENT_REQUESTS": 32,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 16,
-        "DOWNLOAD_DELAY": 0,
-        "AUTOTHROTTLE_ENABLED": False,
+        "CONCURRENT_REQUESTS": 20,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
+        "DOWNLOAD_DELAY": 0.1,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6.0,
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._seen_pages = set()
+        self._seen_details = set()
 
     def parse(self, response):
         self._seen_pages.add(response.url)
@@ -51,6 +53,9 @@ class BnbSpider(scrapy.Spider):
                 continue
             if "/properties/page/" in clean or "?" in clean:
                 continue
+            if clean in self._seen_details:
+                continue
+            self._seen_details.add(clean)
             yield response.follow(url, callback=self.parse_detail)
 
     def _extract_image(self, response):

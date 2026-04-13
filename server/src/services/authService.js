@@ -1,14 +1,9 @@
 import bcrypt from "bcrypt";
 import { dbPool } from "../config/db.js";
 import { signAccessToken } from "../utils/jwt.js";
+import { httpError } from "../utils/httpError.js";
 
 const VALID_ROLES = ["client", "agent_bancaire", "responsable_decisionnel"];
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function toPublicUser(row) {
   return {

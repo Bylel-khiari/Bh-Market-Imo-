@@ -1,157 +1,216 @@
-# BH Marketplace Immobilier
+# BH Market Imo Monorepo
 
-Plateforme de crédit immobilier avec chatbot et tableaux de bord analytiques pour BH Bank.
+This repository is now a workspace-style monorepo with one real frontend app in `client/` and one backend API in `server/`.
 
-## 🏦 À propos
+## Repository layout
 
-BH Marketplace est une plateforme immobilière intégrée qui offre :
-- **Marketplace Immobilière** : Consultation de milliers de biens immobiliers
-- **Assistant Virtuel** : Chatbot intelligent pour accompagner les utilisateurs
-- **Tableaux de Bord** : Suivi des KPI et évolution du marché immobilier
-- **Simulation de Crédit** : Processus d'octroi simplifié et automatisé
+- `client/`: main React frontend used by users.
+- `server/`: Express API, auth, admin, properties, dashboards.
+- `scraping/real_estate_scraper/`: Scrapy spiders that collect raw listings.
+- `tunisia-dynasty-map-integration/`: standalone map integration demo/reference project.
+- `agent_ia.py`: local AI/automation script.
 
-## 🚀 Installation
+## What runs first (startup order)
 
-### Prérequis
-- Node.js (version 14 ou supérieure)
-- npm ou yarn
+1. Setup MySQL database and tables.
+2. Configure environment variables.
+3. Start backend API (`server/`).
+4. Start frontend app (`client/`).
+5. (Optional) Run scraper to ingest/refresh data.
+6. (Optional) Run map integration demo app.
 
-### Étapes d'installation
+## Prerequisites
 
-1. Cloner le repository
+- Node.js 18+
+- npm 9+
+- Python 3.10+ (for Scrapy pipeline)
+- MySQL 8+
+
+## Install dependencies
+
+From repository root:
+
 ```bash
-git clone <repository-url>
-cd Bh-Market-Imo-
+npm install --workspaces
 ```
 
-2. Installer les dépendances du client
+For Python scraper environment (example):
+
 ```bash
-cd client
-npm install
+python -m venv .venv
+.venv\Scripts\activate
+pip install scrapy mysql-connector-python
 ```
 
-## 📦 Scripts disponibles
+## Run services
 
-Dans le répertoire `client`, vous pouvez exécuter :
+From repository root:
 
-### `npm start`
-
-Lance l'application en mode développement.\
-Ouvrez [http://localhost:3000](http://localhost:3000) pour la voir dans votre navigateur.
-
-La page se rechargera automatiquement quand vous ferez des modifications.\
-Les erreurs de lint s'afficheront dans la console.
-
-### `npm test`
-
-Lance le testeur en mode interactif.\
-Voir la section sur [running tests](https://facebook.github.io/create-react-app/docs/running-tests) pour plus d'informations.
-
-### `npm run build`
-
-Construit l'application pour la production dans le dossier `build`.\
-Il regroupe correctement React en mode production et optimise la construction pour les meilleures performances.
-
-La construction est minifiée et les noms de fichiers incluent les hashes.\
-Votre application est prête à être déployée!
-
-## 🛠️ Technologies utilisées
-
-- **React** 18.2.0 - Bibliothèque JavaScript pour construire l'interface utilisateur
-- **React Router DOM** 6.14.0 - Routage pour l'application
-- **Axios** 1.4.0 - Client HTTP pour les requêtes API
-- **Recharts** 2.7.2 - Bibliothèque de graphiques pour les tableaux de bord
-- **React Icons** 4.10.1 - Icônes pour l'interface utilisateur
-- **Material-UI** 5.13.6 - Composants UI Material Design
-- **React Slick** 0.29.0 - Carrousel pour les biens immobiliers
-- **Chart.js** 4.3.0 - Graphiques et visualisations de données
-
-## 📂 Structure du projet
-
-```
-client/
-├── public/
-│   ├── index.html
-│   ├── manifest.json
-│   └── robots.txt
-├── src/
-│   ├── assets/           # Images et ressources
-│   ├── components/       # Composants réutilisables
-│   │   ├── Navbar.js
-│   │   ├── Footer.js
-│   │   ├── Chatbot.js
-│   │   └── PropertyCarousel.js
-│   ├── pages/           # Pages de l'application
-│   │   ├── Home.js
-│   │   ├── Properties.js
-│   │   ├── CreditSimulation.js
-│   │   ├── Dashboard.js
-│   │   ├── Login.js
-│   │   └── Profile.js
-│   ├── styles/          # Fichiers CSS
-│   ├── App.js           # Composant principal
-│   └── index.js         # Point d'entrée
-└── package.json
+```bash
+npm run dev:server
 ```
 
-## 🎨 Fonctionnalités
+In another terminal:
 
-### 1. Page d'accueil
-- Présentation des services BH Marketplace
-- Carrousel de biens immobiliers à la une
-- Accès rapide aux fonctionnalités principales
+```bash
+npm run dev:client
+```
 
-### 2. Simulation de crédit
-- Formulaire en 3 étapes
-- Calcul automatique des mensualités
-- Téléchargement de la simulation
+Optional map demo:
 
-### 3. Tableaux de bord analytiques
-- KPI en temps réel (visiteurs, consultations, demandes de crédit)
-- Graphiques d'évolution du trafic
-- Répartition par type de bien
-- Taux de simulation de crédit
+```bash
+npm run dev:map
+```
 
-### 4. Chatbot intelligent
-- Assistant virtuel pour accompagner les utilisateurs
-- Réponses en temps réel
-- Interface intuitive
+Optional scraper run (from `scraping/real_estate_scraper`):
 
-## 👥 Auteurs
+```bash
+scrapy crawl afariat
+```
 
-- Bilel Khiyari - bilel.khiyari@isgb.ucar.tn
-- Khemiri Iheb - khemiriiheb40@gmail.com
+## Environment variables
 
-## 📞 Contact
+### Server (`server/.env`)
 
-- Téléphone: 96 128 401 / 58 407 459
-- Email: bilel.khiyari@isgb.ucar.tn / khemiriiheb40@gmail.com
+Required/important:
 
-## 📄 Licence
+- `PORT=5000`
+- `NODE_ENV=development`
+- `JWT_SECRET=change_me`
+- `JWT_EXPIRES_IN=7d`
+- `MYSQL_HOST=127.0.0.1`
+- `MYSQL_PORT=3306`
+- `MYSQL_USER=root`
+- `MYSQL_PASSWORD=your_password`
+- `MYSQL_DATABASE=database`
+- `CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- `RATE_LIMIT_WINDOW_MS=900000`
+- `RATE_LIMIT_MAX=250`
+- `AUTH_RATE_LIMIT_WINDOW_MS=600000`
+- `AUTH_RATE_LIMIT_MAX=30`
+- `PROPERTIES_MAX_LIMIT=1000`
 
-© 2024 BH Bank - Marketplace Immobilière. Tous droits réservés.
+Security rules enforced by code:
 
+- In production, `JWT_SECRET` is mandatory.
+- In production, `MYSQL_PASSWORD` cannot be blank.
+- CORS is restricted by `CORS_ORIGINS` (mandatory in production).
 
-### Code Splitting
+### Client (`client/.env`)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- `REACT_APP_API_URL=http://localhost:5000`
 
-### Analyzing the Bundle Size
+### Scraper
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+The current Scrapy pipeline uses hardcoded DB credentials in `scraping/real_estate_scraper/real_estate_scraper/pipelines.py`. Align these values with your MySQL setup before running spiders.
 
-### Making a Progressive Web App
+## Database schema/setup
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Use MySQL and create the database first:
 
-### Advanced Configuration
+```sql
+CREATE DATABASE IF NOT EXISTS `database`;
+USE `database`;
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Minimum tables required by current backend + scraping flow:
 
-### Deployment
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('client', 'agent_bancaire', 'responsable_decisionnel', 'admin') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+CREATE TABLE IF NOT EXISTS client_profiles (
+  user_id BIGINT PRIMARY KEY,
+  address VARCHAR(255),
+  phone VARCHAR(40),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
-### `npm run build` fails to minify
+CREATE TABLE IF NOT EXISTS agent_profiles (
+  user_id BIGINT PRIMARY KEY,
+  matricule VARCHAR(80),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+CREATE TABLE IF NOT EXISTS decision_profiles (
+  user_id BIGINT PRIMARY KEY,
+  department VARCHAR(120),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS admin_profiles (
+  user_id BIGINT PRIMARY KEY,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS raw_properties (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  title TEXT,
+  price TEXT,
+  location TEXT,
+  description LONGTEXT,
+  image TEXT,
+  url TEXT,
+  source VARCHAR(80),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clean_listings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  title TEXT,
+  price_raw TEXT,
+  price_value DECIMAL(14,2),
+  location_raw TEXT,
+  city VARCHAR(120),
+  country VARCHAR(120),
+  image TEXT,
+  description LONGTEXT,
+  source VARCHAR(80),
+  url TEXT,
+  scraped_at DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS duplicates_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  raw_property_id BIGINT,
+  duplicate_reason VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## How components relate
+
+- Scrapy spiders write raw rows into `raw_properties`.
+- Cleaning pipeline/process writes normalized rows into `clean_listings`.
+- Backend `GET /api/properties` serves data from `clean_listings`.
+- Frontend `client/` reads this API for listings, properties page, and home carousel.
+- `tunisia-dynasty-map-integration/` is a separate integration example that also consumes `/api/properties`.
+
+## Testing
+
+Run backend tests with coverage:
+
+```bash
+npm run test:server
+```
+
+Current backend tests cover:
+
+- route availability
+- CORS restrictions
+- request validation failures
+- auth guard responses
+- centralized 404 behavior
+
+## Notes
+
+- Do not commit `node_modules` folders.
+- Keep lockfiles (`package-lock.json`) in root and workspaces.
+- Root package acts as orchestrator/workspace manager, not as a second frontend app.
