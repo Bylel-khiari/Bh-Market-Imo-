@@ -16,5 +16,9 @@
     "cleaner": "python tools/listing_cleaner.py",
     "dev:map-example": "npm --prefix examples/map-integration run dev",
     "build:map-example": "npm --prefix examples/map-integration run build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
