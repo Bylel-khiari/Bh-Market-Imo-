@@ -150,7 +150,7 @@ class MenziliSpider(scrapy.Spider):
         )
         self.db_conn.commit()
 
-    def start_requests(self):
+    async def start(self):
         for stream in self.streams:
             page = 1
             yield scrapy.Request(

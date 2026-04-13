@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 
 class RealEstateScraperPipeline:
-    def process_item(self, item, spider):
+    def process_item(self, item, spider=None):
         return item
 
 
@@ -50,7 +50,13 @@ class RawPipeline:
         "stream",
     }
 
-    def open_spider(self, spider):
+    @classmethod
+    def from_crawler(cls, crawler):
+        pipeline = cls()
+        pipeline.crawler = crawler
+        return pipeline
+
+    def open_spider(self, spider=None):
         self.batch_size = max(50, int(os.getenv("SCRAPER_DB_BATCH_SIZE", "300")))
         self.pending_rows = []
 
@@ -61,10 +67,10 @@ class RawPipeline:
             database=os.getenv("SCRAPER_DB_NAME", "database"),
             autocommit=False,
         )
-        self.cursor = self.conn.cursor()
+        self.cursor = self.conn.cursor(buffered=True)
         self._ensure_schema()
 
-    def close_spider(self, spider):
+    def close_spider(self, spider=None):
         try:
             self._flush_rows(force=True)
             self.cursor.close()
@@ -96,7 +102,8 @@ class RawPipeline:
         self._ensure_column("last_crawled_at", "DATETIME NULL")
 
         self.cursor.execute("SHOW INDEX FROM raw_properties WHERE Key_name = 'ux_raw_properties_source_url'")
-        if not self.cursor.fetchone():
+        existing_indexes = self.cursor.fetchall()
+        if not existing_indexes:
             try:
                 self.cursor.execute(
                     "ALTER TABLE raw_properties ADD UNIQUE INDEX ux_raw_properties_source_url (source, url(255))"
@@ -249,12 +256,19 @@ class RawPipeline:
             self.conn.rollback()
             raise
 
-    def process_item(self, item, spider):
+    def process_item(self, item, spider=None):
         url = self._normalize_url(item.get("url"))
         if not url:
             return item
 
-        source = spider.name
+        source = None
+        if spider is not None:
+            source = spider.name
+        elif getattr(self, "crawler", None) is not None and getattr(self.crawler, "spider", None) is not None:
+            source = self.crawler.spider.name
+        if not source:
+            source = item.get("source") or "unknown"
+
         listing_id = self._clean_text(item.get("listing_id"))
         stream = self._clean_text(item.get("stream"))
 
