@@ -3,18 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "client",
-    "server",
-    "tunisia-dynasty-map-integration"
+    "apps/*"
   ],
   "scripts": {
-    "dev:client": "npm run start --workspace client",
-    "dev:server": "npm run dev --workspace server",
-    "dev:map": "npm run dev --workspace tunisia-dynasty-map-integration",
-    "build:client": "npm run build --workspace client",
-    "build:server": "npm run start --workspace server",
-    "build:map": "npm run build --workspace tunisia-dynasty-map-integration",
-    "test:client": "npm run test --workspace client -- --watchAll=false",
-    "test:server": "npm run test --workspace server"
+    "dev:web": "npm run start --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "build:web": "npm run build --workspace apps/web",
+    "build:api": "npm run start --workspace apps/api",
+    "test:web": "npm run test --workspace apps/web -- --watchAll=false --passWithNoTests",
+    "test:api": "npm run test --workspace apps/api",
+    "dev:map-example": "npm --prefix examples/map-integration run dev",
+    "build:map-example": "npm --prefix examples/map-integration run build"
   }
 }
