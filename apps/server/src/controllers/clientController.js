@@ -1,5 +1,6 @@
-import { fetchClientProfile } from "../services/clientService.js";
+import { fetchClientProfile } from "../models/clientModel.js";
 import { httpError } from "../utils/httpError.js";
+import { renderClientProfile } from "../views/clientView.js";
 
 export async function getMyClientProfile(req, res) {
   const userId = req.user?.sub;
@@ -9,5 +10,5 @@ export async function getMyClientProfile(req, res) {
     throw httpError(404, "Client profile not found");
   }
 
-  return res.json({ profile });
+  return renderClientProfile(res, profile);
 }

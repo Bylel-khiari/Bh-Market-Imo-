@@ -2,7 +2,7 @@
 
 ## Location
 
-- apps/api
+- apps/server
 
 ## Stack
 
@@ -17,14 +17,14 @@
 From repository root:
 
 ```bash
-npm run dev:api
-npm run build:api
-npm run test:api
+npm run dev:server
+npm run start:server
+npm run test:server
 ```
 
 ## Environment
 
-Create apps/api/.env with at least:
+Create apps/server/.env with at least:
 
 - PORT
 - NODE_ENV
@@ -39,6 +39,7 @@ Create apps/api/.env with at least:
 
 ## Notes
 
-- API serves property data consumed by apps/web.
+- API serves property data consumed by apps/client.
 - Health routes include database connectivity checks.
-- Keep business logic in src/services and thin controllers in src/controllers.
+- Backend now follows an MVC-style API structure with `src/models`, `src/controllers`, and `src/views`.
+- In this API, `views` are JSON response presenters rather than server-rendered HTML templates.

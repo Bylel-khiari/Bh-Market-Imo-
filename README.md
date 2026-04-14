@@ -7,8 +7,8 @@ Professional monorepo for BH Market Imo with production apps, data services, and
 ```text
 BH-Market-Imo/
   apps/
-    web/                  # React frontend (production)
-    api/                  # Express API (production)
+    client/               # React frontend (production)
+    server/               # Express backend/API (production)
   services/
     scraper/              # Scrapy crawler service
   tools/
@@ -53,32 +53,32 @@ pip install scrapy mysql-connector-python rapidfuzz
 From repository root:
 
 ```bash
-npm run dev:api
+npm run dev:server
 ```
 
 In another terminal:
 
 ```bash
-npm run dev:web
+npm run dev:client
 ```
 
 Build:
 
 ```bash
-npm run build:web
+npm run build:client
 ```
 
 Run API in production mode:
 
 ```bash
-npm run start:api
+npm run start:server
 ```
 
 Tests:
 
 ```bash
-npm run test:api
-npm run test:web
+npm run test:server
+npm run test:client
 ```
 
 ## Run Services and Tools
@@ -107,8 +107,8 @@ npm run dev:map-example
 
 ## Environment Files
 
-- `apps/api/.env`
-- `apps/web/.env`
+- `apps/server/.env`
+- `apps/client/.env`
 
 Important API variables include:
 

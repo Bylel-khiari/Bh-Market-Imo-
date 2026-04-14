@@ -1,5 +1,6 @@
-import { fetchAgentProfile } from "../services/agentService.js";
+import { fetchAgentProfile } from "../models/agentModel.js";
 import { httpError } from "../utils/httpError.js";
+import { renderAgentProfile } from "../views/agentView.js";
 
 export async function getMyAgentProfile(req, res) {
   const userId = req.user?.sub;
@@ -9,5 +10,5 @@ export async function getMyAgentProfile(req, res) {
     throw httpError(404, "Agent profile not found");
   }
 
-  return res.json({ profile });
+  return renderAgentProfile(res, profile);
 }

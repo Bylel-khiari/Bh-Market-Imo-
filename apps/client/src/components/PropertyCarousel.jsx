@@ -9,7 +9,11 @@ const PropertyCarousel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBaseUrl =
+    process.env.REACT_APP_API_URL ||
+    (typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      : 'http://localhost:5000');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -28,7 +32,13 @@ const PropertyCarousel = () => {
         }
 
         const payload = await response.json();
-        const rows = Array.isArray(payload.data) ? payload.data : [];
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload.items)
+              ? payload.items
+              : [];
         setProperties(rows.filter((row) => row.image || row.title));
       } catch (err) {
         if (err.name !== 'AbortError') {

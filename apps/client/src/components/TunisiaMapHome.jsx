@@ -118,6 +118,11 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
   const [selectedGovernorate, setSelectedGovernorate] = useState(null);
   const [hoveredGovernorate, setHoveredGovernorate] = useState(null);
   const usesExternalRows = Array.isArray(rows);
+  const apiBaseUrl =
+    process.env.REACT_APP_API_URL ||
+    (typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      : 'http://localhost:5000');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -182,7 +187,6 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
 
     async function loadListings() {
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
         const response = await fetch(`${apiBaseUrl}/api/properties?limit=500`);
 
         if (!response.ok) {
@@ -207,7 +211,7 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
     return () => {
       ignore = true;
     };
-  }, [usesExternalRows]);
+  }, [apiBaseUrl, usesExternalRows]);
 
   const mapFeatures = useMemo(() => {
     if (!geoJson) return null;
