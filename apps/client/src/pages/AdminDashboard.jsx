@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FaUsers,
   FaUserTie,
@@ -12,6 +13,7 @@ import {
   FaHome,
   FaBell,
   FaEnvelope,
+  FaSignOutAlt,
   FaTimes,
 } from 'react-icons/fa';
 import {
@@ -27,7 +29,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { getAuthSession } from '../lib/auth';
+import { clearAuthSession, getAuthSession } from '../lib/auth';
 import '../styles/AdminDashboard.css';
 
 const ROLE_LABELS = {
@@ -38,10 +40,10 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  client: '#0b5fa8',
+  client: '#0a4d8c',
   agent_bancaire: '#ef7d00',
-  responsable_decisionnel: '#1f8f58',
-  admin: '#7a2cff',
+  responsable_decisionnel: '#2c7a4b',
+  admin: '#cc0000',
 };
 
 function formatRole(role) {
@@ -64,6 +66,7 @@ function getInitials(nameOrEmail) {
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [userSearch, setUserSearch] = useState('');
@@ -87,6 +90,15 @@ export default function AdminDashboard() {
   });
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  const goToHomePage = () => {
+    navigate('/');
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate('/login', { replace: true });
+  };
 
   const fetchUsers = useCallback(async () => {
     const token = getAuthSession()?.token;
@@ -369,12 +381,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="admin-dashboard">
-        <div className="container">
-          <div className="admin-state">
-            <FaSyncAlt className="spin" />
-            <p>Chargement du dashboard admin...</p>
-          </div>
+      <div className="admin-dashboard admin-dashboard--state">
+        <div className="admin-state admin-state--page">
+          <FaSyncAlt className="spin" />
+          <p>Chargement du dashboard admin...</p>
         </div>
       </div>
     );
@@ -382,15 +392,13 @@ export default function AdminDashboard() {
 
   if (error) {
     return (
-      <div className="admin-dashboard">
-        <div className="container">
-          <div className="admin-state error">
-            <FaExclamationTriangle />
-            <p>{error}</p>
-            <button type="button" className="admin-refresh" onClick={fetchUsers}>
-              Reessayer
-            </button>
-          </div>
+      <div className="admin-dashboard admin-dashboard--state">
+        <div className="admin-state admin-state--page error">
+          <FaExclamationTriangle />
+          <p>{error}</p>
+          <button type="button" className="admin-refresh" onClick={fetchUsers}>
+            Reessayer
+          </button>
         </div>
       </div>
     );
@@ -433,8 +441,29 @@ export default function AdminDashboard() {
             <div className="admin-topbar-actions">
               <button type="button" className="admin-icon-btn" aria-label="Notifications"><FaBell /></button>
               <button type="button" className="admin-icon-btn" aria-label="Messages"><FaEnvelope /></button>
-              <button type="button" className="admin-refresh" onClick={fetchUsers} disabled={submitting}>
+              <button
+                type="button"
+                className="admin-secondary admin-topbar-btn admin-topbar-btn--home"
+                onClick={goToHomePage}
+              >
+                <FaHome />
+                <span>Accueil</span>
+              </button>
+              <button
+                type="button"
+                className="admin-refresh admin-topbar-btn admin-topbar-btn--primary"
+                onClick={fetchUsers}
+                disabled={submitting}
+              >
                 Actualiser
+              </button>
+              <button
+                type="button"
+                className="admin-topbar-btn admin-topbar-btn--logout"
+                onClick={handleLogout}
+              >
+                <FaSignOutAlt />
+                <span>Deconnexion</span>
               </button>
             </div>
           </div>

@@ -4,6 +4,21 @@
   flex-direction: column;
 }
 
+.App--fullscreen {
+  min-height: 100dvh;
+}
+
+.App__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.App__content--fullscreen {
+  min-height: 100dvh;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;

@@ -20,33 +20,37 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const hideNavFooter = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+  const fullscreenRoutes = ['/admin/dashboard'];
+  const hideNavFooter = ['/login', '/register', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
+  const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;
 
   return (
-    <div className="App">
+    <div className={`App${isFullscreenRoute ? ' App--fullscreen' : ''}`}>
       {!hideNavFooter && <Navbar />}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/properties" element={<Properties />} />
-        <Route path="/credit-simulation" element={<CreditSimulation />} />
-        <Route
-          path="/dashboard"
-          element={role === 'responsable_decisionnel' ? <Dashboard /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/admin/dashboard"
-          element={role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />}
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/la-banque" element={<LaBanque />} />
-        <Route path="/credit-immobilier-bh" element={<CreditImmobilierBHPortal />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/manage" element={<ProfileManagement />} />
-      </Routes>
+      <main className={`App__content${isFullscreenRoute ? ' App__content--fullscreen' : ''}`}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/properties" element={<Properties />} />
+          <Route path="/credit-simulation" element={<CreditSimulation />} />
+          <Route
+            path="/dashboard"
+            element={role === 'responsable_decisionnel' ? <Dashboard /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/admin/dashboard"
+            element={role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />}
+          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/la-banque" element={<LaBanque />} />
+          <Route path="/credit-immobilier-bh" element={<CreditImmobilierBHPortal />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/manage" element={<ProfileManagement />} />
+        </Routes>
+      </main>
       {!hideNavFooter && <Footer />}
     </div>
   );
