@@ -355,7 +355,7 @@ const Navbar = () => {
                   <NavLink
                     to={item.to}
                     end={item.to === '/'}
-                    className={({ isActive }) => `nav-link${isActive ? ' is-active' : ''}`}
+                    className={({ isActive }) => `bh-nav-link${isActive ? ' is-active' : ''}`}
                     onClick={closeMenuPanels}
                   >
                     {item.label}

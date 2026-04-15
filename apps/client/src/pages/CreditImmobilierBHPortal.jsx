@@ -14,15 +14,24 @@ export default function CreditImmobilierBHPortal() {
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
 
   useEffect(() => {
-    // Inject Bootstrap CSS once for this page.
+    // Inject Bootstrap CSS only while this page is mounted.
     const bootstrapId = 'bh-bootstrap-css';
+    let injectedBootstrapLink = null;
+
     if (!document.getElementById(bootstrapId)) {
       const link = document.createElement('link');
       link.id = bootstrapId;
       link.rel = 'stylesheet';
       link.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';
       document.head.appendChild(link);
+      injectedBootstrapLink = link;
     }
+
+    return () => {
+      if (injectedBootstrapLink?.parentNode) {
+        injectedBootstrapLink.parentNode.removeChild(injectedBootstrapLink);
+      }
+    };
   }, []);
 
   const handleInputChange = (event) => {
