@@ -38,6 +38,8 @@ MAX_AGE_DAYS = 365 * 3
 DELETE_OLD_RAW_ROWS = True
 PURGE_OLD_CLEAN_LISTINGS = False
 PURGE_OLD_DUPLICATE_LOGS = False
+COMMIT_EVERY = int(os.getenv("CLEANER_COMMIT_EVERY", "500"))
+PROGRESS_EVERY = int(os.getenv("CLEANER_PROGRESS_EVERY", "1000"))
 
 
 # =========================
@@ -303,7 +305,7 @@ def parse_datetime(value: Any) -> Optional[datetime]:
 
 
 def cutoff_datetime() -> datetime:
-    return datetime.utcnow() - timedelta(days=MAX_AGE_DAYS)
+    return datetime.now() - timedelta(days=MAX_AGE_DAYS)
 
 
 def is_too_old(scraped_at: Any) -> bool:
@@ -558,6 +560,84 @@ def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
 
 
+def table_exists(conn, table_name: str) -> bool:
+    cur = conn.cursor()
+    cur.execute("SHOW TABLES LIKE %s", (table_name,))
+    exists = cur.fetchone() is not None
+    cur.close()
+    return exists
+
+
+def column_exists(conn, table_name: str, column_name: str) -> bool:
+    cur = conn.cursor()
+    cur.execute(f"SHOW COLUMNS FROM {table_name} LIKE %s", (column_name,))
+    exists = cur.fetchone() is not None
+    cur.close()
+    return exists
+
+
+def ensure_column(conn, table_name: str, column_name: str, definition: str):
+    if column_exists(conn, table_name, column_name):
+        return
+    cur = conn.cursor()
+    cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
+    cur.close()
+
+
+def ensure_runtime_schema(conn):
+    # raw_properties compatibility
+    ensure_column(conn, RAW_TABLE, "processed", "TINYINT NOT NULL DEFAULT 0")
+    ensure_column(conn, RAW_TABLE, "scraped_at", "DATETIME NULL")
+
+    cur = conn.cursor()
+    cur.execute(
+        f"""
+        UPDATE {RAW_TABLE}
+        SET scraped_at = COALESCE(scraped_at, last_crawled_at, first_seen_at, created_at)
+        WHERE scraped_at IS NULL
+        """
+    )
+    try:
+        cur.execute(f"CREATE INDEX idx_{RAW_TABLE}_processed ON {RAW_TABLE}(processed)")
+    except mysql.connector.Error:
+        # Ignore if index already exists.
+        pass
+    cur.close()
+
+    # clean_listings compatibility
+    if table_exists(conn, "clean_listings"):
+        ensure_column(conn, "clean_listings", "raw_id", "BIGINT NULL")
+        ensure_column(conn, "clean_listings", "normalized_title", "TEXT NULL")
+        ensure_column(conn, "clean_listings", "normalized_location", "TEXT NULL")
+        ensure_column(conn, "clean_listings", "normalized_description", "LONGTEXT NULL")
+        ensure_column(conn, "clean_listings", "dedupe_key", "CHAR(40) NULL")
+
+    # duplicates_log table required by cleaner
+    if not table_exists(conn, "duplicates_log"):
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE duplicates_log (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                raw_id BIGINT NULL,
+                source VARCHAR(120) NULL,
+                title VARCHAR(255) NULL,
+                location_raw VARCHAR(255) NULL,
+                price_raw VARCHAR(255) NULL,
+                image TEXT NULL,
+                url TEXT NULL,
+                reason VARCHAR(120) NULL,
+                matched_clean_id BIGINT NULL,
+                similarity_score DECIMAL(5,2) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        )
+        cur.close()
+
+    conn.commit()
+
+
 def fetch_raw_rows(conn) -> List[Dict[str, Any]]:
     cur = conn.cursor(dictionary=True)
     cur.execute(f"""
@@ -631,6 +711,33 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
         items.append((row["id"], candidate))
 
     return items
+
+
+def build_existing_indexes(existing_clean: List[Tuple[int, Candidate]]):
+    by_dedupe_key: Dict[str, Tuple[int, Candidate]] = {}
+    by_governorate: Dict[str, List[Tuple[int, Candidate]]] = {}
+
+    for clean_id, candidate in existing_clean:
+        if candidate.dedupe_key and candidate.dedupe_key not in by_dedupe_key:
+            by_dedupe_key[candidate.dedupe_key] = (clean_id, candidate)
+
+        gov_key = candidate.governorate or ""
+        by_governorate.setdefault(gov_key, []).append((clean_id, candidate))
+
+    return by_dedupe_key, by_governorate
+
+
+def register_existing_candidate(
+    by_dedupe_key: Dict[str, Tuple[int, Candidate]],
+    by_governorate: Dict[str, List[Tuple[int, Candidate]]],
+    clean_id: int,
+    candidate: Candidate,
+):
+    if candidate.dedupe_key and candidate.dedupe_key not in by_dedupe_key:
+        by_dedupe_key[candidate.dedupe_key] = (clean_id, candidate)
+
+    gov_key = candidate.governorate or ""
+    by_governorate.setdefault(gov_key, []).append((clean_id, candidate))
 
 
 def insert_clean_listing(conn, c: Candidate) -> int:
@@ -770,21 +877,25 @@ def main():
     conn = get_connection()
 
     try:
+        ensure_runtime_schema(conn)
         purge_old_live_data(conn)
 
         raw_rows = fetch_raw_rows(conn)
         existing_clean = load_existing_clean(conn)
+        existing_by_dedupe_key, existing_by_governorate = build_existing_indexes(existing_clean)
 
         accepted = 0
         duplicates = 0
         skipped_rent = 0
         skipped_outside_tunisia = 0
         skipped_too_old = 0
+        rows_since_commit = 0
 
-        for raw_row in raw_rows:
+        for idx, raw_row in enumerate(raw_rows, start=1):
             if is_too_old(raw_row.get("scraped_at")):
                 handle_old_raw_row(conn, int(raw_row["id"]))
                 skipped_too_old += 1
+                rows_since_commit += 1
                 continue
 
             candidate = build_candidate(raw_row)
@@ -792,31 +903,72 @@ def main():
             if is_for_rent(candidate.title, candidate.description, candidate.price_raw):
                 update_raw_status(conn, candidate.raw_id, STATUS_RENT)
                 skipped_rent += 1
+                rows_since_commit += 1
                 continue
 
             if not candidate_matches_target(candidate.country, candidate.governorate):
                 update_raw_status(conn, candidate.raw_id, STATUS_OUTSIDE_TUNISIA)
                 skipped_outside_tunisia += 1
+                rows_since_commit += 1
+                continue
+
+            exact_match = existing_by_dedupe_key.get(candidate.dedupe_key)
+            if exact_match is not None:
+                matched_clean_id, _ = exact_match
+                insert_duplicate_log(conn, raw_row, "same_exact_key", matched_clean_id, 100.0)
+                update_raw_status(conn, candidate.raw_id, STATUS_DUPLICATE)
+                duplicates += 1
+                rows_since_commit += 1
+                if rows_since_commit >= COMMIT_EVERY:
+                    conn.commit()
+                    rows_since_commit = 0
                 continue
 
             found_duplicate = False
 
-            for clean_id, existing in existing_clean:
+            # Only compare within the same governorate bucket for expensive fuzzy checks.
+            scope = existing_by_governorate.get(candidate.governorate or "", [])
+            for clean_id, existing in scope:
+                if candidate.price_value is not None and existing.price_value is not None:
+                    max_price = max(candidate.price_value, existing.price_value)
+                    if max_price > 0:
+                        diff_ratio = abs(candidate.price_value - existing.price_value) / max_price
+                        same_image = bool(candidate.image and existing.image and candidate.image.strip() == existing.image.strip())
+                        if diff_ratio > 0.03 and not same_image:
+                            continue
+
                 dup, reason, score = is_duplicate(candidate, existing)
                 if dup:
                     insert_duplicate_log(conn, raw_row, reason, clean_id, score)
                     update_raw_status(conn, candidate.raw_id, STATUS_DUPLICATE)
                     duplicates += 1
                     found_duplicate = True
+                    rows_since_commit += 1
                     break
 
             if found_duplicate:
+                if rows_since_commit >= COMMIT_EVERY:
+                    conn.commit()
+                    rows_since_commit = 0
                 continue
 
             new_clean_id = insert_clean_listing(conn, candidate)
             existing_clean.append((new_clean_id, candidate))
+            register_existing_candidate(existing_by_dedupe_key, existing_by_governorate, new_clean_id, candidate)
             update_raw_status(conn, candidate.raw_id, STATUS_ACCEPTED)
             accepted += 1
+            rows_since_commit += 1
+
+            if rows_since_commit >= COMMIT_EVERY:
+                conn.commit()
+                rows_since_commit = 0
+
+            if PROGRESS_EVERY > 0 and idx % PROGRESS_EVERY == 0:
+                print(
+                    f"Progress: {idx}/{len(raw_rows)} | "
+                    f"accepted={accepted} duplicates={duplicates} "
+                    f"rent={skipped_rent} outside={skipped_outside_tunisia} too_old={skipped_too_old}"
+                )
 
         conn.commit()
 
