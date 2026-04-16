@@ -37,7 +37,7 @@ export const adminListUsersQuerySchema = z
 
 export const propertyListQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(1000).optional(),
+    limit: z.coerce.number().int().min(1).max(5000).optional(),
     city: z.string().trim().max(120).optional(),
   })
   .strict();

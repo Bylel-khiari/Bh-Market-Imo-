@@ -5,6 +5,7 @@ import '../styles/Properties.css';
 
 const TYPE_LABELS = ['Appartement', 'Villa', 'Maison', 'Terrain', 'Studio', 'Bureau'];
 const DEFAULT_AMENITIES = ['Garden', 'Gym', 'Garage', 'Pool'];
+const PROPERTIES_PER_PAGE = 25;
 const DEMO_PROPERTIES = [
   {
     id: 'demo-1',
@@ -81,10 +82,11 @@ const Properties = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const [locationKeyword, setLocationKeyword] = useState('');
   const [selectedCities, setSelectedCities] = useState([]);
-  const [selectedTypes, setSelectedTypes] = useState(['Appartement', 'Villa', 'Maison']);
+  const [selectedTypes, setSelectedTypes] = useState([]);
   const [activeAmenities, setActiveAmenities] = useState(['Garden']);
   const [priceMin, setPriceMin] = useState(0);
   const [priceMax, setPriceMax] = useState(1000000);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const apiBaseUrl =
     process.env.REACT_APP_API_URL ||
@@ -99,7 +101,7 @@ const Properties = () => {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/properties?limit=100`, { signal: controller.signal });
+      const response = await fetch(`${apiBaseUrl}/api/properties?limit=5000`, { signal: controller.signal });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -186,6 +188,37 @@ const Properties = () => {
     priceMax,
   ]);
 
+  const totalPages = useMemo(() => {
+    if (!filteredProperties.length) return 1;
+    return Math.ceil(filteredProperties.length / PROPERTIES_PER_PAGE);
+  }, [filteredProperties.length]);
+
+  const paginatedProperties = useMemo(() => {
+    const start = (currentPage - 1) * PROPERTIES_PER_PAGE;
+    return filteredProperties.slice(start, start + PROPERTIES_PER_PAGE);
+  }, [currentPage, filteredProperties]);
+
+  const visiblePageNumbers = useMemo(() => {
+    const maxVisiblePages = 5;
+    if (totalPages <= maxVisiblePages) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const halfWindow = Math.floor(maxVisiblePages / 2);
+    let startPage = Math.max(1, currentPage - halfWindow);
+    let endPage = startPage + maxVisiblePages - 1;
+
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+  }, [currentPage, totalPages]);
+
+  const visibleRangeStart = filteredProperties.length === 0 ? 0 : (currentPage - 1) * PROPERTIES_PER_PAGE + 1;
+  const visibleRangeEnd = Math.min(currentPage * PROPERTIES_PER_PAGE, filteredProperties.length);
+
   const allPriceValues = useMemo(() => {
     return properties
       .map((item) => Number(item.price_value))
@@ -209,10 +242,10 @@ const Properties = () => {
   }, [filteredProperties]);
 
   const selectedProperty = useMemo(() => {
-    if (!filteredProperties.length) return null;
-    const found = filteredProperties.find((property) => String(property.id) === String(selectedPropertyId));
-    return found || filteredProperties[0];
-  }, [filteredProperties, selectedPropertyId]);
+    if (!paginatedProperties.length) return null;
+    const found = paginatedProperties.find((property) => String(property.id) === String(selectedPropertyId));
+    return found || paginatedProperties[0];
+  }, [paginatedProperties, selectedPropertyId]);
 
   useEffect(() => {
     if (selectedProperty) {
@@ -221,12 +254,34 @@ const Properties = () => {
   }, [selectedProperty]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [location.search, locationKeyword, selectedCities, selectedTypes, priceMin, priceMax]);
+
+  useEffect(() => {
     setPriceMin(0);
     setPriceMax(maxDetectedPrice);
   }, [maxDetectedPrice]);
 
   useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
     if (loading || !focusId) return;
+
+    const focusedPropertyIndex = filteredProperties.findIndex(
+      (property) => String(property.id) === String(focusId),
+    );
+
+    if (focusedPropertyIndex === -1) return;
+
+    const focusPage = Math.floor(focusedPropertyIndex / PROPERTIES_PER_PAGE) + 1;
+    if (focusPage !== currentPage) {
+      setCurrentPage(focusPage);
+      return;
+    }
 
     const selector = `[data-property-id="${focusId}"]`;
     const target = document.querySelector(selector);
@@ -234,10 +289,11 @@ const Properties = () => {
 
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setFocusedId(String(focusId));
+    setSelectedPropertyId(focusId);
 
     const timeoutId = setTimeout(() => setFocusedId(null), 2200);
     return () => clearTimeout(timeoutId);
-  }, [focusId, loading, filteredProperties]);
+  }, [currentPage, filteredProperties, focusId, loading]);
 
   const formatPrice = (property) => {
     const numeric = Number(property.price_value);
@@ -295,7 +351,7 @@ const Properties = () => {
             <h2>Custom Filter</h2>
             <button type="button" className="clear-btn" onClick={() => {
               setSelectedCities([]);
-              setSelectedTypes(['Appartement', 'Villa', 'Maison']);
+              setSelectedTypes([]);
               setActiveAmenities(['Garden']);
               setLocationKeyword('');
               setPriceMin(0);
@@ -399,7 +455,11 @@ const Properties = () => {
             <div>
               <p className="cards-title-label">Bien immobilier</p>
               <h1>Explore the best properties</h1>
-              <p>{loading ? 'Loading data...' : `${filteredProperties.length} property card(s)`}</p>
+              <p>
+                {loading
+                  ? 'Loading data...'
+                  : `${visibleRangeStart}-${visibleRangeEnd} of ${filteredProperties.length} property card(s)`}
+              </p>
             </div>
             <button type="button" onClick={fetchProperties} className="refresh-btn">
               <FaSyncAlt /> Refresh
@@ -410,40 +470,77 @@ const Properties = () => {
           {loading && <div className="properties-loading">Chargement des biens nettoyes...</div>}
 
           {!loading && filteredProperties.length > 0 && (
-            <div className="properties-grid new-grid">
-              {filteredProperties.map((property) => {
-                const type = inferTypeFromTitle(property.title);
-                const active = String(selectedProperty?.id) === String(property.id);
-                return (
-                  <article
-                    className={`property-card compact-card ${active ? 'is-active' : ''} ${focusedId === String(property.id) ? 'property-card--focused' : ''}`}
-                    key={property.id}
-                    data-property-id={property.id}
-                    onClick={() => setSelectedPropertyId(property.id)}
-                  >
-                    <div className="property-card-image-wrap">
-                      {property.image ? (
-                        <img src={property.image} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />
-                      ) : (
-                        <div className="property-card-image-placeholder">Image non disponible</div>
-                      )}
-                      <span className="property-badge">{type}</span>
-                    </div>
-
-                    <div className="property-card-body">
-                      <h3>{property.title || 'Titre non disponible'}</h3>
-                      <p className="property-card-location">
-                        <FaMapMarkerAlt /> {property.location_raw || property.city || 'Localisation non disponible'}
-                      </p>
-                      <div className="property-card-footer-row">
-                        <p className="property-card-price">{formatPrice(property)}</p>
-                        <span className="rating-pill"><FaStar /> {buildRating(property.id)}</span>
+            <>
+              <div className="properties-grid new-grid">
+                {paginatedProperties.map((property) => {
+                  const type = inferTypeFromTitle(property.title);
+                  const active = String(selectedProperty?.id) === String(property.id);
+                  return (
+                    <article
+                      className={`property-card compact-card ${active ? 'is-active' : ''} ${focusedId === String(property.id) ? 'property-card--focused' : ''}`}
+                      key={property.id}
+                      data-property-id={property.id}
+                      onClick={() => setSelectedPropertyId(property.id)}
+                    >
+                      <div className="property-card-image-wrap">
+                        {property.image ? (
+                          <img src={property.image} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />
+                        ) : (
+                          <div className="property-card-image-placeholder">Image non disponible</div>
+                        )}
+                        <span className="property-badge">{type}</span>
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+
+                      <div className="property-card-body">
+                        <h3>{property.title || 'Titre non disponible'}</h3>
+                        <p className="property-card-location">
+                          <FaMapMarkerAlt /> {property.location_raw || property.city || 'Localisation non disponible'}
+                        </p>
+                        <div className="property-card-footer-row">
+                          <p className="property-card-price">{formatPrice(property)}</p>
+                          <span className="rating-pill"><FaStar /> {buildRating(property.id)}</span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              {totalPages > 1 && (
+                <nav className="properties-pagination" aria-label="Property pagination">
+                  <button
+                    type="button"
+                    className="pagination-btn pagination-btn--nav"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="pagination-pages">
+                    {visiblePageNumbers.map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        className={`pagination-btn ${pageNumber === currentPage ? 'is-active' : ''}`}
+                        onClick={() => setCurrentPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="pagination-btn pagination-btn--nav"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </nav>
+              )}
+            </>
           )}
 
           {!loading && filteredProperties.length === 0 && (

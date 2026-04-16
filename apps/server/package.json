@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync:properties": "node scripts/syncCleanListingsToProperties.mjs"
   },
   "keywords": [],
   "author": "",

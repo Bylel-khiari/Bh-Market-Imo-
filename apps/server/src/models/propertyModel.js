@@ -1,6 +1,6 @@
 import { dbPool } from "../config/db.js";
 
-const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 1000);
+const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 5000);
 
 export async function fetchProperties({ limit = 24, city = "" } = {}) {
   const boundedLimit = Math.min(Math.max(Number(limit) || 24, 1), MAX_PROPERTIES_LIMIT);
@@ -21,7 +21,7 @@ export async function fetchProperties({ limit = 24, city = "" } = {}) {
       source,
       url,
       scraped_at
-    FROM clean_listings
+    FROM properties
   `;
 
   const params = [];

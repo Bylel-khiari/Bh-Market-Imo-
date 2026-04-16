@@ -29,6 +29,7 @@
   display: grid;
   grid-template-columns: 280px 1fr 360px;
   gap: 16px;
+  align-items: start;
 }
 
 .filters-panel,
@@ -42,6 +43,11 @@
 
 .filters-panel {
   padding: 18px 14px;
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
 }
 
 .panel-title-row {
@@ -165,6 +171,7 @@
 
 .cards-panel {
   padding: 16px;
+  min-width: 0;
 }
 
 .properties-grid {
@@ -329,6 +336,7 @@
   padding: 14px;
   position: sticky;
   top: 88px;
+  align-self: start;
   max-height: calc(100vh - 110px);
   overflow: auto;
 }
@@ -595,6 +603,60 @@
   color: var(--ink-700);
 }
 
+.properties-pagination {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  min-width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: #fff;
+  color: var(--ink-700);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #b8c7ff;
+  color: var(--brand);
+  transform: translateY(-1px);
+}
+
+.pagination-btn.is-active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #1f56ff, #2f78ff);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(47, 120, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.pagination-btn--nav {
+  min-width: 110px;
+  padding: 0 16px;
+}
+
 @media (max-width: 1360px) {
   .marketplace-shell {
     grid-template-columns: 240px 1fr 320px;
@@ -620,9 +682,11 @@
     grid-template-columns: 1fr;
   }
 
+  .filters-panel,
   .details-panel {
     position: static;
     max-height: none;
+    overflow: visible;
   }
 
   .filters-panel {
@@ -650,6 +714,19 @@
 
   .cards-header h1 {
     font-size: 24px;
+  }
+
+  .properties-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination-pages {
+    justify-content: center;
+  }
+
+  .pagination-btn--nav {
+    width: 100%;
   }
 
   .new-grid {
