@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import logo from '../assets/favicon.ico';
 import { loginApi, saveAuthSession } from '../lib/auth';
 import '../styles/Login.css';
 
 const Login = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const redirectTo = location.state?.from || '/';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +30,7 @@ const Login = () => {
     try {
       const payload = await loginApi({ email: identifier.trim(), password });
       saveAuthSession({ token: payload.token, user: payload.user });
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       setErrorMessage(error.message || 'Echec de connexion.');
     } finally {
@@ -37,7 +40,6 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      {/* Left Panel - Branding */}
       <div className="login-left">
         <div className="login-left-content">
           <div className="login-brand">
@@ -73,16 +75,14 @@ const Login = () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* Right Panel - Form */}
       <div className="login-right">
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Connexion</h2>
-            <p>Accédez à votre espace client</p>
+            <p>Accedez a votre espace client</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
@@ -123,7 +123,7 @@ const Login = () => {
                 <span>Se souvenir de moi</span>
               </label>
               <Link to="/forgot-password" className="login-forgot">
-                Mot de passe oublié ?
+                Mot de passe oublie ?
               </Link>
             </div>
 
@@ -140,13 +140,13 @@ const Login = () => {
             <div className="login-register">
               <p>
                 Vous n'avez pas de compte ?{' '}
-                <Link to="/register">Créer un compte</Link>
+                <Link to="/register" state={location.state}>Creer un compte</Link>
               </p>
             </div>
           </form>
 
           <div className="login-back-home">
-            <Link to="/">← Retour à l'accueil</Link>
+            <Link to="/">Retour a l'accueil</Link>
           </div>
         </div>
       </div>

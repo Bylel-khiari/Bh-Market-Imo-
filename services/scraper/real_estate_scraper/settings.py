@@ -81,9 +81,9 @@ RANDOMIZE_DOWNLOAD_DELAY = True
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
+EXTENSIONS = {
+    "real_estate_scraper.extensions.ActiveScrapeSiteGuardExtension": 100,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html

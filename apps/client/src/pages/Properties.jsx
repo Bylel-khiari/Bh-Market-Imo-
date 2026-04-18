@@ -1,6 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaBath, FaBed, FaExternalLinkAlt, FaMapMarkerAlt, FaRulerCombined, FaSearch, FaStar, FaSyncAlt } from 'react-icons/fa';
+import {
+  FaBath,
+  FaBed,
+  FaExternalLinkAlt,
+  FaHeart,
+  FaMapMarkerAlt,
+  FaRegHeart,
+  FaRulerCombined,
+  FaSearch,
+  FaStar,
+  FaSyncAlt,
+} from 'react-icons/fa';
+import {
+  addFavoriteApi,
+  fetchFavoritesApi,
+  getAuthSession,
+  removeFavoriteApi,
+} from '../lib/auth';
 import '../styles/Properties.css';
 
 const TYPE_LABELS = ['Appartement', 'Villa', 'Maison', 'Terrain', 'Studio', 'Bureau'];
@@ -87,12 +104,21 @@ const Properties = () => {
   const [priceMin, setPriceMin] = useState(0);
   const [priceMax, setPriceMax] = useState(1000000);
   const [currentPage, setCurrentPage] = useState(1);
+  const [authSession, setAuthSession] = useState(() => getAuthSession());
+  const [favoriteIds, setFavoriteIds] = useState([]);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoritePendingId, setFavoritePendingId] = useState(null);
+  const [favoriteError, setFavoriteError] = useState('');
+  const [favoriteNotice, setFavoriteNotice] = useState('');
 
   const apiBaseUrl =
     process.env.REACT_APP_API_URL ||
     (typeof window !== 'undefined'
       ? `${window.location.protocol}//${window.location.hostname}:5000`
       : 'http://localhost:5000');
+
+  const currentUserRole = authSession?.user?.role || null;
+  const isClientSession = Boolean(authSession?.token && currentUserRole === 'client');
 
   const fetchProperties = useCallback(async () => {
     setLoading(true);
@@ -119,15 +145,61 @@ const Properties = () => {
     }
   }, [apiBaseUrl]);
 
+  const fetchFavorites = useCallback(async () => {
+    if (!isClientSession) {
+      setFavoriteIds([]);
+      setFavoriteLoading(false);
+      setFavoriteError('');
+      setFavoriteNotice('');
+      return;
+    }
+
+    setFavoriteLoading(true);
+
+    try {
+      const payload = await fetchFavoritesApi(authSession.token);
+      const nextIds = Array.isArray(payload.propertyIds)
+        ? payload.propertyIds
+        : Array.isArray(payload.data)
+          ? payload.data.map((item) => item.id)
+          : [];
+
+      setFavoriteIds(nextIds.map((id) => String(id)));
+      setFavoriteError('');
+    } catch (err) {
+      console.error('Failed to load favorites:', err);
+      setFavoriteError(err.message || 'Impossible de charger vos favoris.');
+      setFavoriteIds([]);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }, [authSession?.token, isClientSession]);
+
   useEffect(() => {
     fetchProperties();
   }, [fetchProperties]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  useEffect(() => {
+    const syncAuthSession = () => setAuthSession(getAuthSession());
+    window.addEventListener('storage', syncAuthSession);
+    return () => window.removeEventListener('storage', syncAuthSession);
+  }, []);
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const searchQuery = (searchParams.get('q') || '').trim().toLowerCase();
   const searchLocation = (searchParams.get('location') || '').trim().toLowerCase();
   const searchType = (searchParams.get('type') || '').trim().toLowerCase();
   const focusId = (searchParams.get('focusId') || '').trim();
+  const favoritesOnly = searchParams.get('favorites') === '1';
+
+  const favoriteIdSet = useMemo(
+    () => new Set(favoriteIds.map((id) => String(id))),
+    [favoriteIds],
+  );
 
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
@@ -166,6 +238,8 @@ const Properties = () => {
       const matchesPrice =
         !normalizedPrice || (normalizedPrice >= priceMin && normalizedPrice <= priceMax);
 
+      const matchesFavorites = !favoritesOnly || favoriteIdSet.has(String(property.id));
+
       return (
         matchesQuery &&
         matchesLocation &&
@@ -173,7 +247,8 @@ const Properties = () => {
         matchesSidebarLocation &&
         matchesSidebarCity &&
         matchesSidebarType &&
-        matchesPrice
+        matchesPrice &&
+        matchesFavorites
       );
     });
   }, [
@@ -186,6 +261,8 @@ const Properties = () => {
     selectedTypes,
     priceMin,
     priceMax,
+    favoritesOnly,
+    favoriteIdSet,
   ]);
 
   const totalPages = useMemo(() => {
@@ -343,20 +420,92 @@ const Properties = () => {
     });
   };
 
+  const updateFavoritesFilter = (nextValue) => {
+    const params = new URLSearchParams(location.search);
+    if (nextValue) {
+      params.set('favorites', '1');
+    } else {
+      params.delete('favorites');
+    }
+
+    const query = params.toString();
+    navigate(query ? `/properties?${query}` : '/properties');
+  };
+
+  const toggleFavorite = async (event, property) => {
+    event.stopPropagation();
+    setFavoriteError('');
+    setFavoriteNotice('');
+
+    if (!authSession?.token) {
+      navigate('/login', { state: { from: `/properties${location.search}` } });
+      return;
+    }
+
+    if (currentUserRole !== 'client') {
+      setFavoriteError('Les favoris sont disponibles uniquement pour les comptes client.');
+      return;
+    }
+
+    const propertyId = String(property.id);
+    const isFavorite = favoriteIdSet.has(propertyId);
+    setFavoritePendingId(propertyId);
+
+    setFavoriteIds((prev) => {
+      if (isFavorite) {
+        return prev.filter((id) => String(id) !== propertyId);
+      }
+
+      return prev.some((id) => String(id) === propertyId) ? prev : [...prev, propertyId];
+    });
+
+    try {
+      if (isFavorite) {
+        await removeFavoriteApi(property.id, authSession.token);
+      } else {
+        await addFavoriteApi(property.id, authSession.token);
+      }
+
+      setFavoriteNotice(
+        isFavorite
+          ? 'Le bien a ete retire de vos favoris.'
+          : 'Le bien a ete ajoute a vos favoris.',
+      );
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+
+      setFavoriteIds((prev) => {
+        if (isFavorite) {
+          return prev.some((id) => String(id) === propertyId) ? prev : [...prev, propertyId];
+        }
+
+        return prev.filter((id) => String(id) !== propertyId);
+      });
+
+      setFavoriteError(err.message || 'Impossible de mettre a jour ce favori.');
+    } finally {
+      setFavoritePendingId(null);
+    }
+  };
+
   return (
     <div className="properties-page marketplace-mode">
       <div className="marketplace-shell">
         <aside className="filters-panel">
           <div className="panel-title-row">
             <h2>Custom Filter</h2>
-            <button type="button" className="clear-btn" onClick={() => {
-              setSelectedCities([]);
-              setSelectedTypes([]);
-              setActiveAmenities(['Garden']);
-              setLocationKeyword('');
-              setPriceMin(0);
-              setPriceMax(maxDetectedPrice);
-            }}>
+            <button
+              type="button"
+              className="clear-btn"
+              onClick={() => {
+                setSelectedCities([]);
+                setSelectedTypes([]);
+                setActiveAmenities(['Garden']);
+                setLocationKeyword('');
+                setPriceMin(0);
+                setPriceMax(maxDetectedPrice);
+              }}
+            >
               Clear all
             </button>
           </div>
@@ -454,19 +603,44 @@ const Properties = () => {
           <header className="cards-header">
             <div>
               <p className="cards-title-label">Bien immobilier</p>
-              <h1>Explore the best properties</h1>
+              <h1>{favoritesOnly ? 'Vos biens favoris' : 'Explore the best properties'}</h1>
               <p>
                 {loading
                   ? 'Loading data...'
                   : `${visibleRangeStart}-${visibleRangeEnd} of ${filteredProperties.length} property card(s)`}
               </p>
             </div>
-            <button type="button" onClick={fetchProperties} className="refresh-btn">
-              <FaSyncAlt /> Refresh
-            </button>
+
+            <div className="cards-header-actions">
+              {currentUserRole === 'client' && (
+                <button
+                  type="button"
+                  className={`favorites-filter-btn ${favoritesOnly ? 'is-active' : ''}`}
+                  onClick={() => updateFavoritesFilter(!favoritesOnly)}
+                >
+                  {favoritesOnly ? <FaHeart /> : <FaRegHeart />}
+                  <span>{favoritesOnly ? 'Tous les biens' : `Mes favoris (${favoriteIds.length})`}</span>
+                </button>
+              )}
+              <button type="button" onClick={fetchProperties} className="refresh-btn">
+                <FaSyncAlt /> Refresh
+              </button>
+            </div>
           </header>
 
           {error && <div className="properties-warning">{error}</div>}
+          {favoriteError && <div className="properties-error">{favoriteError}</div>}
+          {favoriteNotice && <div className="properties-success">{favoriteNotice}</div>}
+          {!loading && favoritesOnly && !authSession?.token && (
+            <div className="properties-warning">
+              Connectez-vous pour retrouver vos biens favoris sauvegardes.
+            </div>
+          )}
+          {!loading && favoritesOnly && authSession?.token && currentUserRole !== 'client' && (
+            <div className="properties-warning">
+              Les favoris sont actuellement disponibles pour les comptes client.
+            </div>
+          )}
           {loading && <div className="properties-loading">Chargement des biens nettoyes...</div>}
 
           {!loading && filteredProperties.length > 0 && (
@@ -475,6 +649,10 @@ const Properties = () => {
                 {paginatedProperties.map((property) => {
                   const type = inferTypeFromTitle(property.title);
                   const active = String(selectedProperty?.id) === String(property.id);
+                  const propertyId = String(property.id);
+                  const isFavorite = favoriteIdSet.has(propertyId);
+                  const isFavoritePending = favoritePendingId === propertyId;
+
                   return (
                     <article
                       className={`property-card compact-card ${active ? 'is-active' : ''} ${focusedId === String(property.id) ? 'property-card--focused' : ''}`}
@@ -489,6 +667,16 @@ const Properties = () => {
                           <div className="property-card-image-placeholder">Image non disponible</div>
                         )}
                         <span className="property-badge">{type}</span>
+                        <button
+                          type="button"
+                          className={`favorite-toggle-btn ${isFavorite ? 'is-active' : ''} ${isFavoritePending ? 'is-loading' : ''}`}
+                          onClick={(event) => toggleFavorite(event, property)}
+                          aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                          aria-pressed={isFavorite}
+                          disabled={isFavoritePending}
+                        >
+                          {isFavorite ? <FaHeart /> : <FaRegHeart />}
+                        </button>
                       </div>
 
                       <div className="property-card-body">
@@ -543,8 +731,16 @@ const Properties = () => {
             </>
           )}
 
+          {!loading && favoriteLoading && currentUserRole === 'client' && !favoriteIds.length && (
+            <div className="properties-loading">Chargement de vos favoris...</div>
+          )}
+
           {!loading && filteredProperties.length === 0 && (
-            <div className="properties-empty">Aucun bien ne correspond a votre recherche.</div>
+            <div className="properties-empty">
+              {favoritesOnly
+                ? 'Aucun bien favori trouve pour le moment.'
+                : 'Aucun bien ne correspond a votre recherche.'}
+            </div>
           )}
         </section>
 
@@ -574,6 +770,21 @@ const Properties = () => {
                 <h2>{selectedProperty.title || 'Property title'}</h2>
                 <p>{selectedProperty.location_raw || selectedProperty.city || 'Location not available'}</p>
                 <div className="details-price">{formatPrice(selectedProperty)}</div>
+                <div className="details-favorite-row">
+                  <button
+                    type="button"
+                    className={`details-favorite-btn ${favoriteIdSet.has(String(selectedProperty.id)) ? 'is-active' : ''}`}
+                    onClick={(event) => toggleFavorite(event, selectedProperty)}
+                    disabled={favoritePendingId === String(selectedProperty.id)}
+                  >
+                    {favoriteIdSet.has(String(selectedProperty.id)) ? <FaHeart /> : <FaRegHeart />}
+                    <span>
+                      {favoriteIdSet.has(String(selectedProperty.id))
+                        ? 'Enregistre dans vos favoris'
+                        : 'Ajouter aux favoris'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <div className="details-tabs">

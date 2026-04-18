@@ -1,178 +1,201 @@
 import React from 'react';
+import {
+  FaEnvelope,
+  FaLaptop,
+  FaMapMarkerAlt,
+  FaMobileAlt,
+  FaPhoneAlt,
+  FaShieldAlt,
+  FaUniversity,
+  FaUsers,
+} from 'react-icons/fa';
+import '../styles/LaBanque.css';
+
+const factSheet = [
+  {
+    label: 'Statut',
+    value: 'Banque universelle',
+    detail: 'BH Bank propose des services bancaires pour les particuliers, les professionnels et les entreprises.',
+  },
+  {
+    label: 'Specialite',
+    value: 'Expertise habitat',
+    detail: 'La banque est particulierement connue pour son ancrage historique dans le financement immobilier.',
+  },
+  {
+    label: 'Presence',
+    value: 'Reseau national',
+    detail: 'Elle combine une presence en agence avec des services accessibles a distance.',
+  },
+  {
+    label: 'Positionnement',
+    value: 'Banque de proximite',
+    detail: 'Son approche met l accent sur l accompagnement, les services utiles et la relation client.',
+  },
+];
+
+const overviewCards = [
+  {
+    title: 'Presentation',
+    text: 'BH Bank est une banque tunisienne qui accompagne les besoins bancaires du quotidien ainsi que les projets de financement.',
+    Icon: FaUniversity,
+  },
+  {
+    title: 'Services essentiels',
+    text: 'La banque propose notamment des comptes, des cartes, des solutions d epargne, des credits et des services digitaux.',
+    Icon: FaShieldAlt,
+  },
+  {
+    title: 'Clienteles',
+    text: 'Les offres s adressent a plusieurs profils, dont les particuliers, les professionnels, les entreprises et les Tunisiens residant a l etranger.',
+    Icon: FaUsers,
+  },
+];
+
+const digitalChannels = [
+  {
+    title: 'BH Net',
+    text: 'Un espace en ligne pour consulter les comptes et suivre les operations courantes.',
+    items: ['Consultation des comptes', 'Suivi des operations', 'Acces a distance'],
+    Icon: FaLaptop,
+  },
+  {
+    title: 'BH MPAY',
+    text: 'Une solution mobile qui facilite certains paiements et usages bancaires du quotidien.',
+    items: ['Usage mobile', 'Paiement', 'Services pratiques'],
+    Icon: FaMobileAlt,
+  },
+];
+
+const contactRows = [
+  { label: 'Telephone', value: '(+216) 71 126 000', Icon: FaPhoneAlt },
+  { label: 'Email', value: 'Contact@bhbank.tn', Icon: FaEnvelope },
+  { label: 'Siege', value: '18 Avenue Mohamed V, Tunis 1023', Icon: FaMapMarkerAlt },
+];
 
 export default function LaBanque() {
-  const keyFigures = [
-    { value: '150+', label: 'Agences' },
-    { value: '545+', label: 'Conseillers dedies' },
-    { value: '24/7', label: 'Services en ligne' },
-    { value: '85%+', label: 'Parcours digitalises' },
-  ];
-
-  const commitments = [
-    'Engagement client et proximite',
-    "Esprit d'equipe et accompagnement",
-    'Excellence operationnelle',
-    'Innovation et transformation digitale',
-  ];
-
-  const projectPillars = [
-    {
-      title: 'Marketplace immobiliere',
-      text: 'Centraliser les annonces, simplifier la recherche et proposer des filtres utiles selon le type de bien et la localisation.',
-    },
-    {
-      title: 'Simulation et orientation credit',
-      text: 'Aider les clients a estimer leur capacite de financement et les orienter vers un parcours de demande plus clair.',
-    },
-    {
-      title: 'Soumission digitale du dossier',
-      text: 'Permettre la transmission structuree des pieces justificatives pour accelerer le traitement des demandes.',
-    },
-  ];
-
   return (
-    <div className="bh-bank-page min-vh-100 py-5">
-      <style>{`
-        .bh-bank-page {
-          background:
-            radial-gradient(1100px 500px at -10% -10%, rgba(15, 42, 79, 0.16), transparent 65%),
-            radial-gradient(900px 450px at 110% -10%, rgba(36, 83, 135, 0.12), transparent 60%),
-            #eef2f7;
-        }
+    <div className="bank-info-page">
+      <section className="bank-info-hero-section">
+        <div className="container bank-info-shell">
+          <div className="bank-info-hero-grid">
+            <div className="bank-info-main">
+              <span className="bank-info-kicker">BH Bank Tunisie</span>
+              <h1>La banque</h1>
+              <p className="bank-info-lead">
+                BH Bank est une banque tunisienne de proximite, reconnue pour son expertise dans
+                l habitat et pour une offre qui couvre les services bancaires essentiels.
+              </p>
 
-        .bh-bank-hero {
-          background: linear-gradient(145deg, #0f2a4f, #173d6b);
-          color: #fff;
-          border-radius: 1rem;
-          box-shadow: 0 20px 40px rgba(15, 42, 79, 0.24);
-        }
-
-        .bh-bank-card {
-          border: 1px solid #dbe3ee;
-          border-radius: 1rem;
-          box-shadow: 0 10px 24px rgba(17, 34, 68, 0.07);
-          background: #fff;
-        }
-
-        .bh-kpi-card {
-          border: 1px solid #dbe3ee;
-          border-radius: 0.85rem;
-          background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
-          text-align: center;
-          padding: 1rem 0.75rem;
-          height: 100%;
-        }
-
-        .bh-kpi-value {
-          color: #0f2a4f;
-          font-size: 1.5rem;
-          font-weight: 800;
-          line-height: 1;
-          margin-bottom: 0.35rem;
-        }
-
-        .bh-kpi-label {
-          color: #4b6078;
-          font-size: 0.92rem;
-          font-weight: 600;
-          margin: 0;
-        }
-
-        .bh-list {
-          margin: 0;
-          padding-left: 1.1rem;
-          color: #27415f;
-        }
-
-        .bh-list li + li {
-          margin-top: 0.45rem;
-        }
-
-        .bh-project-card {
-          border: 1px solid #dbe3ee;
-          border-radius: 0.85rem;
-          padding: 1rem;
-          background: #ffffff;
-          height: 100%;
-        }
-
-        .bh-project-title {
-          margin: 0 0 0.45rem;
-          color: #153960;
-          font-size: 1.03rem;
-          font-weight: 700;
-        }
-
-        .bh-project-text {
-          margin: 0;
-          color: #3b5370;
-          line-height: 1.55;
-        }
-
-        .bh-source {
-          font-size: 0.86rem;
-          color: #607791;
-        }
-      `}</style>
-
-      <div className="container">
-        <header className="bh-bank-hero p-4 p-md-5 mb-4">
-          <h1 className="display-6 fw-bold mb-2">BH Bank - Informations generales</h1>
-          <p className="lead mb-0">
-            BH Bank se positionne comme un partenaire financier de proximite, avec un reseau national,
-            des canaux digitaux et une expertise historique sur le financement immobilier.
-          </p>
-        </header>
-
-        <section className="bh-bank-card p-4 mb-4">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Profil institutionnel</h2>
-          <p className="text-secondary mb-3">
-            D apres la page officielle Univers BH Bank, la banque met en avant une promesse client
-            orientee accompagnement, innovation et qualite de service, avec une logique multicanale
-            agence + digital pour fluidifier les parcours.
-          </p>
-          <div className="row g-3">
-            {keyFigures.map((item) => (
-              <div className="col-6 col-md-3" key={item.label}>
-                <div className="bh-kpi-card">
-                  <div className="bh-kpi-value">{item.value}</div>
-                  <p className="bh-kpi-label">{item.label}</p>
-                </div>
+              <div className="bank-info-summary">
+                <span>Banque universelle</span>
+                <span>Expertise habitat</span>
+                <span>Acces en ligne</span>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
 
-        <section className="bh-bank-card p-4 mb-4">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Axes et engagements</h2>
-          <ul className="bh-list">
-            {commitments.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="bh-bank-card p-4 mb-3">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Notre projet BH Market Imo</h2>
-          <p className="text-secondary mb-3">
-            Ce projet digital complete la relation client BH Bank en proposant un parcours immobilier
-            unifie, de la recherche du bien jusqu a la preparation du dossier de credit.
-          </p>
-          <div className="row g-3">
-            {projectPillars.map((pillar) => (
-              <div className="col-12 col-md-4" key={pillar.title}>
-                <article className="bh-project-card">
-                  <h3 className="bh-project-title">{pillar.title}</h3>
-                  <p className="bh-project-text">{pillar.text}</p>
+            <div className="bank-info-facts-grid">
+              {factSheet.map(({ label, value, detail }) => (
+                <article className="bank-info-fact-card" key={label}>
+                  <span className="bank-info-panel-label">{label}</span>
+                  <strong>{value}</strong>
+                  <p>{detail}</p>
                 </article>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <p className="bh-source mb-0">
-          Source d information generale: page publique Univers BH Bank (https://www.bhbank.tn/univers/bh-bank).
-        </p>
+      <div className="container bank-info-content-shell">
+        <div className="bank-info-body-grid">
+          <div className="bank-info-content">
+            <section className="bank-info-panel">
+              <div className="bank-info-section-head">
+                <span className="bank-info-section-tag">Vue d ensemble</span>
+                <h2>BH Bank en bref</h2>
+                <p>
+                  Une presentation courte de la banque, de ses services principaux et de sa place
+                  dans le financement de l habitat.
+                </p>
+              </div>
+
+              <div className="bank-info-overview-grid">
+                {overviewCards.map(({ title, text, Icon }) => (
+                  <article className="bank-info-overview-card" key={title}>
+                    <div className="bank-info-card-icon">
+                      <Icon />
+                    </div>
+                    <h3>{title}</h3>
+                    <p>{text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="bank-info-panel">
+              <div className="bank-info-section-head">
+                <span className="bank-info-section-tag">Canaux digitaux</span>
+                <h2>Services a distance</h2>
+                <p>
+                  BH Bank met aussi en avant des solutions digitales pour consulter les comptes et
+                  realiser certaines operations courantes.
+                </p>
+              </div>
+
+              <div className="bank-info-digital-grid">
+                {digitalChannels.map(({ title, text, items, Icon }) => (
+                  <article className="bank-info-digital-card" key={title}>
+                    <div className="bank-info-card-icon">
+                      <Icon />
+                    </div>
+                    <h3>{title}</h3>
+                    <p>{text}</p>
+
+                    <ul className="bank-info-digital-list">
+                      {items.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="bank-info-sidebar">
+            <div className="bank-info-contact-card">
+              <span className="bank-info-card-label">Coordonnees</span>
+              <h3>Informations generales de contact</h3>
+
+              <div className="bank-info-contact-list">
+                {contactRows.map(({ label, value, Icon }) => (
+                  <div className="bank-info-contact-row" key={label}>
+                    <div className="bank-info-contact-icon">
+                      <Icon />
+                    </div>
+                    <div>
+                      <strong>{label}</strong>
+                      <span>{value}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bank-info-source-card">
+              <span className="bank-info-card-label">Source</span>
+              <h3>Reference officielle</h3>
+              <p>
+                Les informations generales de cette page s appuient sur la presentation publique de
+                BH Bank.
+              </p>
+              <a href="https://www.bhbank.tn/" target="_blank" rel="noreferrer">
+                Visiter le site BH Bank
+              </a>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   FaArrowRight,
   FaUserCircle,
   FaChevronDown,
+  FaHeart,
   FaSignOutAlt,
   FaChartLine,
   FaUserShield,
@@ -46,6 +47,14 @@ const Navbar = () => {
   const currentRole = authSession?.user?.role || null;
   const isPropertiesPage = routeLocation.pathname === '/properties';
   const accountMenuLinks = [{ label: 'Mon compte', to: '/profile/manage', icon: FaUserCircle }];
+
+  if (currentRole === 'client') {
+    accountMenuLinks.push({
+      label: 'Mes favoris',
+      to: '/properties?favorites=1',
+      icon: FaHeart,
+    });
+  }
 
   if (currentRole === 'responsable_decisionnel') {
     accountMenuLinks.push({
@@ -180,6 +189,13 @@ const Navbar = () => {
   const accountDisplayName =
     authSession?.user?.name || authSession?.user?.email || 'Mon compte';
 
+  const isAccountLinkActive = (to) => {
+    const [pathname, queryString] = to.split('?');
+    if (routeLocation.pathname !== pathname) return false;
+    if (!queryString) return true;
+    return routeLocation.search === `?${queryString}`;
+  };
+
   return (
     <nav className="bh-navbar">
       <div className="navbar-top">
@@ -241,7 +257,7 @@ const Navbar = () => {
                           to={to}
                           role="menuitem"
                           className={`account-dropdown-link${
-                            routeLocation.pathname === to ? ' is-active' : ''
+                            isAccountLinkActive(to) ? ' is-active' : ''
                           }`}
                           onClick={() => setIsAccountMenuOpen(false)}
                         >
@@ -374,7 +390,7 @@ const Navbar = () => {
                       key={to}
                       to={to}
                       className={`mobile-account-link${
-                        routeLocation.pathname === to ? ' is-active' : ''
+                        isAccountLinkActive(to) ? ' is-active' : ''
                       }`}
                       onClick={closeMenuPanels}
                     >

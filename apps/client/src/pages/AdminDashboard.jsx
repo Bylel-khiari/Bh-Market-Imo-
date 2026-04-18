@@ -1,20 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FaUsers,
-  FaUserTie,
-  FaUserShield,
-  FaUser,
-  FaSyncAlt,
-  FaExclamationTriangle,
-  FaChartLine,
-  FaCog,
-  FaListAlt,
-  FaHome,
+  FaBan,
   FaBell,
+  FaChartLine,
+  FaCheckCircle,
+  FaCog,
   FaEnvelope,
+  FaExclamationTriangle,
+  FaGlobe,
+  FaHome,
+  FaListAlt,
+  FaPlus,
+  FaPowerOff,
   FaSignOutAlt,
+  FaSyncAlt,
   FaTimes,
+  FaUser,
+  FaUserTie,
+  FaUsers,
 } from 'react-icons/fa';
 import {
   ResponsiveContainer,
@@ -46,6 +50,30 @@ const ROLE_COLORS = {
   admin: '#cc0000',
 };
 
+function createEmptyUserForm() {
+  return {
+    name: '',
+    email: '',
+    password: '',
+    role: 'client',
+    address: '',
+    phone: '',
+    matricule: '',
+    department: '',
+  };
+}
+
+function createEmptySiteForm() {
+  return {
+    name: '',
+    spider_name: '',
+    base_url: '',
+    start_url: '',
+    description: '',
+    is_active: true,
+  };
+}
+
 function formatRole(role) {
   return ROLE_LABELS[role] || role || '-';
 }
@@ -68,8 +96,10 @@ function getInitials(nameOrEmail) {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [scrapeSites, setScrapeSites] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [userSearch, setUserSearch] = useState('');
+  const [siteSearch, setSiteSearch] = useState('');
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,16 +108,16 @@ export default function AdminDashboard() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [formMessage, setFormMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'client',
-    address: '',
-    phone: '',
-    matricule: '',
-    department: '',
-  });
+  const [formData, setFormData] = useState(createEmptyUserForm());
+  const [siteLoading, setSiteLoading] = useState(true);
+  const [siteError, setSiteError] = useState('');
+  const [isSitePanelOpen, setIsSitePanelOpen] = useState(false);
+  const [siteDeleteCandidate, setSiteDeleteCandidate] = useState(null);
+  const [siteFormMode, setSiteFormMode] = useState('create');
+  const [editingSiteId, setEditingSiteId] = useState(null);
+  const [siteFormMessage, setSiteFormMessage] = useState('');
+  const [siteSubmitting, setSiteSubmitting] = useState(false);
+  const [siteFormData, setSiteFormData] = useState(createEmptySiteForm());
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -129,19 +159,43 @@ export default function AdminDashboard() {
     }
   }, [apiBaseUrl]);
 
+  const fetchScrapeSites = useCallback(async () => {
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setSiteError('Session invalide. Veuillez vous reconnecter.');
+      setSiteLoading(false);
+      return;
+    }
+
+    setSiteLoading(true);
+    setSiteError('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites?limit=200`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Impossible de charger les sites de collecte.');
+      }
+
+      setScrapeSites(Array.isArray(payload?.sites) ? payload.sites : []);
+    } catch (requestError) {
+      setSiteError(requestError.message || 'Erreur de chargement des sites.');
+    } finally {
+      setSiteLoading(false);
+    }
+  }, [apiBaseUrl]);
+
+  const refreshDashboardData = useCallback(async () => {
+    await Promise.all([fetchUsers(), fetchScrapeSites()]);
+  }, [fetchScrapeSites, fetchUsers]);
+
   const resetForm = () => {
     setFormMode('create');
     setEditingUserId(null);
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: 'client',
-      address: '',
-      phone: '',
-      matricule: '',
-      department: '',
-    });
+    setFormData(createEmptyUserForm());
     setIsEditPanelOpen(false);
   };
 
@@ -149,16 +203,7 @@ export default function AdminDashboard() {
     setFormMode('create');
     setEditingUserId(null);
     setFormMessage('');
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: 'client',
-      address: '',
-      phone: '',
-      matricule: '',
-      department: '',
-    });
+    setFormData(createEmptyUserForm());
     setIsEditPanelOpen(true);
   };
 
@@ -309,9 +354,194 @@ export default function AdminDashboard() {
     }
   };
 
+  const resetSiteForm = () => {
+    setSiteFormMode('create');
+    setEditingSiteId(null);
+    setSiteFormData(createEmptySiteForm());
+    setIsSitePanelOpen(false);
+  };
+
+  const openCreateSitePanel = () => {
+    setSiteFormMode('create');
+    setEditingSiteId(null);
+    setSiteFormMessage('');
+    setSiteFormData(createEmptySiteForm());
+    setIsSitePanelOpen(true);
+  };
+
+  const startEditSite = (site) => {
+    setSiteFormMode('edit');
+    setEditingSiteId(site.id);
+    setSiteFormData({
+      name: site.name || '',
+      spider_name: site.spider_name || '',
+      base_url: site.base_url || '',
+      start_url: site.start_url || '',
+      description: site.description || '',
+      is_active: Boolean(site.is_active),
+    });
+    setSiteFormMessage('');
+    setIsSitePanelOpen(true);
+  };
+
+  const handleSiteFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setSiteFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const buildSitePayload = () => ({
+    name: siteFormData.name.trim(),
+    spider_name: siteFormData.spider_name.trim(),
+    base_url: siteFormData.base_url.trim() || null,
+    start_url: siteFormData.start_url.trim() || null,
+    description: siteFormData.description.trim() || null,
+    is_active: Boolean(siteFormData.is_active),
+  });
+
+  const handleSiteSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!siteFormData.name.trim() || !siteFormData.spider_name.trim()) {
+      setSiteFormMessage('Le nom du site et l identifiant du spider sont obligatoires.');
+      return;
+    }
+
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
+      return;
+    }
+
+    setSiteSubmitting(true);
+    setSiteFormMessage('');
+
+    try {
+      const endpoint =
+        siteFormMode === 'create'
+          ? `${apiBaseUrl}/api/admin/scrape-sites`
+          : `${apiBaseUrl}/api/admin/scrape-sites/${editingSiteId}`;
+
+      const response = await fetch(endpoint, {
+        method: siteFormMode === 'create' ? 'POST' : 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildSitePayload()),
+      });
+
+      const payload =
+        response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Operation sur le site echouee.');
+      }
+
+      setSiteFormMessage(siteFormMode === 'create' ? 'Site ajoute.' : 'Site mis a jour.');
+      resetSiteForm();
+      await fetchScrapeSites();
+    } catch (requestError) {
+      setSiteFormMessage(requestError.message || 'Erreur pendant la sauvegarde du site.');
+    } finally {
+      setSiteSubmitting(false);
+    }
+  };
+
+  const requestDeleteSite = (site) => {
+    setSiteDeleteCandidate(site);
+  };
+
+  const closeDeleteSiteConfirm = () => {
+    setSiteDeleteCandidate(null);
+  };
+
+  const handleDeleteSiteConfirmed = async () => {
+    if (!siteDeleteCandidate) return;
+
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
+      closeDeleteSiteConfirm();
+      return;
+    }
+
+    setSiteSubmitting(true);
+    setSiteFormMessage('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites/${siteDeleteCandidate.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const payload =
+        response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Suppression du site impossible.');
+      }
+
+      if (editingSiteId === siteDeleteCandidate.id) {
+        resetSiteForm();
+      }
+
+      setSiteFormMessage('Site supprime.');
+      closeDeleteSiteConfirm();
+      await fetchScrapeSites();
+    } catch (requestError) {
+      setSiteFormMessage(requestError.message || 'Erreur pendant la suppression du site.');
+    } finally {
+      setSiteSubmitting(false);
+    }
+  };
+
+  const handleToggleSiteStatus = async (site) => {
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
+      return;
+    }
+
+    setSiteSubmitting(true);
+    setSiteFormMessage('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites/${site.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: !site.is_active }),
+      });
+
+      const payload =
+        response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Mise a jour du statut impossible.');
+      }
+
+      setSiteFormMessage(
+        site.is_active
+          ? 'Site desactive pour les prochains lancements.'
+          : 'Site reactive pour les prochains lancements.',
+      );
+      await fetchScrapeSites();
+    } catch (requestError) {
+      setSiteFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
+    } finally {
+      setSiteSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchScrapeSites();
+  }, [fetchScrapeSites, fetchUsers]);
 
   const roleTotals = useMemo(() => {
     return users.reduce(
@@ -323,6 +553,21 @@ export default function AdminDashboard() {
       { client: 0, agent_bancaire: 0, responsable_decisionnel: 0, admin: 0 }
     );
   }, [users]);
+
+  const siteTotals = useMemo(() => {
+    return scrapeSites.reduce(
+      (acc, site) => {
+        acc.total += 1;
+        if (site?.is_active) {
+          acc.active += 1;
+        } else {
+          acc.inactive += 1;
+        }
+        return acc;
+      },
+      { total: 0, active: 0, inactive: 0 }
+    );
+  }, [scrapeSites]);
 
   const pieData = useMemo(
     () => [
@@ -352,6 +597,15 @@ export default function AdminDashboard() {
     return [...users].sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0));
   }, [users]);
 
+  const scrapeSitesSorted = useMemo(() => {
+    return [...scrapeSites].sort((a, b) => {
+      if (Boolean(a?.is_active) !== Boolean(b?.is_active)) {
+        return a?.is_active ? -1 : 1;
+      }
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr');
+    });
+  }, [scrapeSites]);
+
   const recentUsers = useMemo(() => usersSorted.slice(0, 8), [usersSorted]);
 
   const filteredUsers = useMemo(() => {
@@ -363,9 +617,20 @@ export default function AdminDashboard() {
     });
   }, [userSearch, usersSorted]);
 
+  const filteredSites = useMemo(() => {
+    const query = siteSearch.trim().toLowerCase();
+    if (!query) return scrapeSitesSorted;
+
+    return scrapeSitesSorted.filter((site) => {
+      const haystack = `${site?.name || ''} ${site?.spider_name || ''} ${site?.base_url || ''} ${site?.start_url || ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [scrapeSitesSorted, siteSearch]);
+
   const menuItems = [
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
+    { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
     { key: 'activities', label: 'Activites', icon: FaListAlt },
     { key: 'stats', label: 'Statistiques', icon: FaChartLine },
     { key: 'settings', label: 'Parametres', icon: FaCog },
@@ -374,6 +639,7 @@ export default function AdminDashboard() {
   const sectionTitles = {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
+    sites: 'Gestion des sites scrapes',
     activities: 'Activites recentes',
     stats: 'Statistiques',
     settings: 'Parametres',
@@ -396,7 +662,7 @@ export default function AdminDashboard() {
         <div className="admin-state admin-state--page error">
           <FaExclamationTriangle />
           <p>{error}</p>
-          <button type="button" className="admin-refresh" onClick={fetchUsers}>
+          <button type="button" className="admin-refresh" onClick={refreshDashboardData}>
             Reessayer
           </button>
         </div>
@@ -436,7 +702,7 @@ export default function AdminDashboard() {
           <div className="admin-topbar">
             <div>
               <h1>{sectionTitles[activeSection]}</h1>
-              <p className="admin-subtitle">Pilotage et gestion des utilisateurs</p>
+              <p className="admin-subtitle">Pilotage des utilisateurs et des sites de collecte</p>
             </div>
             <div className="admin-topbar-actions">
               <button type="button" className="admin-icon-btn" aria-label="Notifications"><FaBell /></button>
@@ -452,8 +718,8 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-refresh admin-topbar-btn admin-topbar-btn--primary"
-                onClick={fetchUsers}
-                disabled={submitting}
+                onClick={refreshDashboardData}
+                disabled={submitting || siteSubmitting}
               >
                 Actualiser
               </button>
@@ -485,13 +751,26 @@ export default function AdminDashboard() {
                     <div><h3>Agents bancaires</h3><p>{roleTotals.agent_bancaire || 0}</p></div>
                   </div>
                   <div className="admin-kpi-card">
-                    <div className="icon"><FaUserShield /></div>
-                    <div><h3>Responsables/Admins</h3><p>{(roleTotals.responsable_decisionnel || 0) + (roleTotals.admin || 0)}</p></div>
+                    <div className="icon"><FaGlobe /></div>
+                    <div><h3>Sites actifs</h3><p>{siteTotals.active || 0}</p></div>
                   </div>
                 </div>
-                <div className="admin-card">
-                  <h2>Bienvenue</h2>
-                  <p className="admin-section-help">Utilisez le menu gauche pour acceder rapidement a chaque module.</p>
+
+                <div className="admin-row">
+                  <div className="admin-card">
+                    <h2>Bienvenue</h2>
+                    <p className="admin-section-help">
+                      Utilisez le menu gauche pour acceder rapidement a la gestion des comptes et des sites scrapes.
+                    </p>
+                  </div>
+                  <div className="admin-card">
+                    <h2>Etat de la collecte</h2>
+                    <ul className="admin-settings-list">
+                      <li>Total des sites configures: {siteTotals.total}</li>
+                      <li>Sites actifs: {siteTotals.active}</li>
+                      <li>Sites desactives: {siteTotals.inactive}</li>
+                    </ul>
+                  </div>
                 </div>
               </section>
             </div>
@@ -559,72 +838,109 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeSection === 'users' && isEditPanelOpen && (
-            <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetForm}>
-              <aside className="admin-card admin-edit-modal" onClick={(event) => event.stopPropagation()}>
-                <div className="admin-edit-panel-head">
-                  <h2>{formMode === 'create' ? 'Nouveau utilisateur' : `Modifier utilisateur #${editingUserId}`}</h2>
-                  <button
-                    type="button"
-                    className="admin-close-btn"
-                    onClick={resetForm}
-                    disabled={submitting}
-                    aria-label="Fermer"
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-                <p className="admin-section-help">Remplissez le formulaire puis validez pour creer ou mettre a jour un compte.</p>
-                <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
-                  <input name="name" placeholder="Nom" value={formData.name} onChange={handleFormChange} disabled={submitting} />
-                  <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleFormChange} disabled={submitting} />
-                  <input name="password" type="password" placeholder={formMode === 'create' ? 'Mot de passe (min 6)' : 'Nouveau mot de passe (optionnel)'} value={formData.password} onChange={handleFormChange} disabled={submitting} />
-                  <select name="role" value={formData.role} onChange={handleFormChange} disabled={submitting}>
-                    <option value="client">Client</option>
-                    <option value="agent_bancaire">Agent bancaire</option>
-                    <option value="responsable_decisionnel">Responsable decisionnel</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  {formData.role === 'client' && (
-                    <>
-                      <input name="address" placeholder="Adresse (optionnel)" value={formData.address} onChange={handleFormChange} disabled={submitting} />
-                      <input name="phone" placeholder="Telephone (optionnel)" value={formData.phone} onChange={handleFormChange} disabled={submitting} />
-                    </>
-                  )}
-                  {formData.role === 'agent_bancaire' && (
-                    <input name="matricule" placeholder="Matricule (optionnel)" value={formData.matricule} onChange={handleFormChange} disabled={submitting} />
-                  )}
-                  {formData.role === 'responsable_decisionnel' && (
-                    <input name="department" placeholder="Departement (optionnel)" value={formData.department} onChange={handleFormChange} disabled={submitting} />
-                  )}
-                  <div className="admin-form-actions">
-                    <button type="submit" className="admin-refresh" disabled={submitting}>
-                      {submitting ? 'Traitement...' : formMode === 'create' ? 'Creer' : 'Enregistrer'}
-                    </button>
-                    <button type="button" className="admin-secondary" onClick={openCreatePanel} disabled={submitting}>Nouveau</button>
+          {activeSection === 'sites' && (
+            <div className="admin-content-grid admin-content-single">
+              <section className="admin-analytics-column">
+                <div className="admin-card admin-sites-card">
+                  <div className="admin-users-header">
+                    <h2>Sites de collecte</h2>
+                    <div className="admin-users-header-actions">
+                      <span className="admin-users-count">{filteredSites.length}</span>
+                      <button type="button" className="admin-refresh" onClick={openCreateSitePanel}>
+                        <FaPlus /> Nouveau site
+                      </button>
+                    </div>
                   </div>
-                </form>
-                {formMessage && <p className="admin-form-message">{formMessage}</p>}
-              </aside>
-            </div>
-          )}
 
-          {activeSection === 'users' && Boolean(deleteCandidate) && (
-            <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={closeDeleteConfirm}>
-              <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
-                <h2>Confirmer la suppression</h2>
-                <p className="admin-section-help">
-                  Voulez-vous vraiment supprimer <strong>{deleteCandidate?.name || deleteCandidate?.email}</strong> ?
-                </p>
-                <div className="admin-form-actions">
-                  <button type="button" className="admin-secondary" onClick={closeDeleteConfirm} disabled={submitting}>
-                    Annuler
-                  </button>
-                  <button type="button" className="admin-danger" onClick={handleDeleteConfirmed} disabled={submitting}>
-                    {submitting ? 'Suppression...' : 'Oui, supprimer'}
-                  </button>
+                  <p className="admin-section-help">
+                    Ajoutez, modifiez, supprimez ou activez/desactivez les sites scrapes.
+                    L identifiant technique doit correspondre au spider Scrapy pour piloter les prochains lancements.
+                  </p>
+
+                  <div className="admin-users-toolbar">
+                    <input
+                      className="admin-search-input"
+                      placeholder="Rechercher par nom, spider ou URL"
+                      value={siteSearch}
+                      onChange={(event) => setSiteSearch(event.target.value)}
+                    />
+                  </div>
+
+                  {siteFormMessage && (
+                    <p className={`admin-form-message ${siteFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}>
+                      {siteFormMessage}
+                    </p>
+                  )}
+                  {siteError && <p className="admin-form-message admin-form-message--error">{siteError}</p>}
+
+                  {siteLoading ? (
+                    <div className="admin-state admin-state--inline">
+                      <FaSyncAlt className="spin" />
+                      <p>Chargement des sites de collecte...</p>
+                    </div>
+                  ) : filteredSites.length === 0 ? (
+                    <p className="empty">Aucun site de collecte trouve.</p>
+                  ) : (
+                    <div className="admin-sites-grid">
+                      {filteredSites.map((site) => (
+                        <article
+                          key={site.id}
+                          className={`admin-site-card ${site.is_active ? 'is-active' : 'is-inactive'} ${editingSiteId === site.id ? 'is-editing' : ''}`}
+                        >
+                          <div className="admin-site-card-head">
+                            <div>
+                              <h3>{site.name}</h3>
+                              <p className="admin-site-spider">Spider: {site.spider_name}</p>
+                            </div>
+                            <span className={`admin-site-status ${site.is_active ? 'is-active' : 'is-inactive'}`}>
+                              {site.is_active ? <FaCheckCircle /> : <FaBan />}
+                              {site.is_active ? 'Actif' : 'Desactive'}
+                            </span>
+                          </div>
+
+                          <div className="admin-site-meta">
+                            <span><strong>Base:</strong> {site.base_url || '-'}</span>
+                            <span><strong>Depart:</strong> {site.start_url || '-'}</span>
+                            <span><strong>Mise a jour:</strong> {formatDate(site.updated_at || site.created_at)}</span>
+                          </div>
+
+                          <p className="admin-site-description">
+                            {site.description || 'Aucune description renseignee pour ce site.'}
+                          </p>
+
+                          <div className="admin-table-actions admin-site-actions">
+                            <button
+                              type="button"
+                              className={site.is_active ? 'admin-secondary' : 'admin-refresh'}
+                              onClick={() => handleToggleSiteStatus(site)}
+                              disabled={siteSubmitting}
+                            >
+                              <FaPowerOff />
+                              <span>{site.is_active ? 'Desactiver' : 'Activer'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-secondary"
+                              onClick={() => startEditSite(site)}
+                              disabled={siteSubmitting}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-danger"
+                              onClick={() => requestDeleteSite(site)}
+                              disabled={siteSubmitting}
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </aside>
+              </section>
             </div>
           )}
 
@@ -700,7 +1016,9 @@ export default function AdminDashboard() {
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs charges: {users.length}</li>
-                    <li>Mode edition: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Sites de collecte charges: {scrapeSites.length}</li>
+                    <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Mode edition site: {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                   </ul>
                 </div>
               </section>
@@ -708,6 +1026,195 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+
+      {activeSection === 'users' && isEditPanelOpen && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetForm}>
+          <aside className="admin-card admin-edit-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="admin-edit-panel-head">
+              <h2>{formMode === 'create' ? 'Nouveau utilisateur' : `Modifier utilisateur #${editingUserId}`}</h2>
+              <button
+                type="button"
+                className="admin-close-btn"
+                onClick={resetForm}
+                disabled={submitting}
+                aria-label="Fermer"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <p className="admin-section-help">Remplissez le formulaire puis validez pour creer ou mettre a jour un compte.</p>
+            <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
+              <input name="name" placeholder="Nom" value={formData.name} onChange={handleFormChange} disabled={submitting} />
+              <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleFormChange} disabled={submitting} />
+              <input name="password" type="password" placeholder={formMode === 'create' ? 'Mot de passe (min 6)' : 'Nouveau mot de passe (optionnel)'} value={formData.password} onChange={handleFormChange} disabled={submitting} />
+              <select name="role" value={formData.role} onChange={handleFormChange} disabled={submitting}>
+                <option value="client">Client</option>
+                <option value="agent_bancaire">Agent bancaire</option>
+                <option value="responsable_decisionnel">Responsable decisionnel</option>
+                <option value="admin">Admin</option>
+              </select>
+              {formData.role === 'client' && (
+                <>
+                  <input name="address" placeholder="Adresse (optionnel)" value={formData.address} onChange={handleFormChange} disabled={submitting} />
+                  <input name="phone" placeholder="Telephone (optionnel)" value={formData.phone} onChange={handleFormChange} disabled={submitting} />
+                </>
+              )}
+              {formData.role === 'agent_bancaire' && (
+                <input name="matricule" placeholder="Matricule (optionnel)" value={formData.matricule} onChange={handleFormChange} disabled={submitting} />
+              )}
+              {formData.role === 'responsable_decisionnel' && (
+                <input name="department" placeholder="Departement (optionnel)" value={formData.department} onChange={handleFormChange} disabled={submitting} />
+              )}
+              <div className="admin-form-actions">
+                <button type="submit" className="admin-refresh" disabled={submitting}>
+                  {submitting ? 'Traitement...' : formMode === 'create' ? 'Creer' : 'Enregistrer'}
+                </button>
+                <button type="button" className="admin-secondary" onClick={openCreatePanel} disabled={submitting}>Nouveau</button>
+              </div>
+            </form>
+            {formMessage && <p className="admin-form-message">{formMessage}</p>}
+          </aside>
+        </div>
+      )}
+
+      {activeSection === 'users' && Boolean(deleteCandidate) && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={closeDeleteConfirm}>
+          <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>Confirmer la suppression</h2>
+            <p className="admin-section-help">
+              Voulez-vous vraiment supprimer <strong>{deleteCandidate?.name || deleteCandidate?.email}</strong> ?
+            </p>
+            <div className="admin-form-actions">
+              <button type="button" className="admin-secondary" onClick={closeDeleteConfirm} disabled={submitting}>
+                Annuler
+              </button>
+              <button type="button" className="admin-danger" onClick={handleDeleteConfirmed} disabled={submitting}>
+                {submitting ? 'Suppression...' : 'Oui, supprimer'}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {activeSection === 'sites' && isSitePanelOpen && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetSiteForm}>
+          <aside className="admin-card admin-edit-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="admin-edit-panel-head">
+              <h2>{siteFormMode === 'create' ? 'Nouveau site de collecte' : `Modifier le site ${siteFormData.name || `#${editingSiteId}`}`}</h2>
+              <button
+                type="button"
+                className="admin-close-btn"
+                onClick={resetSiteForm}
+                disabled={siteSubmitting}
+                aria-label="Fermer"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <p className="admin-section-help">
+              Le champ identifiant du spider doit correspondre au nom technique du spider Scrapy si vous voulez piloter sa collecte.
+            </p>
+            <form className="admin-user-form admin-user-form-compact" onSubmit={handleSiteSubmit}>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-name">Nom du site (colonne name)</label>
+                <input
+                  id="site-name"
+                  name="name"
+                  placeholder="Ex: Afariat"
+                  value={siteFormData.name}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-spider-name">Identifiant du spider (colonne spider_name)</label>
+                <input
+                  id="site-spider-name"
+                  name="spider_name"
+                  placeholder="Ex: afariat"
+                  value={siteFormData.spider_name}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-base-url">URL principale (colonne base_url)</label>
+                <input
+                  id="site-base-url"
+                  name="base_url"
+                  type="url"
+                  placeholder="Ex: https://afariat.com"
+                  value={siteFormData.base_url}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-start-url">URL de depart (colonne start_url)</label>
+                <input
+                  id="site-start-url"
+                  name="start_url"
+                  type="url"
+                  placeholder="Ex: https://afariat.com/appartements"
+                  value={siteFormData.start_url}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-description">Description (colonne description)</label>
+                <textarea
+                  id="site-description"
+                  name="description"
+                  placeholder="Ex: Portail de petites annonces immobilieres en Tunisie."
+                  value={siteFormData.description}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                  rows={4}
+                />
+              </div>
+              <label className="admin-checkbox-row">
+                <input
+                  name="is_active"
+                  type="checkbox"
+                  checked={siteFormData.is_active}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                />
+                <span>Site actif pour les prochains lancements du scraper</span>
+              </label>
+              <div className="admin-form-actions">
+                <button type="submit" className="admin-refresh" disabled={siteSubmitting}>
+                  {siteSubmitting ? 'Traitement...' : siteFormMode === 'create' ? 'Ajouter' : 'Enregistrer'}
+                </button>
+                <button type="button" className="admin-secondary" onClick={openCreateSitePanel} disabled={siteSubmitting}>
+                  Nouveau
+                </button>
+              </div>
+            </form>
+            {siteFormMessage && <p className="admin-form-message">{siteFormMessage}</p>}
+          </aside>
+        </div>
+      )}
+
+      {activeSection === 'sites' && Boolean(siteDeleteCandidate) && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={closeDeleteSiteConfirm}>
+          <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>Confirmer la suppression</h2>
+            <p className="admin-section-help">
+              Voulez-vous vraiment supprimer le site <strong>{siteDeleteCandidate?.name}</strong> ?
+            </p>
+            <div className="admin-form-actions">
+              <button type="button" className="admin-secondary" onClick={closeDeleteSiteConfirm} disabled={siteSubmitting}>
+                Annuler
+              </button>
+              <button type="button" className="admin-danger" onClick={handleDeleteSiteConfirmed} disabled={siteSubmitting}>
+                {siteSubmitting ? 'Suppression...' : 'Oui, supprimer'}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,25 @@ async function parseJsonResponse(response) {
   return payload;
 }
 
+async function authorizedJsonRequest(path, token, options = {}) {
+  const headers = new Headers(options.headers || {});
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  return parseJsonResponse(response);
+}
+
 export async function registerApi(input) {
   const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
@@ -30,10 +49,23 @@ export async function loginApi(input) {
 }
 
 export async function meApi(token) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+  return authorizedJsonRequest('/api/auth/me', token);
+}
+
+export async function fetchFavoritesApi(token) {
+  return authorizedJsonRequest('/api/favorites', token);
+}
+
+export async function addFavoriteApi(propertyId, token) {
+  return authorizedJsonRequest(`/api/properties/${propertyId}/favorite`, token, {
+    method: 'POST',
   });
-  return parseJsonResponse(response);
+}
+
+export async function removeFavoriteApi(propertyId, token) {
+  return authorizedJsonRequest(`/api/properties/${propertyId}/favorite`, token, {
+    method: 'DELETE',
+  });
 }
 
 export function saveAuthSession(session) {

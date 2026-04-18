@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FaUser,
   FaEnvelope,
@@ -15,6 +15,7 @@ import { registerApi, saveAuthSession } from '../lib/auth';
 import '../styles/Login.css';
 
 const Register = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,6 +25,8 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const redirectTo = location.state?.from || '/';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,7 +53,7 @@ const Register = () => {
       });
 
       saveAuthSession({ token: payload.token, user: payload.user });
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       setErrorMessage(error.message || "Echec de l'inscription.");
     } finally {
@@ -96,7 +99,6 @@ const Register = () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -182,13 +184,13 @@ const Register = () => {
 
             <div className="login-register">
               <p>
-                Vous avez deja un compte ? <Link to="/login">Se connecter</Link>
+                Vous avez deja un compte ? <Link to="/login" state={location.state}>Se connecter</Link>
               </p>
             </div>
           </form>
 
           <div className="login-back-home">
-            <Link to="/">← Retour a l'accueil</Link>
+            <Link to="/">Retour a l'accueil</Link>
           </div>
         </div>
       </div>
