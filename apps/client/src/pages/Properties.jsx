@@ -18,53 +18,12 @@ import {
   getAuthSession,
   removeFavoriteApi,
 } from '../lib/auth';
+import { fetchPropertyRows } from '../lib/properties';
 import '../styles/Properties.css';
 
 const TYPE_LABELS = ['Appartement', 'Villa', 'Maison', 'Terrain', 'Studio', 'Bureau'];
 const DEFAULT_AMENITIES = ['Garden', 'Gym', 'Garage', 'Pool'];
 const PROPERTIES_PER_PAGE = 25;
-const DEMO_PROPERTIES = [
-  {
-    id: 'demo-1',
-    title: 'Villa moderne avec jardin',
-    price_value: 452000,
-    price_raw: '452000 DT',
-    location_raw: 'Ariana, Tunisie',
-    city: 'Ariana',
-    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80',
-    description: 'Villa lumineuse avec 4 chambres, garage et grand jardin.',
-    source: 'demo',
-    url: '#',
-    scraped_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    title: 'Appartement standing proche centre',
-    price_value: 278000,
-    price_raw: '278000 DT',
-    location_raw: 'La Marsa, Tunis',
-    city: 'Tunis',
-    image: 'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&fit=crop&w=1200&q=80',
-    description: 'Appartement bien situe avec balcon et cuisine equipee.',
-    source: 'demo',
-    url: '#',
-    scraped_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-3',
-    title: 'Maison familiale avec terrasse',
-    price_value: 367000,
-    price_raw: '367000 DT',
-    location_raw: 'Sousse, Tunisie',
-    city: 'Sousse',
-    image: 'https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=1200&q=80',
-    description: 'Maison confortable avec espace exterieur et bonne orientation.',
-    source: 'demo',
-    url: '#',
-    scraped_at: new Date().toISOString(),
-  },
-];
-
 const inferTypeFromTitle = (title) => {
   const lower = (title || '').toLowerCase();
   if (lower.includes('appartement')) return 'Appartement';
@@ -111,12 +70,6 @@ const Properties = () => {
   const [favoriteError, setFavoriteError] = useState('');
   const [favoriteNotice, setFavoriteNotice] = useState('');
 
-  const apiBaseUrl =
-    process.env.REACT_APP_API_URL ||
-    (typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
-      : 'http://localhost:5000');
-
   const currentUserRole = authSession?.user?.role || null;
   const isClientSession = Boolean(authSession?.token && currentUserRole === 'client');
 
@@ -127,23 +80,19 @@ const Properties = () => {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/properties?limit=5000`, { signal: controller.signal });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const payload = await response.json();
-      setProperties(Array.isArray(payload.data) ? payload.data : []);
+      const rows = await fetchPropertyRows({ limit: 5000, signal: controller.signal });
+      setProperties(rows);
     } catch (err) {
       console.error('Failed to load properties:', err);
-      setProperties(DEMO_PROPERTIES);
-      setError('Mode demo actif: backend indisponible (port 5000).');
+      if (err.name !== 'AbortError') {
+        setProperties([]);
+        setError('Impossible de charger les biens nettoyes depuis le backend.');
+      }
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   const fetchFavorites = useCallback(async () => {
     if (!isClientSession) {

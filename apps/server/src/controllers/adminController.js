@@ -1,21 +1,26 @@
 import {
+  createPropertyByAdmin,
+  deletePropertyByAdmin,
+  fetchAdminProperties,
+  updatePropertyByAdmin,
+} from "../models/propertyModel.js";
+import {
   createUserByAdmin,
   deleteUserByAdmin,
   fetchUsers,
   updateUserByAdmin,
 } from "../models/adminModel.js";
+import { createScrapeSite, deleteScrapeSite, fetchScrapeSites, updateScrapeSite } from "../models/scrapeSiteModel.js";
 import {
-  createScrapeSite,
-  deleteScrapeSite,
-  fetchScrapeSites,
-  updateScrapeSite,
-} from "../models/scrapeSiteModel.js";
-import {
+  renderAdminPropertiesList,
+  renderCreatedAdminProperty,
   renderCreatedUser,
   renderCreatedScrapeSite,
+  renderDeletedAdminProperty,
   renderDeletedUser,
   renderDeletedScrapeSite,
   renderScrapeSitesList,
+  renderUpdatedAdminProperty,
   renderUpdatedUser,
   renderUpdatedScrapeSite,
   renderUsersList,
@@ -39,6 +44,26 @@ export async function updateUser(req, res) {
 export async function deleteUser(req, res) {
   await deleteUserByAdmin(req.params.id);
   return renderDeletedUser(res);
+}
+
+export async function listPropertiesByAdmin(req, res) {
+  const rows = await fetchAdminProperties({ limit: req.query.limit });
+  return renderAdminPropertiesList(res, rows);
+}
+
+export async function createProperty(req, res) {
+  const property = await createPropertyByAdmin(req.body || {});
+  return renderCreatedAdminProperty(res, property);
+}
+
+export async function updateProperty(req, res) {
+  const property = await updatePropertyByAdmin(req.params.id, req.body || {});
+  return renderUpdatedAdminProperty(res, property);
+}
+
+export async function deleteProperty(req, res) {
+  await deletePropertyByAdmin(req.params.id);
+  return renderDeletedAdminProperty(res);
 }
 
 export async function listScrapeSites(req, res) {

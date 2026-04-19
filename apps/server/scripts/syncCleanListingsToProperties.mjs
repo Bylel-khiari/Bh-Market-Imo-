@@ -8,16 +8,88 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+const ADMIN_PROPERTY_COLUMNS = [
+  ["is_active", "is_active TINYINT(1) NOT NULL DEFAULT 1"],
+  ["is_deleted", "is_deleted TINYINT(1) NOT NULL DEFAULT 0"],
+  ["created_by_admin", "created_by_admin TINYINT(1) NOT NULL DEFAULT 0"],
+  ["manual_title", "manual_title VARCHAR(255) NULL"],
+  ["manual_price_raw", "manual_price_raw VARCHAR(255) NULL"],
+  ["manual_price_value", "manual_price_value DECIMAL(15, 2) NULL"],
+  ["manual_location_raw", "manual_location_raw VARCHAR(255) NULL"],
+  ["manual_city", "manual_city VARCHAR(120) NULL"],
+  ["manual_country", "manual_country VARCHAR(120) NULL"],
+  ["manual_image", "manual_image TEXT NULL"],
+  ["manual_description", "manual_description LONGTEXT NULL"],
+  ["manual_source", "manual_source VARCHAR(120) NULL"],
+  ["manual_url", "manual_url TEXT NULL"],
+  ["manual_scraped_at", "manual_scraped_at DATETIME NULL"],
+  ["admin_updated_at", "admin_updated_at TIMESTAMP NULL DEFAULT NULL"],
+];
+
 function getEnv(name, fallback) {
   const value = process.env[name];
   if (typeof value === "string" && value.trim() !== "") {
     return value;
   }
+
   return fallback;
 }
 
 function quoteIdentifier(identifier) {
   return `\`${String(identifier).replace(/`/g, "``")}\``;
+}
+
+async function ensurePropertiesAdminColumns(connection) {
+  await connection.query("CREATE TABLE IF NOT EXISTS properties LIKE clean_listings");
+
+  const [columnRows] = await connection.query("SHOW COLUMNS FROM properties");
+  const existingColumns = new Set(columnRows.map((row) => row.Field));
+
+  for (const [columnName, definition] of ADMIN_PROPERTY_COLUMNS) {
+    if (!existingColumns.has(columnName)) {
+      await connection.query(`ALTER TABLE properties ADD COLUMN ${definition}`);
+    }
+  }
+}
+
+function buildPreservedAdminSelects(hasPreviousRows) {
+  if (!hasPreviousRows) {
+    return [
+      "1 AS is_active",
+      "0 AS is_deleted",
+      "0 AS created_by_admin",
+      "NULL AS manual_title",
+      "NULL AS manual_price_raw",
+      "NULL AS manual_price_value",
+      "NULL AS manual_location_raw",
+      "NULL AS manual_city",
+      "NULL AS manual_country",
+      "NULL AS manual_image",
+      "NULL AS manual_description",
+      "NULL AS manual_source",
+      "NULL AS manual_url",
+      "NULL AS manual_scraped_at",
+      "NULL AS admin_updated_at",
+    ];
+  }
+
+  return [
+    "COALESCE(prev.is_active, 1) AS is_active",
+    "COALESCE(prev.is_deleted, 0) AS is_deleted",
+    "0 AS created_by_admin",
+    "prev.manual_title AS manual_title",
+    "prev.manual_price_raw AS manual_price_raw",
+    "prev.manual_price_value AS manual_price_value",
+    "prev.manual_location_raw AS manual_location_raw",
+    "prev.manual_city AS manual_city",
+    "prev.manual_country AS manual_country",
+    "prev.manual_image AS manual_image",
+    "prev.manual_description AS manual_description",
+    "prev.manual_source AS manual_source",
+    "prev.manual_url AS manual_url",
+    "prev.manual_scraped_at AS manual_scraped_at",
+    "prev.admin_updated_at AS admin_updated_at",
+  ];
 }
 
 async function main() {
@@ -35,7 +107,7 @@ async function main() {
       throw new Error("Source table clean_listings does not exist.");
     }
 
-    await connection.query("CREATE TABLE IF NOT EXISTS properties LIKE clean_listings");
+    await ensurePropertiesAdminColumns(connection);
 
     const [columnRows] = await connection.query(
       `
@@ -55,6 +127,7 @@ async function main() {
       if (row.TABLE_NAME === "clean_listings") {
         cleanColumns.push(row.COLUMN_NAME);
       }
+
       if (row.TABLE_NAME === "properties") {
         propertiesColumns.add(row.COLUMN_NAME);
       }
@@ -65,17 +138,58 @@ async function main() {
       throw new Error("No shared columns between clean_listings and properties.");
     }
 
-    const projection = sharedColumns.map(quoteIdentifier).join(", ");
+    const insertColumns = [
+      ...sharedColumns,
+      "is_active",
+      "is_deleted",
+      "created_by_admin",
+      "manual_title",
+      "manual_price_raw",
+      "manual_price_value",
+      "manual_location_raw",
+      "manual_city",
+      "manual_country",
+      "manual_image",
+      "manual_description",
+      "manual_source",
+      "manual_url",
+      "manual_scraped_at",
+      "admin_updated_at",
+    ];
+
+    const sourceProjection = sharedColumns.map((columnName) => `src.${quoteIdentifier(columnName)}`);
+    const canMatchPreviousById = sharedColumns.includes("id");
+    const canMatchPreviousByUrl = sharedColumns.includes("url");
+    const previousJoinCondition = canMatchPreviousById
+      ? "prev.id = src.id"
+      : canMatchPreviousByUrl
+        ? "prev.url = src.url"
+        : "";
+
+    const preservedAdminSelects = buildPreservedAdminSelects(Boolean(previousJoinCondition));
 
     await connection.beginTransaction();
-    await connection.query("DELETE FROM properties");
-    const [insertResult] = await connection.query(
-      `INSERT INTO properties (${projection}) SELECT ${projection} FROM clean_listings`
-    );
+    await connection.query("CREATE TEMPORARY TABLE properties_previous AS SELECT * FROM properties");
+    await connection.query("DELETE FROM properties WHERE COALESCE(created_by_admin, 0) = 0");
+
+    const selectFragments = [...sourceProjection, ...preservedAdminSelects];
+    const insertSql = `
+      INSERT INTO properties (${insertColumns.map(quoteIdentifier).join(", ")})
+      SELECT ${selectFragments.join(", ")}
+      FROM clean_listings src
+      ${previousJoinCondition ? `LEFT JOIN properties_previous prev ON ${previousJoinCondition}` : ""}
+    `;
+
+    const [insertResult] = await connection.query(insertSql);
     await connection.commit();
 
     const [[cleanCount]] = await connection.query("SELECT COUNT(*) AS total FROM clean_listings");
-    const [[propertiesCount]] = await connection.query("SELECT COUNT(*) AS total FROM properties");
+    const [[propertiesCount]] = await connection.query(
+      "SELECT COUNT(*) AS total FROM properties WHERE COALESCE(is_deleted, 0) = 0"
+    );
+    const [[adminCreatedCount]] = await connection.query(
+      "SELECT COUNT(*) AS total FROM properties WHERE created_by_admin = 1 AND COALESCE(is_deleted, 0) = 0"
+    );
 
     console.log(
       JSON.stringify(
@@ -83,6 +197,7 @@ async function main() {
           copied_rows: insertResult.affectedRows,
           clean_listings_total: cleanCount.total,
           properties_total: propertiesCount.total,
+          admin_created_properties_total: adminCreatedCount.total,
         },
         null,
         2
@@ -94,6 +209,7 @@ async function main() {
     } catch {
       // Ignore rollback errors if no active transaction.
     }
+
     throw error;
   } finally {
     await connection.end();

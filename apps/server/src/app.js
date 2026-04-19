@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import { fileURLToPath } from "url";
 import healthRoutes from "./routes/healthRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -14,7 +15,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { httpError } from "./utils/httpError.js";
 
-dotenv.config();
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
 export const app = express();
 

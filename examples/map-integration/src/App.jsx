@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import TunisiaDynastyMap from './components/TunisiaDynastyMap';
-import { exampleDbResponse } from './data/exampleDbResponse';
 import { adaptDatabaseListings } from './lib/mapDataAdapter';
 
 export default function App() {
-  const [listings, setListings] = useState(() => adaptDatabaseListings(exampleDbResponse));
-  const [apiState, setApiState] = useState('mock');
+  const [listings, setListings] = useState([]);
+  const [apiState, setApiState] = useState('loading');
   const [apiError, setApiError] = useState('');
+  const apiBaseUrl =
+    import.meta.env.VITE_API_URL ||
+    (typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      : 'http://localhost:5000');
 
   useEffect(() => {
     let ignore = false;
@@ -16,7 +20,7 @@ export default function App() {
         setApiState('loading');
         setApiError('');
 
-        const response = await fetch('/api/properties');
+        const response = await fetch(`${apiBaseUrl}/api/properties?limit=5000`);
         if (!response.ok) {
           throw new Error(`API request failed with ${response.status}`);
         }
@@ -31,7 +35,8 @@ export default function App() {
         }
       } catch (error) {
         if (!ignore) {
-          setApiState('mock');
+          setListings([]);
+          setApiState('error');
           setApiError(error.message || 'Failed to load /api/properties');
         }
       }
@@ -41,12 +46,17 @@ export default function App() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [apiBaseUrl]);
 
   return (
     <div className="app-shell">
       <div className="integration-banner">
-        <strong>Data source:</strong> {apiState === 'live' ? 'Live backend' : apiState === 'loading' ? 'Loading backend…' : 'Mock fallback'}
+        <strong>Data source:</strong>{' '}
+        {apiState === 'live'
+          ? 'Live backend'
+          : apiState === 'loading'
+            ? 'Loading backend...'
+            : 'Backend unavailable'}
         {apiError ? <span className="integration-error">{apiError}</span> : null}
       </div>
 

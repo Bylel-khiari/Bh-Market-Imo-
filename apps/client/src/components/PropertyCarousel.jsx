@@ -2,18 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Slider from 'react-slick';
 import { Link } from 'react-router-dom';
 import { FaMapMarkerAlt, FaCalendarAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { fetchPropertyRows } from '../lib/properties';
 import '../styles/PropertyCarousel.css';
 
 const PropertyCarousel = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const apiBaseUrl =
-    process.env.REACT_APP_API_URL ||
-    (typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
-      : 'http://localhost:5000');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -23,22 +18,7 @@ const PropertyCarousel = () => {
       setError('');
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/properties?limit=8`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const rows = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload.data)
-            ? payload.data
-            : Array.isArray(payload.items)
-              ? payload.items
-              : [];
+        const rows = await fetchPropertyRows({ limit: 8, signal: controller.signal });
         setProperties(rows.filter((row) => row.image || row.title));
       } catch (err) {
         if (err.name !== 'AbortError') {
@@ -52,7 +32,7 @@ const PropertyCarousel = () => {
 
     loadFeaturedProperties();
     return () => controller.abort();
-  }, [apiBaseUrl]);
+  }, []);
 
   const hasProperties = useMemo(() => properties.length > 0, [properties]);
 

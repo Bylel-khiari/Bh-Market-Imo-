@@ -1,11 +1,15 @@
 import { Router } from "express";
 import {
+	createProperty,
 	createScrapeSiteByAdmin,
 	createUser,
+	deleteProperty,
 	deleteScrapeSiteByAdmin,
 	deleteUser,
+	listPropertiesByAdmin,
 	listScrapeSites,
 	listUsers,
+	updateProperty,
 	updateScrapeSiteByAdmin,
 	updateUser,
 } from "../controllers/adminController.js";
@@ -13,9 +17,12 @@ import { requireAuth, requireRoles } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import {
 	adminCreateScrapeSiteBodySchema,
+	adminCreatePropertyBodySchema,
 	adminCreateUserBodySchema,
+	adminListPropertiesQuerySchema,
 	adminListScrapeSitesQuerySchema,
 	adminListUsersQuerySchema,
+	adminUpdatePropertyBodySchema,
 	adminUpdateScrapeSiteBodySchema,
 	adminUpdateUserBodySchema,
 	idParamSchema,
@@ -50,6 +57,34 @@ router.delete(
 	requireRoles("admin"),
 	validateRequest({ params: idParamSchema }),
 	deleteUser
+);
+router.get(
+	"/api/admin/properties",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ query: adminListPropertiesQuerySchema }),
+	listPropertiesByAdmin
+);
+router.post(
+	"/api/admin/properties",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ body: adminCreatePropertyBodySchema }),
+	createProperty
+);
+router.put(
+	"/api/admin/properties/:id",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ params: idParamSchema, body: adminUpdatePropertyBodySchema }),
+	updateProperty
+);
+router.delete(
+	"/api/admin/properties/:id",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ params: idParamSchema }),
+	deleteProperty
 );
 router.get(
 	"/api/admin/scrape-sites",

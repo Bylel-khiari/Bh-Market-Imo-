@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import mysql from "mysql2/promise";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
 const isProduction = process.env.NODE_ENV === "production";
 const configuredPassword = process.env.MYSQL_PASSWORD;

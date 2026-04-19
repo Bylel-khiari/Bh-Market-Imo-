@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  FaUsers, FaHome, FaFileAlt, FaCheckCircle, 
-  FaChartLine, FaUserTie, FaClock, FaEuroSign 
-} from 'react-icons/fa';
+import { FaUsers, FaHome, FaFileAlt, FaCheckCircle } from 'react-icons/fa';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
   FaBell,
+  FaBuilding,
   FaChartLine,
   FaCheckCircle,
   FaCog,
@@ -11,8 +12,8 @@ import {
   FaGlobe,
   FaHome,
   FaListAlt,
+  FaMapMarkerAlt,
   FaPlus,
-  FaPowerOff,
   FaSignOutAlt,
   FaSyncAlt,
   FaTimes,
@@ -35,6 +36,13 @@ import {
 } from 'recharts';
 import { clearAuthSession, getAuthSession } from '../lib/auth';
 import '../styles/AdminDashboard.css';
+
+const ADMIN_PROPERTIES_PER_PAGE = 50;
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous' },
+  { value: 'active', label: 'Actifs' },
+  { value: 'inactive', label: 'Inactifs' },
+];
 
 const ROLE_LABELS = {
   client: 'Client',
@@ -74,6 +82,23 @@ function createEmptySiteForm() {
   };
 }
 
+function createEmptyPropertyForm() {
+  return {
+    title: '',
+    price_raw: '',
+    price_value: '',
+    location_raw: '',
+    city: '',
+    country: 'Tunisie',
+    image: '',
+    description: '',
+    source: 'admin',
+    url: '',
+    scraped_at: '',
+    is_active: true,
+  };
+}
+
 function formatRole(role) {
   return ROLE_LABELS[role] || role || '-';
 }
@@ -83,6 +108,31 @@ function formatDate(dateLike) {
   const d = new Date(dateLike);
   if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('fr-FR');
+}
+
+function formatDateTimeLocalValue(dateLike) {
+  if (!dateLike) return '';
+
+  const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const pad = (value) => String(value).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function formatPropertyPrice(property) {
+  const numeric = Number(property?.price_value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
+  }
+
+  return property?.price_raw || 'Prix non communique';
 }
 
 function getInitials(nameOrEmail) {
@@ -97,9 +147,13 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [scrapeSites, setScrapeSites] = useState([]);
+  const [adminProperties, setAdminProperties] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [userSearch, setUserSearch] = useState('');
   const [siteSearch, setSiteSearch] = useState('');
+  const [siteStatusFilter, setSiteStatusFilter] = useState('all');
+  const [propertySearch, setPropertySearch] = useState('');
+  const [propertyStatusFilter, setPropertyStatusFilter] = useState('all');
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +172,16 @@ export default function AdminDashboard() {
   const [siteFormMessage, setSiteFormMessage] = useState('');
   const [siteSubmitting, setSiteSubmitting] = useState(false);
   const [siteFormData, setSiteFormData] = useState(createEmptySiteForm());
+  const [propertyLoading, setPropertyLoading] = useState(true);
+  const [propertyError, setPropertyError] = useState('');
+  const [isPropertyPanelOpen, setIsPropertyPanelOpen] = useState(false);
+  const [propertyDeleteCandidate, setPropertyDeleteCandidate] = useState(null);
+  const [propertyFormMode, setPropertyFormMode] = useState('create');
+  const [editingPropertyId, setEditingPropertyId] = useState(null);
+  const [currentPropertyPage, setCurrentPropertyPage] = useState(1);
+  const [propertyFormMessage, setPropertyFormMessage] = useState('');
+  const [propertySubmitting, setPropertySubmitting] = useState(false);
+  const [propertyFormData, setPropertyFormData] = useState(createEmptyPropertyForm());
 
   const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -188,9 +252,38 @@ export default function AdminDashboard() {
     }
   }, [apiBaseUrl]);
 
+  const fetchAdminProperties = useCallback(async () => {
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setPropertyError('Session invalide. Veuillez vous reconnecter.');
+      setPropertyLoading(false);
+      return;
+    }
+
+    setPropertyLoading(true);
+    setPropertyError('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/properties?limit=5000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Impossible de charger les annonces.');
+      }
+
+      setAdminProperties(Array.isArray(payload?.properties) ? payload.properties : []);
+    } catch (requestError) {
+      setPropertyError(requestError.message || 'Erreur de chargement des annonces.');
+    } finally {
+      setPropertyLoading(false);
+    }
+  }, [apiBaseUrl]);
+
   const refreshDashboardData = useCallback(async () => {
-    await Promise.all([fetchUsers(), fetchScrapeSites()]);
-  }, [fetchScrapeSites, fetchUsers]);
+    await Promise.all([fetchUsers(), fetchScrapeSites(), fetchAdminProperties()]);
+  }, [fetchAdminProperties, fetchScrapeSites, fetchUsers]);
 
   const resetForm = () => {
     setFormMode('create');
@@ -288,8 +381,7 @@ export default function AdminDashboard() {
         body: JSON.stringify(buildPayload()),
       });
 
-      const payload =
-        response.status === 204 ? {} : await response.json().catch(() => ({}));
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Operation echouee.');
@@ -333,8 +425,7 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const payload =
-        response.status === 204 ? {} : await response.json().catch(() => ({}));
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Suppression impossible.');
@@ -433,8 +524,7 @@ export default function AdminDashboard() {
         body: JSON.stringify(buildSitePayload()),
       });
 
-      const payload =
-        response.status === 204 ? {} : await response.json().catch(() => ({}));
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Operation sur le site echouee.');
@@ -477,8 +567,7 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const payload =
-        response.status === 204 ? {} : await response.json().catch(() => ({}));
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Suppression du site impossible.');
@@ -518,11 +607,25 @@ export default function AdminDashboard() {
         body: JSON.stringify({ is_active: !site.is_active }),
       });
 
-      const payload =
-        response.status === 204 ? {} : await response.json().catch(() => ({}));
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Mise a jour du statut impossible.');
+      }
+
+      const updatedSite = payload?.site
+        ? { ...site, ...payload.site }
+        : { ...site, is_active: !site.is_active };
+
+      setScrapeSites((prev) =>
+        prev.map((item) => (String(item.id) === String(site.id) ? updatedSite : item)),
+      );
+
+      if (editingSiteId === site.id) {
+        setSiteFormData((prev) => ({
+          ...prev,
+          is_active: Boolean(updatedSite.is_active),
+        }));
       }
 
       setSiteFormMessage(
@@ -530,7 +633,6 @@ export default function AdminDashboard() {
           ? 'Site desactive pour les prochains lancements.'
           : 'Site reactive pour les prochains lancements.',
       );
-      await fetchScrapeSites();
     } catch (requestError) {
       setSiteFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
     } finally {
@@ -538,10 +640,235 @@ export default function AdminDashboard() {
     }
   };
 
+  const resetPropertyForm = () => {
+    setPropertyFormMode('create');
+    setEditingPropertyId(null);
+    setPropertyFormData(createEmptyPropertyForm());
+    setIsPropertyPanelOpen(false);
+  };
+
+  const openCreatePropertyPanel = () => {
+    setPropertyFormMode('create');
+    setEditingPropertyId(null);
+    setPropertyFormMessage('');
+    setPropertyFormData(createEmptyPropertyForm());
+    setIsPropertyPanelOpen(true);
+  };
+
+  const startEditProperty = (property) => {
+    setPropertyFormMode('edit');
+    setEditingPropertyId(property.id);
+    setPropertyFormData({
+      title: property.title || '',
+      price_raw: property.price_raw || '',
+      price_value:
+        property.price_value === null || property.price_value === undefined
+          ? ''
+          : String(property.price_value),
+      location_raw: property.location_raw || '',
+      city: property.city || '',
+      country: property.country || '',
+      image: property.image || '',
+      description: property.description || '',
+      source: property.source || '',
+      url: property.url || '',
+      scraped_at: formatDateTimeLocalValue(property.scraped_at),
+      is_active: Boolean(property.is_active),
+    });
+    setPropertyFormMessage('');
+    setIsPropertyPanelOpen(true);
+  };
+
+  const handlePropertyFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setPropertyFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const buildPropertyPayload = () => {
+    const rawPriceValue = String(propertyFormData.price_value || '').trim();
+
+    return {
+      title: propertyFormData.title.trim(),
+      price_raw: propertyFormData.price_raw.trim() || null,
+      price_value: rawPriceValue ? Number(rawPriceValue) : null,
+      location_raw: propertyFormData.location_raw.trim() || null,
+      city: propertyFormData.city.trim() || null,
+      country: propertyFormData.country.trim() || null,
+      image: propertyFormData.image.trim() || null,
+      description: propertyFormData.description.trim() || null,
+      source: propertyFormData.source.trim() || null,
+      url: propertyFormData.url.trim() || null,
+      scraped_at: propertyFormData.scraped_at || null,
+      is_active: Boolean(propertyFormData.is_active),
+    };
+  };
+
+  const handlePropertySubmit = async (event) => {
+    event.preventDefault();
+
+    if (!propertyFormData.title.trim()) {
+      setPropertyFormMessage('Le titre de l annonce est obligatoire.');
+      return;
+    }
+
+    const rawPriceValue = String(propertyFormData.price_value || '').trim();
+    if (rawPriceValue && Number.isNaN(Number(rawPriceValue))) {
+      setPropertyFormMessage('Le prix numerique doit etre un nombre valide.');
+      return;
+    }
+
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
+      return;
+    }
+
+    setPropertySubmitting(true);
+    setPropertyFormMessage('');
+
+    try {
+      const endpoint =
+        propertyFormMode === 'create'
+          ? `${apiBaseUrl}/api/admin/properties`
+          : `${apiBaseUrl}/api/admin/properties/${editingPropertyId}`;
+
+      const response = await fetch(endpoint, {
+        method: propertyFormMode === 'create' ? 'POST' : 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildPropertyPayload()),
+      });
+
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Operation sur l annonce echouee.');
+      }
+
+      setPropertyFormMessage(
+        propertyFormMode === 'create' ? 'Annonce ajoutee.' : 'Annonce mise a jour.',
+      );
+      resetPropertyForm();
+      await fetchAdminProperties();
+    } catch (requestError) {
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la sauvegarde de l annonce.');
+    } finally {
+      setPropertySubmitting(false);
+    }
+  };
+
+  const requestDeleteProperty = (property) => {
+    setPropertyDeleteCandidate(property);
+  };
+
+  const closeDeletePropertyConfirm = () => {
+    setPropertyDeleteCandidate(null);
+  };
+
+  const handleDeletePropertyConfirmed = async () => {
+    if (!propertyDeleteCandidate) return;
+
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
+      closeDeletePropertyConfirm();
+      return;
+    }
+
+    setPropertySubmitting(true);
+    setPropertyFormMessage('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/properties/${propertyDeleteCandidate.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Suppression de l annonce impossible.');
+      }
+
+      if (editingPropertyId === propertyDeleteCandidate.id) {
+        resetPropertyForm();
+      }
+
+      setPropertyFormMessage('Annonce supprimee.');
+      closeDeletePropertyConfirm();
+      await fetchAdminProperties();
+    } catch (requestError) {
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la suppression de l annonce.');
+    } finally {
+      setPropertySubmitting(false);
+    }
+  };
+
+  const handleTogglePropertyStatus = async (property) => {
+    const token = getAuthSession()?.token;
+    if (!token) {
+      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
+      return;
+    }
+
+    setPropertySubmitting(true);
+    setPropertyFormMessage('');
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/properties/${property.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: !property.is_active }),
+      });
+
+      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Mise a jour du statut impossible.');
+      }
+
+      const updatedProperty = payload?.property
+        ? { ...property, ...payload.property }
+        : { ...property, is_active: !property.is_active };
+
+      setAdminProperties((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(property.id) ? updatedProperty : item,
+        ),
+      );
+
+      if (editingPropertyId === property.id) {
+        setPropertyFormData((prev) => ({
+          ...prev,
+          is_active: Boolean(updatedProperty.is_active),
+        }));
+      }
+
+      setPropertyFormMessage(
+        property.is_active
+          ? 'Annonce desactivee pour l espace client.'
+          : 'Annonce reactivee pour l espace client.',
+      );
+    } catch (requestError) {
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
+    } finally {
+      setPropertySubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchScrapeSites();
-  }, [fetchScrapeSites, fetchUsers]);
+    fetchAdminProperties();
+  }, [fetchAdminProperties, fetchScrapeSites, fetchUsers]);
 
   const roleTotals = useMemo(() => {
     return users.reduce(
@@ -550,7 +877,7 @@ export default function AdminDashboard() {
         acc[role] = (acc[role] || 0) + 1;
         return acc;
       },
-      { client: 0, agent_bancaire: 0, responsable_decisionnel: 0, admin: 0 }
+      { client: 0, agent_bancaire: 0, responsable_decisionnel: 0, admin: 0 },
     );
   }, [users]);
 
@@ -565,22 +892,41 @@ export default function AdminDashboard() {
         }
         return acc;
       },
-      { total: 0, active: 0, inactive: 0 }
+      { total: 0, active: 0, inactive: 0 },
     );
   }, [scrapeSites]);
 
-  const pieData = useMemo(
-    () => [
-      { key: 'client', name: 'Clients', value: roleTotals.client || 0 },
-      { key: 'agent_bancaire', name: 'Agents bancaires', value: roleTotals.agent_bancaire || 0 },
-      {
-        key: 'responsable_decisionnel',
-        name: 'Responsables decisionnels',
-        value: roleTotals.responsable_decisionnel || 0,
+  const propertyTotals = useMemo(() => {
+    return adminProperties.reduce(
+      (acc, property) => {
+        acc.total += 1;
+        if (property?.is_active) {
+          acc.active += 1;
+        } else {
+          acc.inactive += 1;
+        }
+        if (property?.created_by_admin) {
+          acc.adminCreated += 1;
+        }
+        return acc;
       },
-      { key: 'admin', name: 'Admins', value: roleTotals.admin || 0 },
-    ].filter((item) => item.value > 0),
-    [roleTotals]
+      { total: 0, active: 0, inactive: 0, adminCreated: 0 },
+    );
+  }, [adminProperties]);
+
+  const pieData = useMemo(
+    () =>
+      [
+        { key: 'client', name: 'Clients', value: roleTotals.client || 0 },
+        { key: 'agent_bancaire', name: 'Agents bancaires', value: roleTotals.agent_bancaire || 0 },
+        {
+          key: 'responsable_decisionnel',
+          name: 'Responsables decisionnels',
+          value: roleTotals.responsable_decisionnel || 0,
+        },
+        { key: 'admin', name: 'Admins', value: roleTotals.admin || 0 },
+      ].filter((item) => item.value > 0),
+    [roleTotals],
   );
 
   const barData = useMemo(
@@ -590,7 +936,7 @@ export default function AdminDashboard() {
       { role: 'Decisionnels', total: roleTotals.responsable_decisionnel || 0 },
       { role: 'Admins', total: roleTotals.admin || 0 },
     ],
-    [roleTotals]
+    [roleTotals],
   );
 
   const usersSorted = useMemo(() => {
@@ -599,12 +945,20 @@ export default function AdminDashboard() {
 
   const scrapeSitesSorted = useMemo(() => {
     return [...scrapeSites].sort((a, b) => {
-      if (Boolean(a?.is_active) !== Boolean(b?.is_active)) {
-        return a?.is_active ? -1 : 1;
+      const nameComparison = String(a?.name || '').localeCompare(String(b?.name || ''), 'fr');
+      if (nameComparison !== 0) {
+        return nameComparison;
       }
-      return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr');
+
+      return Number(a?.id || 0) - Number(b?.id || 0);
     });
   }, [scrapeSites]);
+
+  const adminPropertiesSorted = useMemo(() => {
+    return [...adminProperties].sort((a, b) => {
+      return Number(b?.id || 0) - Number(a?.id || 0);
+    });
+  }, [adminProperties]);
 
   const recentUsers = useMemo(() => usersSorted.slice(0, 8), [usersSorted]);
 
@@ -619,17 +973,85 @@ export default function AdminDashboard() {
 
   const filteredSites = useMemo(() => {
     const query = siteSearch.trim().toLowerCase();
-    if (!query) return scrapeSitesSorted;
-
     return scrapeSitesSorted.filter((site) => {
       const haystack = `${site?.name || ''} ${site?.spider_name || ''} ${site?.base_url || ''} ${site?.start_url || ''}`.toLowerCase();
-      return haystack.includes(query);
+      const matchesQuery = !query || haystack.includes(query);
+      const matchesStatus =
+        siteStatusFilter === 'all' ||
+        (siteStatusFilter === 'active' && Boolean(site?.is_active)) ||
+        (siteStatusFilter === 'inactive' && !site?.is_active);
+
+      return matchesQuery && matchesStatus;
     });
-  }, [scrapeSitesSorted, siteSearch]);
+  }, [scrapeSitesSorted, siteSearch, siteStatusFilter]);
+
+  const filteredAdminProperties = useMemo(() => {
+    const query = propertySearch.trim().toLowerCase();
+    return adminPropertiesSorted.filter((property) => {
+      const haystack = `${property?.title || ''} ${property?.city || ''} ${property?.location_raw || ''} ${property?.source || ''} ${property?.url || ''} ${property?.description || ''}`.toLowerCase();
+      const matchesQuery = !query || haystack.includes(query);
+      const matchesStatus =
+        propertyStatusFilter === 'all' ||
+        (propertyStatusFilter === 'active' && Boolean(property?.is_active)) ||
+        (propertyStatusFilter === 'inactive' && !property?.is_active);
+
+      return matchesQuery && matchesStatus;
+    });
+  }, [adminPropertiesSorted, propertySearch, propertyStatusFilter]);
+
+  const propertyTotalPages = useMemo(() => {
+    if (!filteredAdminProperties.length) return 1;
+    return Math.ceil(filteredAdminProperties.length / ADMIN_PROPERTIES_PER_PAGE);
+  }, [filteredAdminProperties.length]);
+
+  const paginatedAdminProperties = useMemo(() => {
+    const start = (currentPropertyPage - 1) * ADMIN_PROPERTIES_PER_PAGE;
+    return filteredAdminProperties.slice(start, start + ADMIN_PROPERTIES_PER_PAGE);
+  }, [currentPropertyPage, filteredAdminProperties]);
+
+  const propertyVisiblePageNumbers = useMemo(() => {
+    const maxVisiblePages = 5;
+
+    if (propertyTotalPages <= maxVisiblePages) {
+      return Array.from({ length: propertyTotalPages }, (_, index) => index + 1);
+    }
+
+    const halfWindow = Math.floor(maxVisiblePages / 2);
+    let startPage = Math.max(1, currentPropertyPage - halfWindow);
+    let endPage = startPage + maxVisiblePages - 1;
+
+    if (endPage > propertyTotalPages) {
+      endPage = propertyTotalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+  }, [currentPropertyPage, propertyTotalPages]);
+
+  const propertyVisibleRangeStart =
+    filteredAdminProperties.length === 0
+      ? 0
+      : (currentPropertyPage - 1) * ADMIN_PROPERTIES_PER_PAGE + 1;
+
+  const propertyVisibleRangeEnd = Math.min(
+    currentPropertyPage * ADMIN_PROPERTIES_PER_PAGE,
+    filteredAdminProperties.length,
+  );
+
+  useEffect(() => {
+    setCurrentPropertyPage(1);
+  }, [propertySearch, propertyStatusFilter]);
+
+  useEffect(() => {
+    if (currentPropertyPage > propertyTotalPages) {
+      setCurrentPropertyPage(propertyTotalPages);
+    }
+  }, [currentPropertyPage, propertyTotalPages]);
 
   const menuItems = [
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
+    { key: 'properties', label: 'Annonces', icon: FaBuilding },
     { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
     { key: 'activities', label: 'Activites', icon: FaListAlt },
     { key: 'stats', label: 'Statistiques', icon: FaChartLine },
@@ -639,6 +1061,7 @@ export default function AdminDashboard() {
   const sectionTitles = {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
+    properties: 'Gestion des annonces',
     sites: 'Gestion des sites scrapes',
     activities: 'Activites recentes',
     stats: 'Statistiques',
@@ -702,11 +1125,17 @@ export default function AdminDashboard() {
           <div className="admin-topbar">
             <div>
               <h1>{sectionTitles[activeSection]}</h1>
-              <p className="admin-subtitle">Pilotage des utilisateurs et des sites de collecte</p>
+              <p className="admin-subtitle">
+                Pilotage des utilisateurs, des annonces et des sites de collecte
+              </p>
             </div>
             <div className="admin-topbar-actions">
-              <button type="button" className="admin-icon-btn" aria-label="Notifications"><FaBell /></button>
-              <button type="button" className="admin-icon-btn" aria-label="Messages"><FaEnvelope /></button>
+              <button type="button" className="admin-icon-btn" aria-label="Notifications">
+                <FaBell />
+              </button>
+              <button type="button" className="admin-icon-btn" aria-label="Messages">
+                <FaEnvelope />
+              </button>
               <button
                 type="button"
                 className="admin-secondary admin-topbar-btn admin-topbar-btn--home"
@@ -719,7 +1148,7 @@ export default function AdminDashboard() {
                 type="button"
                 className="admin-refresh admin-topbar-btn admin-topbar-btn--primary"
                 onClick={refreshDashboardData}
-                disabled={submitting || siteSubmitting}
+                disabled={submitting || siteSubmitting || propertySubmitting}
               >
                 Actualiser
               </button>
@@ -739,20 +1168,58 @@ export default function AdminDashboard() {
               <section className="admin-analytics-column">
                 <div className="admin-kpi-grid">
                   <div className="admin-kpi-card">
-                    <div className="icon"><FaUsers /></div>
-                    <div><h3>Utilisateurs</h3><p>{users.length}</p></div>
+                    <div className="icon">
+                      <FaUsers />
+                    </div>
+                    <div>
+                      <h3>Utilisateurs</h3>
+                      <p>{users.length}</p>
+                    </div>
                   </div>
                   <div className="admin-kpi-card">
-                    <div className="icon"><FaUser /></div>
-                    <div><h3>Clients</h3><p>{roleTotals.client || 0}</p></div>
+                    <div className="icon">
+                      <FaUser />
+                    </div>
+                    <div>
+                      <h3>Clients</h3>
+                      <p>{roleTotals.client || 0}</p>
+                    </div>
                   </div>
                   <div className="admin-kpi-card">
-                    <div className="icon"><FaUserTie /></div>
-                    <div><h3>Agents bancaires</h3><p>{roleTotals.agent_bancaire || 0}</p></div>
+                    <div className="icon">
+                      <FaUserTie />
+                    </div>
+                    <div>
+                      <h3>Agents bancaires</h3>
+                      <p>{roleTotals.agent_bancaire || 0}</p>
+                    </div>
                   </div>
                   <div className="admin-kpi-card">
-                    <div className="icon"><FaGlobe /></div>
-                    <div><h3>Sites actifs</h3><p>{siteTotals.active || 0}</p></div>
+                    <div className="icon">
+                      <FaBuilding />
+                    </div>
+                    <div>
+                      <h3>Annonces actives</h3>
+                      <p>{propertyTotals.active || 0}</p>
+                    </div>
+                  </div>
+                  <div className="admin-kpi-card">
+                    <div className="icon">
+                      <FaListAlt />
+                    </div>
+                    <div>
+                      <h3>Annonces admin</h3>
+                      <p>{propertyTotals.adminCreated || 0}</p>
+                    </div>
+                  </div>
+                  <div className="admin-kpi-card">
+                    <div className="icon">
+                      <FaGlobe />
+                    </div>
+                    <div>
+                      <h3>Sites actifs</h3>
+                      <p>{siteTotals.active || 0}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -760,15 +1227,18 @@ export default function AdminDashboard() {
                   <div className="admin-card">
                     <h2>Bienvenue</h2>
                     <p className="admin-section-help">
-                      Utilisez le menu gauche pour acceder rapidement a la gestion des comptes et des sites scrapes.
+                      Utilisez le menu gauche pour gerer les comptes, les annonces et les sites
+                      scrapes depuis un seul dashboard admin en francais.
                     </p>
                   </div>
                   <div className="admin-card">
-                    <h2>Etat de la collecte</h2>
+                    <h2>Etat des annonces</h2>
                     <ul className="admin-settings-list">
-                      <li>Total des sites configures: {siteTotals.total}</li>
-                      <li>Sites actifs: {siteTotals.active}</li>
-                      <li>Sites desactives: {siteTotals.inactive}</li>
+                      <li>Total des annonces visibles en admin: {propertyTotals.total}</li>
+                      <li>Annonces actives cote client: {propertyTotals.active}</li>
+                      <li>Annonces desactivees: {propertyTotals.inactive}</li>
+                      <li>Annonces ajoutees par admin: {propertyTotals.adminCreated}</li>
+                      <li>Sites de collecte actifs: {siteTotals.active}</li>
                     </ul>
                   </div>
                 </div>
@@ -784,7 +1254,9 @@ export default function AdminDashboard() {
                     <h2>Liste des utilisateurs</h2>
                     <div className="admin-users-header-actions">
                       <span className="admin-users-count">{filteredUsers.length}</span>
-                      <button type="button" className="admin-refresh" onClick={openCreatePanel}>Nouveau</button>
+                      <button type="button" className="admin-refresh" onClick={openCreatePanel}>
+                        Nouveau
+                      </button>
                     </div>
                   </div>
 
@@ -808,9 +1280,14 @@ export default function AdminDashboard() {
                     {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouve.</p>}
 
                     {filteredUsers.map((user) => (
-                      <article key={user.id} className={`admin-user-row ${editingUserId === user.id ? 'is-editing' : ''}`}>
+                      <article
+                        key={user.id}
+                        className={`admin-user-row ${editingUserId === user.id ? 'is-editing' : ''}`}
+                      >
                         <div className="admin-user-cell user-cell-main">
-                          <div className="admin-user-avatar">{getInitials(user.name || user.email)}</div>
+                          <div className="admin-user-avatar">
+                            {getInitials(user.name || user.email)}
+                          </div>
                           <div>
                             <p className="admin-user-name">{user.name || '-'}</p>
                             <p className="admin-user-email">{user.email || '-'}</p>
@@ -819,20 +1296,260 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="admin-user-cell">
-                          <span className={`role-pill role-${user.role || 'unknown'}`}>{formatRole(user.role)}</span>
+                          <span className={`role-pill role-${user.role || 'unknown'}`}>
+                            {formatRole(user.role)}
+                          </span>
                         </div>
 
-                        <div className="admin-user-cell admin-user-date">{formatDate(user.created_at)}</div>
+                        <div className="admin-user-cell admin-user-date">
+                          {formatDate(user.created_at)}
+                        </div>
 
                         <div className="admin-user-cell">
                           <div className="admin-table-actions">
-                            <button type="button" className="admin-secondary" onClick={() => startEdit(user)}>Modifier</button>
-                            <button type="button" className="admin-danger" onClick={() => requestDelete(user)}>Supprimer</button>
+                            <button
+                              type="button"
+                              className="admin-secondary"
+                              onClick={() => startEdit(user)}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-danger"
+                              onClick={() => requestDelete(user)}
+                            >
+                              Supprimer
+                            </button>
                           </div>
                         </div>
                       </article>
                     ))}
                   </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeSection === 'properties' && (
+            <div className="admin-content-grid admin-content-single">
+              <section className="admin-analytics-column">
+                <div className="admin-card admin-properties-card">
+                  <div className="admin-users-header">
+                    <h2>Annonces immobilieres</h2>
+                    <div className="admin-users-header-actions">
+                      <span className="admin-users-count">{filteredAdminProperties.length}</span>
+                      <button
+                        type="button"
+                        className="admin-refresh"
+                        onClick={openCreatePropertyPanel}
+                      >
+                        <FaPlus /> Nouvelle annonce
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="admin-section-help">
+                    Ajoutez, modifiez, supprimez ou activez/desactivez les annonces.
+                    Les changements admin restent prioritaires sur les donnees scrapes.
+                  </p>
+
+                  {!propertyLoading && filteredAdminProperties.length > 0 && (
+                    <p className="admin-section-help">
+                      Affichage de {propertyVisibleRangeStart} a {propertyVisibleRangeEnd} sur{' '}
+                      {filteredAdminProperties.length} annonces.
+                    </p>
+                  )}
+
+                  <div className="admin-users-toolbar admin-toolbar-row">
+                    <input
+                      className="admin-search-input"
+                      placeholder="Rechercher par titre, ville, source ou URL"
+                      value={propertySearch}
+                      onChange={(event) => setPropertySearch(event.target.value)}
+                    />
+                    <div className="admin-filter-chips" aria-label="Filtrer les annonces par statut">
+                      {STATUS_FILTER_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`admin-filter-chip ${propertyStatusFilter === option.value ? 'is-active' : ''}`}
+                          onClick={() => setPropertyStatusFilter(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {propertyFormMessage && (
+                    <p
+                      className={`admin-form-message ${propertyFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
+                    >
+                      {propertyFormMessage}
+                    </p>
+                  )}
+                  {propertyError && (
+                    <p className="admin-form-message admin-form-message--error">{propertyError}</p>
+                  )}
+
+                  {propertyLoading ? (
+                    <div className="admin-state admin-state--inline">
+                      <FaSyncAlt className="spin" />
+                      <p>Chargement des annonces...</p>
+                    </div>
+                  ) : filteredAdminProperties.length === 0 ? (
+                    <p className="empty">Aucune annonce trouvee.</p>
+                  ) : (
+                    <>
+                      <div className="admin-properties-grid">
+                        {paginatedAdminProperties.map((property) => (
+                          <article
+                            key={property.id}
+                            className={`admin-property-card ${property.is_active ? 'is-active' : 'is-inactive'} ${editingPropertyId === property.id ? 'is-editing' : ''}`}
+                          >
+                          <div className="admin-property-media">
+                            {property.image ? (
+                              <img
+                                src={property.image}
+                                alt={property.title || 'Annonce immobiliere'}
+                                className="admin-property-image"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="admin-property-image-placeholder">
+                                Image non disponible
+                              </div>
+                            )}
+                            <div className="admin-property-badges">
+                              <span
+                                className={`admin-site-status ${property.is_active ? 'is-active' : 'is-inactive'}`}
+                              >
+                                {property.is_active ? <FaCheckCircle /> : <FaBan />}
+                                {property.is_active ? 'Active' : 'Desactivee'}
+                              </span>
+                              {property.created_by_admin && (
+                                <span className="admin-property-origin admin-property-origin--created">
+                                  Ajoutee par admin
+                                </span>
+                              )}
+                              {property.has_manual_changes && !property.created_by_admin && (
+                                <span className="admin-property-origin">Modifiee</span>
+                              )}
+                            </div>
+                            <span className="admin-property-source-badge">
+                              {property.source || 'source inconnue'}
+                            </span>
+                          </div>
+
+                          <div className="admin-property-card-body">
+                            <p className="admin-property-location">
+                              <FaMapMarkerAlt />
+                              <span>{property.location_raw || property.city || 'Localisation non disponible'}</span>
+                            </p>
+                            <h3>{property.title || 'Titre non disponible'}</h3>
+                            <p className="admin-property-description">
+                              {property.description || 'Aucune description renseignee pour cette annonce.'}
+                            </p>
+                            <div className="admin-property-footer-row">
+                              <p className="admin-property-price">{formatPropertyPrice(property)}</p>
+                              <span className="admin-property-id-badge">ID #{property.id}</span>
+                            </div>
+                            <div className="admin-property-meta">
+                              <span>
+                                <strong>Ville:</strong> {property.city || '-'}
+                              </span>
+                              <span>
+                                <strong>Mise a jour:</strong>{' '}
+                                {formatDate(property.admin_updated_at || property.scraped_at)}
+                              </span>
+                            </div>
+
+                            <div className="admin-table-actions admin-property-actions">
+                              <button
+                                type="button"
+                                className={`admin-toggle-btn ${property.is_active ? 'is-active' : 'is-inactive'}`}
+                                onClick={() => handleTogglePropertyStatus(property)}
+                                disabled={propertySubmitting}
+                                aria-pressed={property.is_active}
+                                aria-label={
+                                  property.is_active
+                                    ? 'Desactiver cette annonce'
+                                    : 'Activer cette annonce'
+                                }
+                              >
+                                <span className="admin-toggle-track">
+                                  <span className="admin-toggle-thumb" />
+                                </span>
+                                <span className="admin-toggle-copy">
+                                  <strong>{property.is_active ? 'Active' : 'Inactive'}</strong>
+                                  <small>
+                                    {property.is_active
+                                      ? 'Cliquer pour desactiver'
+                                      : 'Cliquer pour activer'}
+                                  </small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-secondary"
+                                onClick={() => startEditProperty(property)}
+                                disabled={propertySubmitting}
+                              >
+                                Modifier
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-danger"
+                                onClick={() => requestDeleteProperty(property)}
+                                disabled={propertySubmitting}
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                        ))}
+                      </div>
+
+                      {propertyTotalPages > 1 && (
+                        <nav className="admin-pagination" aria-label="Pagination des annonces admin">
+                          <button
+                            type="button"
+                            className="admin-pagination-btn admin-pagination-btn--nav"
+                            onClick={() => setCurrentPropertyPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPropertyPage === 1}
+                          >
+                            Precedent
+                          </button>
+
+                          <div className="admin-pagination-pages">
+                            {propertyVisiblePageNumbers.map((pageNumber) => (
+                              <button
+                                key={pageNumber}
+                                type="button"
+                                className={`admin-pagination-btn ${pageNumber === currentPropertyPage ? 'is-active' : ''}`}
+                                onClick={() => setCurrentPropertyPage(pageNumber)}
+                              >
+                                {pageNumber}
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="admin-pagination-btn admin-pagination-btn--nav"
+                            onClick={() =>
+                              setCurrentPropertyPage((prev) => Math.min(propertyTotalPages, prev + 1))
+                            }
+                            disabled={currentPropertyPage === propertyTotalPages}
+                          >
+                            Suivant
+                          </button>
+                        </nav>
+                      )}
+                    </>
+                  )}
                 </div>
               </section>
             </div>
@@ -854,20 +1571,35 @@ export default function AdminDashboard() {
 
                   <p className="admin-section-help">
                     Ajoutez, modifiez, supprimez ou activez/desactivez les sites scrapes.
-                    L identifiant technique doit correspondre au spider Scrapy pour piloter les prochains lancements.
+                    L identifiant technique doit correspondre au spider Scrapy pour piloter les
+                    prochains lancements.
                   </p>
 
-                  <div className="admin-users-toolbar">
+                  <div className="admin-users-toolbar admin-toolbar-row">
                     <input
                       className="admin-search-input"
                       placeholder="Rechercher par nom, spider ou URL"
                       value={siteSearch}
                       onChange={(event) => setSiteSearch(event.target.value)}
                     />
+                    <div className="admin-filter-chips" aria-label="Filtrer les sites par statut">
+                      {STATUS_FILTER_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`admin-filter-chip ${siteStatusFilter === option.value ? 'is-active' : ''}`}
+                          onClick={() => setSiteStatusFilter(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {siteFormMessage && (
-                    <p className={`admin-form-message ${siteFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}>
+                    <p
+                      className={`admin-form-message ${siteFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
+                    >
                       {siteFormMessage}
                     </p>
                   )}
@@ -899,9 +1631,16 @@ export default function AdminDashboard() {
                           </div>
 
                           <div className="admin-site-meta">
-                            <span><strong>Base:</strong> {site.base_url || '-'}</span>
-                            <span><strong>Depart:</strong> {site.start_url || '-'}</span>
-                            <span><strong>Mise a jour:</strong> {formatDate(site.updated_at || site.created_at)}</span>
+                            <span>
+                              <strong>Base:</strong> {site.base_url || '-'}
+                            </span>
+                            <span>
+                              <strong>Depart:</strong> {site.start_url || '-'}
+                            </span>
+                            <span>
+                              <strong>Mise a jour:</strong>{' '}
+                              {formatDate(site.updated_at || site.created_at)}
+                            </span>
                           </div>
 
                           <p className="admin-site-description">
@@ -911,12 +1650,25 @@ export default function AdminDashboard() {
                           <div className="admin-table-actions admin-site-actions">
                             <button
                               type="button"
-                              className={site.is_active ? 'admin-secondary' : 'admin-refresh'}
+                              className={`admin-toggle-btn ${site.is_active ? 'is-active' : 'is-inactive'}`}
                               onClick={() => handleToggleSiteStatus(site)}
                               disabled={siteSubmitting}
+                              aria-pressed={site.is_active}
+                              aria-label={
+                                site.is_active ? 'Desactiver ce site scrape' : 'Activer ce site scrape'
+                              }
                             >
-                              <FaPowerOff />
-                              <span>{site.is_active ? 'Desactiver' : 'Activer'}</span>
+                              <span className="admin-toggle-track">
+                                <span className="admin-toggle-thumb" />
+                              </span>
+                              <span className="admin-toggle-copy">
+                                <strong>{site.is_active ? 'Actif' : 'Inactif'}</strong>
+                                <small>
+                                  {site.is_active
+                                    ? 'Cliquer pour desactiver'
+                                    : 'Cliquer pour activer'}
+                                </small>
+                              </span>
                             </button>
                             <button
                               type="button"
@@ -1012,12 +1764,16 @@ export default function AdminDashboard() {
               <section className="admin-analytics-column">
                 <div className="admin-card">
                   <h2>Parametres du module admin</h2>
-                  <p className="admin-section-help">Configuration actuelle du tableau de bord admin.</p>
+                  <p className="admin-section-help">
+                    Configuration actuelle du tableau de bord admin.
+                  </p>
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs charges: {users.length}</li>
+                    <li>Annonces chargees: {adminProperties.length}</li>
                     <li>Sites de collecte charges: {scrapeSites.length}</li>
                     <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Mode edition annonce: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode edition site: {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                   </ul>
                 </div>
@@ -1042,12 +1798,43 @@ export default function AdminDashboard() {
                 <FaTimes />
               </button>
             </div>
-            <p className="admin-section-help">Remplissez le formulaire puis validez pour creer ou mettre a jour un compte.</p>
+            <p className="admin-section-help">
+              Remplissez le formulaire puis validez pour creer ou mettre a jour un compte.
+            </p>
             <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
-              <input name="name" placeholder="Nom" value={formData.name} onChange={handleFormChange} disabled={submitting} />
-              <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleFormChange} disabled={submitting} />
-              <input name="password" type="password" placeholder={formMode === 'create' ? 'Mot de passe (min 6)' : 'Nouveau mot de passe (optionnel)'} value={formData.password} onChange={handleFormChange} disabled={submitting} />
-              <select name="role" value={formData.role} onChange={handleFormChange} disabled={submitting}>
+              <input
+                name="name"
+                placeholder="Nom"
+                value={formData.name}
+                onChange={handleFormChange}
+                disabled={submitting}
+              />
+              <input
+                name="email"
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleFormChange}
+                disabled={submitting}
+              />
+              <input
+                name="password"
+                type="password"
+                placeholder={
+                  formMode === 'create'
+                    ? 'Mot de passe (min 6)'
+                    : 'Nouveau mot de passe (optionnel)'
+                }
+                value={formData.password}
+                onChange={handleFormChange}
+                disabled={submitting}
+              />
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleFormChange}
+                disabled={submitting}
+              >
                 <option value="client">Client</option>
                 <option value="agent_bancaire">Agent bancaire</option>
                 <option value="responsable_decisionnel">Responsable decisionnel</option>
@@ -1055,21 +1842,52 @@ export default function AdminDashboard() {
               </select>
               {formData.role === 'client' && (
                 <>
-                  <input name="address" placeholder="Adresse (optionnel)" value={formData.address} onChange={handleFormChange} disabled={submitting} />
-                  <input name="phone" placeholder="Telephone (optionnel)" value={formData.phone} onChange={handleFormChange} disabled={submitting} />
+                  <input
+                    name="address"
+                    placeholder="Adresse (optionnel)"
+                    value={formData.address}
+                    onChange={handleFormChange}
+                    disabled={submitting}
+                  />
+                  <input
+                    name="phone"
+                    placeholder="Telephone (optionnel)"
+                    value={formData.phone}
+                    onChange={handleFormChange}
+                    disabled={submitting}
+                  />
                 </>
               )}
               {formData.role === 'agent_bancaire' && (
-                <input name="matricule" placeholder="Matricule (optionnel)" value={formData.matricule} onChange={handleFormChange} disabled={submitting} />
+                <input
+                  name="matricule"
+                  placeholder="Matricule (optionnel)"
+                  value={formData.matricule}
+                  onChange={handleFormChange}
+                  disabled={submitting}
+                />
               )}
               {formData.role === 'responsable_decisionnel' && (
-                <input name="department" placeholder="Departement (optionnel)" value={formData.department} onChange={handleFormChange} disabled={submitting} />
+                <input
+                  name="department"
+                  placeholder="Departement (optionnel)"
+                  value={formData.department}
+                  onChange={handleFormChange}
+                  disabled={submitting}
+                />
               )}
               <div className="admin-form-actions">
                 <button type="submit" className="admin-refresh" disabled={submitting}>
                   {submitting ? 'Traitement...' : formMode === 'create' ? 'Creer' : 'Enregistrer'}
                 </button>
-                <button type="button" className="admin-secondary" onClick={openCreatePanel} disabled={submitting}>Nouveau</button>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={openCreatePanel}
+                  disabled={submitting}
+                >
+                  Nouveau
+                </button>
               </div>
             </form>
             {formMessage && <p className="admin-form-message">{formMessage}</p>}
@@ -1082,7 +1900,8 @@ export default function AdminDashboard() {
           <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
             <h2>Confirmer la suppression</h2>
             <p className="admin-section-help">
-              Voulez-vous vraiment supprimer <strong>{deleteCandidate?.name || deleteCandidate?.email}</strong> ?
+              Voulez-vous vraiment supprimer{' '}
+              <strong>{deleteCandidate?.name || deleteCandidate?.email}</strong> ?
             </p>
             <div className="admin-form-actions">
               <button type="button" className="admin-secondary" onClick={closeDeleteConfirm} disabled={submitting}>
@@ -1096,11 +1915,256 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {activeSection === 'properties' && isPropertyPanelOpen && (
+        <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetPropertyForm}>
+          <aside
+            className="admin-card admin-edit-modal admin-edit-modal--wide"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="admin-edit-panel-head">
+              <h2>
+                {propertyFormMode === 'create'
+                  ? 'Nouvelle annonce'
+                  : `Modifier l annonce ${propertyFormData.title || `#${editingPropertyId}`}`}
+              </h2>
+              <button
+                type="button"
+                className="admin-close-btn"
+                onClick={resetPropertyForm}
+                disabled={propertySubmitting}
+                aria-label="Fermer"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <p className="admin-section-help">
+              Les champs ci-dessous correspondent aux colonnes principales de la table des annonces.
+            </p>
+            <form className="admin-user-form admin-user-form-compact" onSubmit={handlePropertySubmit}>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-title">
+                  Titre (colonne title)
+                </label>
+                <input
+                  id="property-title"
+                  name="title"
+                  placeholder="Ex: Appartement S+2 a Tunis"
+                  value={propertyFormData.title}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-price-raw">
+                  Prix texte (colonne price_raw)
+                </label>
+                <input
+                  id="property-price-raw"
+                  name="price_raw"
+                  placeholder="Ex: 320 000 DT"
+                  value={propertyFormData.price_raw}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-price-value">
+                  Prix numerique (colonne price_value)
+                </label>
+                <input
+                  id="property-price-value"
+                  name="price_value"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ex: 320000"
+                  value={propertyFormData.price_value}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-location-raw">
+                  Localisation brute (colonne location_raw)
+                </label>
+                <input
+                  id="property-location-raw"
+                  name="location_raw"
+                  placeholder="Ex: La Marsa, Tunis"
+                  value={propertyFormData.location_raw}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-city">
+                  Ville (colonne city)
+                </label>
+                <input
+                  id="property-city"
+                  name="city"
+                  placeholder="Ex: Tunis"
+                  value={propertyFormData.city}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-country">
+                  Pays (colonne country)
+                </label>
+                <input
+                  id="property-country"
+                  name="country"
+                  placeholder="Ex: Tunisie"
+                  value={propertyFormData.country}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-image">
+                  Image principale (colonne image)
+                </label>
+                <input
+                  id="property-image"
+                  name="image"
+                  placeholder="Ex: https://site.com/photo.jpg"
+                  value={propertyFormData.image}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-source">
+                  Source (colonne source)
+                </label>
+                <input
+                  id="property-source"
+                  name="source"
+                  placeholder="Ex: mubawab ou admin"
+                  value={propertyFormData.source}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-url">
+                  Lien annonce (colonne url)
+                </label>
+                <input
+                  id="property-url"
+                  name="url"
+                  placeholder="Ex: https://site.com/annonce/123"
+                  value={propertyFormData.url}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-scraped-at">
+                  Date de collecte (colonne scraped_at)
+                </label>
+                <input
+                  id="property-scraped-at"
+                  name="scraped_at"
+                  type="datetime-local"
+                  value={propertyFormData.scraped_at}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="property-description">
+                  Description (colonne description)
+                </label>
+                <textarea
+                  id="property-description"
+                  name="description"
+                  placeholder="Description complete du bien immobilier."
+                  value={propertyFormData.description}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                  rows={5}
+                />
+              </div>
+              <label className="admin-checkbox-row">
+                <input
+                  name="is_active"
+                  type="checkbox"
+                  checked={propertyFormData.is_active}
+                  onChange={handlePropertyFormChange}
+                  disabled={propertySubmitting}
+                />
+                <span>Annonce active pour l espace client</span>
+              </label>
+              <div className="admin-form-actions">
+                <button type="submit" className="admin-refresh" disabled={propertySubmitting}>
+                  {propertySubmitting
+                    ? 'Traitement...'
+                    : propertyFormMode === 'create'
+                      ? 'Ajouter'
+                      : 'Enregistrer'}
+                </button>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={openCreatePropertyPanel}
+                  disabled={propertySubmitting}
+                >
+                  Nouveau
+                </button>
+              </div>
+            </form>
+            {propertyFormMessage && <p className="admin-form-message">{propertyFormMessage}</p>}
+          </aside>
+        </div>
+      )}
+
+      {activeSection === 'properties' && Boolean(propertyDeleteCandidate) && (
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={closeDeletePropertyConfirm}
+        >
+          <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>Confirmer la suppression</h2>
+            <p className="admin-section-help">
+              Voulez-vous vraiment supprimer l annonce{' '}
+              <strong>{propertyDeleteCandidate?.title || `#${propertyDeleteCandidate?.id}`}</strong> ?
+            </p>
+            <div className="admin-form-actions">
+              <button
+                type="button"
+                className="admin-secondary"
+                onClick={closeDeletePropertyConfirm}
+                disabled={propertySubmitting}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="admin-danger"
+                onClick={handleDeletePropertyConfirmed}
+                disabled={propertySubmitting}
+              >
+                {propertySubmitting ? 'Suppression...' : 'Oui, supprimer'}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {activeSection === 'sites' && isSitePanelOpen && (
         <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetSiteForm}>
           <aside className="admin-card admin-edit-modal" onClick={(event) => event.stopPropagation()}>
             <div className="admin-edit-panel-head">
-              <h2>{siteFormMode === 'create' ? 'Nouveau site de collecte' : `Modifier le site ${siteFormData.name || `#${editingSiteId}`}`}</h2>
+              <h2>
+                {siteFormMode === 'create'
+                  ? 'Nouveau site de collecte'
+                  : `Modifier le site ${siteFormData.name || `#${editingSiteId}`}`}
+              </h2>
               <button
                 type="button"
                 className="admin-close-btn"
@@ -1112,11 +2176,14 @@ export default function AdminDashboard() {
               </button>
             </div>
             <p className="admin-section-help">
-              Le champ identifiant du spider doit correspondre au nom technique du spider Scrapy si vous voulez piloter sa collecte.
+              Le champ identifiant du spider doit correspondre au nom technique du spider Scrapy
+              si vous voulez piloter sa collecte.
             </p>
             <form className="admin-user-form admin-user-form-compact" onSubmit={handleSiteSubmit}>
               <div className="admin-field-block">
-                <label className="admin-field-label" htmlFor="site-name">Nom du site (colonne name)</label>
+                <label className="admin-field-label" htmlFor="site-name">
+                  Nom du site (colonne name)
+                </label>
                 <input
                   id="site-name"
                   name="name"
@@ -1127,7 +2194,9 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="admin-field-block">
-                <label className="admin-field-label" htmlFor="site-spider-name">Identifiant du spider (colonne spider_name)</label>
+                <label className="admin-field-label" htmlFor="site-spider-name">
+                  Identifiant du spider (colonne spider_name)
+                </label>
                 <input
                   id="site-spider-name"
                   name="spider_name"
@@ -1138,7 +2207,9 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="admin-field-block">
-                <label className="admin-field-label" htmlFor="site-base-url">URL principale (colonne base_url)</label>
+                <label className="admin-field-label" htmlFor="site-base-url">
+                  URL principale (colonne base_url)
+                </label>
                 <input
                   id="site-base-url"
                   name="base_url"
@@ -1150,7 +2221,9 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="admin-field-block">
-                <label className="admin-field-label" htmlFor="site-start-url">URL de depart (colonne start_url)</label>
+                <label className="admin-field-label" htmlFor="site-start-url">
+                  URL de depart (colonne start_url)
+                </label>
                 <input
                   id="site-start-url"
                   name="start_url"
@@ -1162,7 +2235,9 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="admin-field-block">
-                <label className="admin-field-label" htmlFor="site-description">Description (colonne description)</label>
+                <label className="admin-field-label" htmlFor="site-description">
+                  Description (colonne description)
+                </label>
                 <textarea
                   id="site-description"
                   name="description"
@@ -1185,9 +2260,18 @@ export default function AdminDashboard() {
               </label>
               <div className="admin-form-actions">
                 <button type="submit" className="admin-refresh" disabled={siteSubmitting}>
-                  {siteSubmitting ? 'Traitement...' : siteFormMode === 'create' ? 'Ajouter' : 'Enregistrer'}
+                  {siteSubmitting
+                    ? 'Traitement...'
+                    : siteFormMode === 'create'
+                      ? 'Ajouter'
+                      : 'Enregistrer'}
                 </button>
-                <button type="button" className="admin-secondary" onClick={openCreateSitePanel} disabled={siteSubmitting}>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={openCreateSitePanel}
+                  disabled={siteSubmitting}
+                >
                   Nouveau
                 </button>
               </div>
@@ -1205,10 +2289,20 @@ export default function AdminDashboard() {
               Voulez-vous vraiment supprimer le site <strong>{siteDeleteCandidate?.name}</strong> ?
             </p>
             <div className="admin-form-actions">
-              <button type="button" className="admin-secondary" onClick={closeDeleteSiteConfirm} disabled={siteSubmitting}>
+              <button
+                type="button"
+                className="admin-secondary"
+                onClick={closeDeleteSiteConfirm}
+                disabled={siteSubmitting}
+              >
                 Annuler
               </button>
-              <button type="button" className="admin-danger" onClick={handleDeleteSiteConfirmed} disabled={siteSubmitting}>
+              <button
+                type="button"
+                className="admin-danger"
+                onClick={handleDeleteSiteConfirmed}
+                disabled={siteSubmitting}
+              >
                 {siteSubmitting ? 'Suppression...' : 'Oui, supprimer'}
               </button>
             </div>

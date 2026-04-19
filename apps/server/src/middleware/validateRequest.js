@@ -8,19 +8,34 @@ function formatZodIssues(issues = []) {
   }));
 }
 
+function setValidatedRequestValue(req, key, value) {
+  try {
+    req[key] = value;
+  } catch {
+    // Express 5 exposes some request fields like req.query as getter-only
+    // properties, so shadow them on the request instance after validation.
+    Object.defineProperty(req, key, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  }
+}
+
 export function validateRequest({ body, query, params } = {}) {
   return (req, res, next) => {
     try {
       if (body) {
-        req.body = body.parse(req.body ?? {});
+        setValidatedRequestValue(req, "body", body.parse(req.body ?? {}));
       }
 
       if (query) {
-        req.query = query.parse(req.query ?? {});
+        setValidatedRequestValue(req, "query", query.parse(req.query ?? {}));
       }
 
       if (params) {
-        req.params = params.parse(req.params ?? {});
+        setValidatedRequestValue(req, "params", params.parse(req.params ?? {}));
       }
 
       return next();

@@ -14,6 +14,22 @@ export function renderDeletedUser(res) {
   return res.status(204).send();
 }
 
+export function renderAdminPropertiesList(res, properties) {
+  return res.json({ count: properties.length, properties });
+}
+
+export function renderCreatedAdminProperty(res, property) {
+  return res.status(201).json({ property });
+}
+
+export function renderUpdatedAdminProperty(res, property) {
+  return res.json({ property });
+}
+
+export function renderDeletedAdminProperty(res) {
+  return res.status(204).send();
+}
+
 export function renderScrapeSitesList(res, sites) {
   return res.json({ count: sites.length, sites });
 }

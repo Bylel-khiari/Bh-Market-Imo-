@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { geoCentroid, geoMercator, geoPath, geoArea } from 'd3-geo';
 import { adaptDatabaseListings, normalizeGovernorateName, normalizeText } from '../lib/mapDataAdapter';
+import { fetchPropertyRows } from '../lib/properties';
 import '../styles/TunisiaMapHome.css';
 
 const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
@@ -118,11 +119,6 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
   const [selectedGovernorate, setSelectedGovernorate] = useState(null);
   const [hoveredGovernorate, setHoveredGovernorate] = useState(null);
   const usesExternalRows = Array.isArray(rows);
-  const apiBaseUrl =
-    process.env.REACT_APP_API_URL ||
-    (typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
-      : 'http://localhost:5000');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -187,14 +183,7 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
 
     async function loadListings() {
       try {
-        const response = await fetch(`${apiBaseUrl}/api/properties?limit=500`);
-
-        if (!response.ok) {
-          throw new Error(`Listings request failed with ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const rows = Array.isArray(payload) ? payload : payload.data || payload.items || [];
+        const rows = await fetchPropertyRows({ limit: 5000 });
         const adapted = adaptDatabaseListings(rows);
 
         if (!ignore) {
@@ -211,7 +200,7 @@ export default function TunisiaMapHome({ width = 980, height = 820, rows = null 
     return () => {
       ignore = true;
     };
-  }, [apiBaseUrl, usesExternalRows]);
+  }, [usesExternalRows]);
 
   const mapFeatures = useMemo(() => {
     if (!geoJson) return null;

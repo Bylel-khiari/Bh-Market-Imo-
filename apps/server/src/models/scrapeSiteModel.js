@@ -263,7 +263,7 @@ export async function fetchScrapeSites({ limit = 100 } = {}) {
       created_at,
       updated_at
     FROM scrape_sites
-    ORDER BY is_active DESC, name ASC, id ASC
+    ORDER BY name ASC, id ASC
     LIMIT ${boundedLimit}
     `
   );

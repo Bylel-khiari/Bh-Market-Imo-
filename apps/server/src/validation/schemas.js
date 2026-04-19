@@ -41,6 +41,12 @@ export const adminListScrapeSitesQuerySchema = z
   })
   .strict();
 
+export const adminListPropertiesQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(5000).optional(),
+  })
+  .strict();
+
 export const propertyListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(5000).optional(),
@@ -97,6 +103,21 @@ const scrapeSiteBaseSchema = {
   is_active: z.boolean().optional(),
 };
 
+const adminPropertyBaseSchema = {
+  title: z.string().trim().min(2).max(255),
+  price_raw: z.string().trim().max(255).optional().nullable(),
+  price_value: z.number().finite().min(0).optional().nullable(),
+  location_raw: z.string().trim().max(255).optional().nullable(),
+  city: z.string().trim().max(120).optional().nullable(),
+  country: z.string().trim().max(120).optional().nullable(),
+  image: z.string().trim().max(2000).optional().nullable(),
+  description: z.string().trim().max(5000).optional().nullable(),
+  source: z.string().trim().max(120).optional().nullable(),
+  url: z.string().trim().max(2000).optional().nullable(),
+  scraped_at: z.string().trim().max(50).optional().nullable(),
+  is_active: z.boolean().optional(),
+};
+
 export const adminCreateScrapeSiteBodySchema = z
   .object(scrapeSiteBaseSchema)
   .strict();
@@ -109,6 +130,30 @@ export const adminUpdateScrapeSiteBodySchema = z
     start_url: scrapeSiteBaseSchema.start_url,
     description: scrapeSiteBaseSchema.description,
     is_active: scrapeSiteBaseSchema.is_active,
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });
+
+export const adminCreatePropertyBodySchema = z
+  .object(adminPropertyBaseSchema)
+  .strict();
+
+export const adminUpdatePropertyBodySchema = z
+  .object({
+    title: adminPropertyBaseSchema.title.optional(),
+    price_raw: adminPropertyBaseSchema.price_raw,
+    price_value: adminPropertyBaseSchema.price_value,
+    location_raw: adminPropertyBaseSchema.location_raw,
+    city: adminPropertyBaseSchema.city,
+    country: adminPropertyBaseSchema.country,
+    image: adminPropertyBaseSchema.image,
+    description: adminPropertyBaseSchema.description,
+    source: adminPropertyBaseSchema.source,
+    url: adminPropertyBaseSchema.url,
+    scraped_at: adminPropertyBaseSchema.scraped_at,
+    is_active: adminPropertyBaseSchema.is_active,
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
