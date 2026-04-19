@@ -1,14 +1,4 @@
-export function getApiBaseUrl() {
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-
-  if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:5000`;
-  }
-
-  return 'http://localhost:5000';
-}
+import { jsonRequest } from './auth';
 
 export function extractPropertyRows(payload) {
   if (Array.isArray(payload)) {
@@ -38,14 +28,6 @@ export async function fetchPropertyRows({ limit, city, signal } = {}) {
   }
 
   const query = params.toString();
-  const response = await fetch(`${getApiBaseUrl()}/api/properties${query ? `?${query}` : ''}`, {
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const payload = await response.json();
+  const payload = await jsonRequest(`/api/properties${query ? `?${query}` : ''}`, { signal });
   return extractPropertyRows(payload);
 }

@@ -15,8 +15,9 @@ This repository uses a clean monorepo layout with clear separation between produ
 1. Spiders in services/scraper crawl listing sources.
 2. Scraper pipelines write raw rows into MySQL raw_properties.
 3. tools/listing_cleaner.py filters and deduplicates rows into clean_listings and duplicate logs.
-4. apps/server reads clean_listings and exposes /api/properties and related endpoints.
-5. apps/client consumes API data for user-facing pages.
+4. tools/listing_cleaner.py and apps/server/scripts/syncCleanListingsToProperties.mjs refresh the production-facing properties table.
+5. apps/server reads properties and exposes /api/properties and related endpoints.
+6. apps/client consumes API data for user-facing pages.
 
 ## Runtime Boundaries
 
@@ -29,6 +30,7 @@ This repository uses a clean monorepo layout with clear separation between produ
 - apps/server uses routes to dispatch requests into controllers.
 - Controllers coordinate request handling and call models for data access and business rules.
 - Views shape API responses as JSON payloads for the frontend.
+- Store bootstrap now happens during server startup instead of inside request-path model methods.
 
 ## Workspace Policy
 

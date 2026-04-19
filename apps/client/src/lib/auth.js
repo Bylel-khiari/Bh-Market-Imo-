@@ -1,51 +1,89 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
 const AUTH_STORAGE_KEY = 'bh_market_auth';
 
+export function getApiBaseUrl() {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+
+  return 'http://localhost:5000';
+}
+
+function prepareRequestBody(headers, body) {
+  if (body == null || typeof body === 'string' || body instanceof FormData) {
+    return body;
+  }
+
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (headers.get('Content-Type')?.includes('application/json')) {
+    return JSON.stringify(body);
+  }
+
+  return body;
+}
+
 async function parseJsonResponse(response) {
-  const payload = await response.json().catch(() => ({}));
+  const raw = await response.text().catch(() => '');
+  let payload = {};
+
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      payload = {};
+    }
+  }
+
   if (!response.ok) {
     const message = payload?.message || `HTTP ${response.status}`;
     throw new Error(message);
   }
+
   return payload;
 }
 
-async function authorizedJsonRequest(path, token, options = {}) {
+export async function jsonRequest(path, options = {}) {
   const headers = new Headers(options.headers || {});
+  const body = prepareRequestBody(headers, options.body);
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
+    body,
     headers,
   });
 
   return parseJsonResponse(response);
 }
 
+export async function authorizedJsonRequest(path, token, options = {}) {
+  if (!token) {
+    throw new Error('Session invalide. Veuillez vous reconnecter.');
+  }
+
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+
+  return jsonRequest(path, { ...options, headers });
+}
+
 export async function registerApi(input) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  return jsonRequest('/api/auth/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
   });
-  return parseJsonResponse(response);
 }
 
 export async function loginApi(input) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  return jsonRequest('/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
   });
-  return parseJsonResponse(response);
 }
 
 export async function meApi(token) {
@@ -82,6 +120,88 @@ export function getAuthSession() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     return null;
   }
+}
+
+export function requireAuthToken() {
+  const token = getAuthSession()?.token;
+
+  if (!token) {
+    throw new Error('Session invalide. Veuillez vous reconnecter.');
+  }
+
+  return token;
+}
+
+export async function fetchAdminUsersApi(token, limit = 100) {
+  return authorizedJsonRequest(`/api/admin/users?limit=${limit}`, token);
+}
+
+export async function createAdminUserApi(input, token) {
+  return authorizedJsonRequest('/api/admin/users', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function updateAdminUserApi(userId, input, token) {
+  return authorizedJsonRequest(`/api/admin/users/${userId}`, token, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export async function deleteAdminUserApi(userId, token) {
+  return authorizedJsonRequest(`/api/admin/users/${userId}`, token, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAdminScrapeSitesApi(token, limit = 200) {
+  return authorizedJsonRequest(`/api/admin/scrape-sites?limit=${limit}`, token);
+}
+
+export async function createAdminScrapeSiteApi(input, token) {
+  return authorizedJsonRequest('/api/admin/scrape-sites', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function updateAdminScrapeSiteApi(siteId, input, token) {
+  return authorizedJsonRequest(`/api/admin/scrape-sites/${siteId}`, token, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export async function deleteAdminScrapeSiteApi(siteId, token) {
+  return authorizedJsonRequest(`/api/admin/scrape-sites/${siteId}`, token, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAdminPropertiesApi(token, limit = 5000) {
+  return authorizedJsonRequest(`/api/admin/properties?limit=${limit}`, token);
+}
+
+export async function createAdminPropertyApi(input, token) {
+  return authorizedJsonRequest('/api/admin/properties', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function updateAdminPropertyApi(propertyId, input, token) {
+  return authorizedJsonRequest(`/api/admin/properties/${propertyId}`, token, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export async function deleteAdminPropertyApi(propertyId, token) {
+  return authorizedJsonRequest(`/api/admin/properties/${propertyId}`, token, {
+    method: 'DELETE',
+  });
 }
 
 export function clearAuthSession() {

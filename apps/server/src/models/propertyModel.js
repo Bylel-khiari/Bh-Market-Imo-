@@ -45,6 +45,7 @@ const ADMIN_PROPERTY_SELECT_COLUMNS = `
 
 let ensureFavoritesTablePromise = null;
 let ensurePropertiesInfrastructurePromise = null;
+let initializePropertyStorePromise = null;
 
 function toBoundedLimit(limit, fallback, max) {
   return Math.min(Math.max(Number(limit) || fallback, 1), max);
@@ -250,6 +251,20 @@ async function ensureFavoritesTable() {
   return ensureFavoritesTablePromise;
 }
 
+export async function initializePropertyStore() {
+  if (!initializePropertyStorePromise) {
+    initializePropertyStorePromise = (async () => {
+      await ensurePropertiesInfrastructure();
+      await ensureFavoritesTable();
+    })().catch((error) => {
+      initializePropertyStorePromise = null;
+      throw error;
+    });
+  }
+
+  return initializePropertyStorePromise;
+}
+
 async function findAdminPropertyRowById(propertyId) {
   const [rows] = await dbPool.execute(
     `
@@ -266,8 +281,6 @@ async function findAdminPropertyRowById(propertyId) {
 }
 
 async function assertVisiblePropertyExists(propertyId) {
-  await ensurePropertiesInfrastructure();
-
   const [rows] = await dbPool.execute(
     `
     SELECT id
@@ -299,7 +312,6 @@ async function getNextAdminPropertyId(connection) {
 }
 
 export async function fetchProperties({ limit = 24, city = "" } = {}) {
-  await ensurePropertiesInfrastructure();
   const boundedLimit = toBoundedLimit(limit, 24, MAX_PROPERTIES_LIMIT);
   const normalizedCity = String(city || "").trim().toLowerCase();
 
@@ -327,8 +339,6 @@ export async function fetchProperties({ limit = 24, city = "" } = {}) {
 }
 
 export async function fetchFavoriteProperties(userId, { limit = 100 } = {}) {
-  await ensurePropertiesInfrastructure();
-  await ensureFavoritesTable();
   const boundedLimit = toBoundedLimit(limit, 100, MAX_FAVORITES_LIMIT);
 
   const [rows] = await dbPool.execute(
@@ -351,7 +361,6 @@ export async function fetchFavoriteProperties(userId, { limit = 100 } = {}) {
 }
 
 export async function addFavoriteProperty(userId, propertyId) {
-  await ensureFavoritesTable();
   await assertVisiblePropertyExists(propertyId);
 
   await dbPool.execute(
@@ -367,8 +376,6 @@ export async function addFavoriteProperty(userId, propertyId) {
 }
 
 export async function removeFavoriteProperty(userId, propertyId) {
-  await ensureFavoritesTable();
-
   const [result] = await dbPool.execute(
     "DELETE FROM user_favorite_properties WHERE user_id = ? AND property_id = ?",
     [userId, propertyId]
@@ -381,7 +388,6 @@ export async function removeFavoriteProperty(userId, propertyId) {
 }
 
 export async function fetchAdminProperties({ limit = 100 } = {}) {
-  await ensurePropertiesInfrastructure();
   const boundedLimit = toBoundedLimit(limit, 100, MAX_ADMIN_PROPERTIES_LIMIT);
 
   const [rows] = await dbPool.query(
@@ -399,8 +405,6 @@ export async function fetchAdminProperties({ limit = 100 } = {}) {
 }
 
 export async function createPropertyByAdmin(payload = {}) {
-  await ensurePropertiesInfrastructure();
-
   const title = normalizeRequiredString(payload.title, "title");
   const priceRaw = normalizeOptionalString(payload.price_raw);
   const priceValue = normalizeOptionalNumber(payload.price_value, "price_value");
@@ -474,8 +478,6 @@ export async function createPropertyByAdmin(payload = {}) {
 }
 
 export async function updatePropertyByAdmin(propertyId, payload = {}) {
-  await ensurePropertiesInfrastructure();
-
   const normalizedPropertyId = Number(propertyId);
   if (!normalizedPropertyId) {
     throw httpError(400, "Invalid property id");
@@ -565,8 +567,6 @@ export async function updatePropertyByAdmin(propertyId, payload = {}) {
 }
 
 export async function deletePropertyByAdmin(propertyId) {
-  await ensurePropertiesInfrastructure();
-
   const normalizedPropertyId = Number(propertyId);
   if (!normalizedPropertyId) {
     throw httpError(400, "Invalid property id");

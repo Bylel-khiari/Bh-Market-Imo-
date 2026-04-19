@@ -14,6 +14,8 @@ import decisionRoutes from "./routes/decisionRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { httpError } from "./utils/httpError.js";
+import { initializePropertyStore } from "./models/propertyModel.js";
+import { initializeScrapeSiteStore } from "./models/scrapeSiteModel.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
@@ -92,6 +94,7 @@ app.use(errorHandler);
 
 export async function startServer() {
   const port = Number(process.env.PORT || 5000);
+  await Promise.all([initializePropertyStore(), initializeScrapeSiteStore()]);
   return new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
       console.log(`Server running on port ${port} 🔥`);

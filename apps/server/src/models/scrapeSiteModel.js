@@ -119,6 +119,7 @@ const DEFAULT_SCRAPE_SITES = [
 ];
 
 let ensureScrapeSitesTablePromise = null;
+let initializeScrapeSiteStorePromise = null;
 
 function toBoundedLimit(limit, fallback, max) {
   return Math.min(Math.max(Number(limit) || fallback, 1), max);
@@ -206,6 +207,17 @@ async function ensureScrapeSitesTable() {
   return ensureScrapeSitesTablePromise;
 }
 
+export async function initializeScrapeSiteStore() {
+  if (!initializeScrapeSiteStorePromise) {
+    initializeScrapeSiteStorePromise = ensureScrapeSitesTable().catch((error) => {
+      initializeScrapeSiteStorePromise = null;
+      throw error;
+    });
+  }
+
+  return initializeScrapeSiteStorePromise;
+}
+
 async function findScrapeSiteRowById(id) {
   const [rows] = await dbPool.execute(
     `
@@ -247,7 +259,6 @@ async function assertUniqueSpiderName(spiderName, excludedId = null) {
 }
 
 export async function fetchScrapeSites({ limit = 100 } = {}) {
-  await ensureScrapeSitesTable();
   const boundedLimit = toBoundedLimit(limit, 100, MAX_SCRAPE_SITES_LIMIT);
 
   const [rows] = await dbPool.query(
@@ -272,8 +283,6 @@ export async function fetchScrapeSites({ limit = 100 } = {}) {
 }
 
 export async function createScrapeSite(payload = {}) {
-  await ensureScrapeSitesTable();
-
   const name = normalizeOptionalString(payload.name);
   const spiderName = normalizeSpiderName(payload.spider_name);
 
@@ -303,8 +312,6 @@ export async function createScrapeSite(payload = {}) {
 }
 
 export async function updateScrapeSite(siteId, payload = {}) {
-  await ensureScrapeSitesTable();
-
   const normalizedSiteId = Number(siteId);
   if (!normalizedSiteId) {
     throw httpError(400, "Invalid scrape site id");
@@ -372,8 +379,6 @@ export async function updateScrapeSite(siteId, payload = {}) {
 }
 
 export async function deleteScrapeSite(siteId) {
-  await ensureScrapeSitesTable();
-
   const normalizedSiteId = Number(siteId);
   if (!normalizedSiteId) {
     throw httpError(400, "Invalid scrape site id");

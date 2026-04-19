@@ -34,7 +34,23 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { clearAuthSession, getAuthSession } from '../lib/auth';
+import {
+  clearAuthSession,
+  createAdminPropertyApi,
+  createAdminScrapeSiteApi,
+  createAdminUserApi,
+  deleteAdminPropertyApi,
+  deleteAdminScrapeSiteApi,
+  deleteAdminUserApi,
+  fetchAdminPropertiesApi,
+  fetchAdminScrapeSitesApi,
+  fetchAdminUsersApi,
+  getApiBaseUrl,
+  requireAuthToken,
+  updateAdminPropertyApi,
+  updateAdminScrapeSiteApi,
+  updateAdminUserApi,
+} from '../lib/auth';
 import '../styles/AdminDashboard.css';
 
 const ADMIN_PROPERTIES_PER_PAGE = 50;
@@ -182,8 +198,7 @@ export default function AdminDashboard() {
   const [propertyFormMessage, setPropertyFormMessage] = useState('');
   const [propertySubmitting, setPropertySubmitting] = useState(false);
   const [propertyFormData, setPropertyFormData] = useState(createEmptyPropertyForm());
-
-  const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBaseUrl = getApiBaseUrl();
 
   const goToHomePage = () => {
     navigate('/');
@@ -195,91 +210,46 @@ export default function AdminDashboard() {
   };
 
   const fetchUsers = useCallback(async () => {
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setError('Session invalide. Veuillez vous reconnecter.');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/users?limit=100`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Impossible de charger les utilisateurs.');
-      }
-
+      const token = requireAuthToken();
+      setLoading(true);
+      setError('');
+      const payload = await fetchAdminUsersApi(token, 100);
       setUsers(Array.isArray(payload?.users) ? payload.users : []);
     } catch (requestError) {
       setError(requestError.message || 'Erreur de chargement.');
     } finally {
       setLoading(false);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   const fetchScrapeSites = useCallback(async () => {
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setSiteError('Session invalide. Veuillez vous reconnecter.');
-      setSiteLoading(false);
-      return;
-    }
-
-    setSiteLoading(true);
-    setSiteError('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites?limit=200`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Impossible de charger les sites de collecte.');
-      }
-
+      const token = requireAuthToken();
+      setSiteLoading(true);
+      setSiteError('');
+      const payload = await fetchAdminScrapeSitesApi(token, 200);
       setScrapeSites(Array.isArray(payload?.sites) ? payload.sites : []);
     } catch (requestError) {
       setSiteError(requestError.message || 'Erreur de chargement des sites.');
     } finally {
       setSiteLoading(false);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   const fetchAdminProperties = useCallback(async () => {
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setPropertyError('Session invalide. Veuillez vous reconnecter.');
-      setPropertyLoading(false);
-      return;
-    }
-
-    setPropertyLoading(true);
-    setPropertyError('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/properties?limit=5000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Impossible de charger les annonces.');
-      }
-
+      const token = requireAuthToken();
+      setPropertyLoading(true);
+      setPropertyError('');
+      const payload = await fetchAdminPropertiesApi(token, 5000);
       setAdminProperties(Array.isArray(payload?.properties) ? payload.properties : []);
     } catch (requestError) {
       setPropertyError(requestError.message || 'Erreur de chargement des annonces.');
     } finally {
       setPropertyLoading(false);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   const refreshDashboardData = useCallback(async () => {
     await Promise.all([fetchUsers(), fetchScrapeSites(), fetchAdminProperties()]);
@@ -357,34 +327,15 @@ export default function AdminDashboard() {
       return;
     }
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setFormMessage('Session invalide. Veuillez vous reconnecter.');
-      return;
-    }
-
-    setSubmitting(true);
-    setFormMessage('');
-
     try {
-      const endpoint =
-        formMode === 'create'
-          ? `${apiBaseUrl}/api/admin/users`
-          : `${apiBaseUrl}/api/admin/users/${editingUserId}`;
+      const token = requireAuthToken();
+      setSubmitting(true);
+      setFormMessage('');
 
-      const response = await fetch(endpoint, {
-        method: formMode === 'create' ? 'POST' : 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildPayload()),
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Operation echouee.');
+      if (formMode === 'create') {
+        await createAdminUserApi(buildPayload(), token);
+      } else {
+        await updateAdminUserApi(editingUserId, buildPayload(), token);
       }
 
       setFormMessage(formMode === 'create' ? 'Utilisateur cree.' : 'Utilisateur mis a jour.');
@@ -409,27 +360,11 @@ export default function AdminDashboard() {
     if (!deleteCandidate) return;
     const user = deleteCandidate;
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setFormMessage('Session invalide. Veuillez vous reconnecter.');
-      closeDeleteConfirm();
-      return;
-    }
-
-    setSubmitting(true);
-    setFormMessage('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/users/${user.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Suppression impossible.');
-      }
+      const token = requireAuthToken();
+      setSubmitting(true);
+      setFormMessage('');
+      await deleteAdminUserApi(user.id, token);
 
       if (editingUserId === user.id) {
         resetForm();
@@ -500,34 +435,15 @@ export default function AdminDashboard() {
       return;
     }
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
-      return;
-    }
-
-    setSiteSubmitting(true);
-    setSiteFormMessage('');
-
     try {
-      const endpoint =
-        siteFormMode === 'create'
-          ? `${apiBaseUrl}/api/admin/scrape-sites`
-          : `${apiBaseUrl}/api/admin/scrape-sites/${editingSiteId}`;
+      const token = requireAuthToken();
+      setSiteSubmitting(true);
+      setSiteFormMessage('');
 
-      const response = await fetch(endpoint, {
-        method: siteFormMode === 'create' ? 'POST' : 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildSitePayload()),
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Operation sur le site echouee.');
+      if (siteFormMode === 'create') {
+        await createAdminScrapeSiteApi(buildSitePayload(), token);
+      } else {
+        await updateAdminScrapeSiteApi(editingSiteId, buildSitePayload(), token);
       }
 
       setSiteFormMessage(siteFormMode === 'create' ? 'Site ajoute.' : 'Site mis a jour.');
@@ -551,27 +467,11 @@ export default function AdminDashboard() {
   const handleDeleteSiteConfirmed = async () => {
     if (!siteDeleteCandidate) return;
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
-      closeDeleteSiteConfirm();
-      return;
-    }
-
-    setSiteSubmitting(true);
-    setSiteFormMessage('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites/${siteDeleteCandidate.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Suppression du site impossible.');
-      }
+      const token = requireAuthToken();
+      setSiteSubmitting(true);
+      setSiteFormMessage('');
+      await deleteAdminScrapeSiteApi(siteDeleteCandidate.id, token);
 
       if (editingSiteId === siteDeleteCandidate.id) {
         resetSiteForm();
@@ -588,31 +488,11 @@ export default function AdminDashboard() {
   };
 
   const handleToggleSiteStatus = async (site) => {
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setSiteFormMessage('Session invalide. Veuillez vous reconnecter.');
-      return;
-    }
-
-    setSiteSubmitting(true);
-    setSiteFormMessage('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/scrape-sites/${site.id}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_active: !site.is_active }),
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Mise a jour du statut impossible.');
-      }
-
+      const token = requireAuthToken();
+      setSiteSubmitting(true);
+      setSiteFormMessage('');
+      const payload = await updateAdminScrapeSiteApi(site.id, { is_active: !site.is_active }, token);
       const updatedSite = payload?.site
         ? { ...site, ...payload.site }
         : { ...site, is_active: !site.is_active };
@@ -720,34 +600,15 @@ export default function AdminDashboard() {
       return;
     }
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
-      return;
-    }
-
-    setPropertySubmitting(true);
-    setPropertyFormMessage('');
-
     try {
-      const endpoint =
-        propertyFormMode === 'create'
-          ? `${apiBaseUrl}/api/admin/properties`
-          : `${apiBaseUrl}/api/admin/properties/${editingPropertyId}`;
+      const token = requireAuthToken();
+      setPropertySubmitting(true);
+      setPropertyFormMessage('');
 
-      const response = await fetch(endpoint, {
-        method: propertyFormMode === 'create' ? 'POST' : 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildPropertyPayload()),
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Operation sur l annonce echouee.');
+      if (propertyFormMode === 'create') {
+        await createAdminPropertyApi(buildPropertyPayload(), token);
+      } else {
+        await updateAdminPropertyApi(editingPropertyId, buildPropertyPayload(), token);
       }
 
       setPropertyFormMessage(
@@ -773,27 +634,11 @@ export default function AdminDashboard() {
   const handleDeletePropertyConfirmed = async () => {
     if (!propertyDeleteCandidate) return;
 
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
-      closeDeletePropertyConfirm();
-      return;
-    }
-
-    setPropertySubmitting(true);
-    setPropertyFormMessage('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/properties/${propertyDeleteCandidate.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Suppression de l annonce impossible.');
-      }
+      const token = requireAuthToken();
+      setPropertySubmitting(true);
+      setPropertyFormMessage('');
+      await deleteAdminPropertyApi(propertyDeleteCandidate.id, token);
 
       if (editingPropertyId === propertyDeleteCandidate.id) {
         resetPropertyForm();
@@ -810,31 +655,11 @@ export default function AdminDashboard() {
   };
 
   const handleTogglePropertyStatus = async (property) => {
-    const token = getAuthSession()?.token;
-    if (!token) {
-      setPropertyFormMessage('Session invalide. Veuillez vous reconnecter.');
-      return;
-    }
-
-    setPropertySubmitting(true);
-    setPropertyFormMessage('');
-
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/properties/${property.id}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_active: !property.is_active }),
-      });
-
-      const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Mise a jour du statut impossible.');
-      }
-
+      const token = requireAuthToken();
+      setPropertySubmitting(true);
+      setPropertyFormMessage('');
+      const payload = await updateAdminPropertyApi(property.id, { is_active: !property.is_active }, token);
       const updatedProperty = payload?.property
         ? { ...property, ...payload.property }
         : { ...property, is_active: !property.is_active };
