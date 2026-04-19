@@ -118,6 +118,17 @@ const adminPropertyBaseSchema = {
   is_active: z.boolean().optional(),
 };
 
+const propertyReportCategorySchema = z.enum([
+  "cannot_open_site",
+  "bad_owner_experience",
+  "bad_agency_experience",
+  "scam_suspicion",
+  "incorrect_information",
+  "other",
+]);
+
+const propertyReportStatusSchema = z.enum(["unread", "in_review", "resolved", "rejected"]);
+
 export const adminCreateScrapeSiteBodySchema = z
   .object(scrapeSiteBaseSchema)
   .strict();
@@ -159,3 +170,24 @@ export const adminUpdatePropertyBodySchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
   });
+
+export const propertyReportCreateBodySchema = z
+  .object({
+    category: propertyReportCategorySchema,
+    message: z.string().trim().min(6).max(2000),
+  })
+  .strict();
+
+export const adminListPropertyReportsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(2000).optional(),
+    status: z.union([z.literal("all"), propertyReportStatusSchema]).optional(),
+  })
+  .strict();
+
+export const adminUpdatePropertyReportStatusBodySchema = z
+  .object({
+    status: z.enum(["in_review", "resolved", "rejected"]),
+    admin_note: z.string().trim().max(2000).optional().nullable(),
+  })
+  .strict();

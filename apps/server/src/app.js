@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { fileURLToPath } from "url";
 import healthRoutes from "./routes/healthRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
+import propertyReportRoutes from "./routes/propertyReportRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
@@ -15,6 +16,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { httpError } from "./utils/httpError.js";
 import { initializePropertyStore } from "./models/propertyModel.js";
+import { initializePropertyReportStore } from "./models/propertyReportModel.js";
 import { initializeScrapeSiteStore } from "./models/scrapeSiteModel.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
@@ -83,6 +85,7 @@ app.use("/api/auth", authRateLimiter);
 
 app.use(healthRoutes);
 app.use(propertyRoutes);
+app.use(propertyReportRoutes);
 app.use(authRoutes);
 app.use(clientRoutes);
 app.use(agentRoutes);
@@ -94,7 +97,11 @@ app.use(errorHandler);
 
 export async function startServer() {
   const port = Number(process.env.PORT || 5000);
-  await Promise.all([initializePropertyStore(), initializeScrapeSiteStore()]);
+  await Promise.all([
+    initializePropertyStore(),
+    initializePropertyReportStore(),
+    initializeScrapeSiteStore(),
+  ]);
   return new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
       console.log(`Server running on port ${port} 🔥`);

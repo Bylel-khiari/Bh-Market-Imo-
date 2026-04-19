@@ -42,11 +42,13 @@ import {
   deleteAdminPropertyApi,
   deleteAdminScrapeSiteApi,
   deleteAdminUserApi,
+  fetchAdminPropertyReportsApi,
   fetchAdminPropertiesApi,
   fetchAdminScrapeSitesApi,
   fetchAdminUsersApi,
   getApiBaseUrl,
   requireAuthToken,
+  updateAdminPropertyReportStatusApi,
   updateAdminPropertyApi,
   updateAdminScrapeSiteApi,
   updateAdminUserApi,
@@ -59,6 +61,30 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'active', label: 'Actifs' },
   { value: 'inactive', label: 'Inactifs' },
 ];
+
+const REPORT_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous les signalements' },
+  { value: 'unread', label: 'Non lus' },
+  { value: 'in_review', label: 'En revue' },
+  { value: 'resolved', label: 'Resolus' },
+  { value: 'rejected', label: 'Rejetes' },
+];
+
+const REPORT_CATEGORY_LABELS = {
+  cannot_open_site: 'Impossible d ouvrir le site source',
+  bad_owner_experience: 'Mauvaise experience avec le proprietaire',
+  bad_agency_experience: 'Mauvaise experience avec l agence',
+  scam_suspicion: 'Suspicion d arnaque',
+  incorrect_information: 'Informations incorrectes',
+  other: 'Autre probleme',
+};
+
+const REPORT_STATUS_LABELS = {
+  unread: 'Non lu',
+  in_review: 'En revue',
+  resolved: 'Resolu',
+  rejected: 'Rejete',
+};
 
 const ROLE_LABELS = {
   client: 'Client',
@@ -151,6 +177,14 @@ function formatPropertyPrice(property) {
   return property?.price_raw || 'Prix non communique';
 }
 
+function formatReportCategory(category) {
+  return REPORT_CATEGORY_LABELS[category] || category || 'Categorie inconnue';
+}
+
+function formatReportStatus(status) {
+  return REPORT_STATUS_LABELS[status] || status || 'Inconnu';
+}
+
 function getInitials(nameOrEmail) {
   const value = String(nameOrEmail || '').trim();
   if (!value) return 'U';
@@ -198,6 +232,13 @@ export default function AdminDashboard() {
   const [propertyFormMessage, setPropertyFormMessage] = useState('');
   const [propertySubmitting, setPropertySubmitting] = useState(false);
   const [propertyFormData, setPropertyFormData] = useState(createEmptyPropertyForm());
+  const [adminReports, setAdminReports] = useState([]);
+  const [reportLoading, setReportLoading] = useState(true);
+  const [reportError, setReportError] = useState('');
+  const [reportFormMessage, setReportFormMessage] = useState('');
+  const [reportStatusFilter, setReportStatusFilter] = useState('all');
+  const [reportSubmittingId, setReportSubmittingId] = useState(null);
+  const [unreadReportCount, setUnreadReportCount] = useState(0);
   const apiBaseUrl = getApiBaseUrl();
 
   const goToHomePage = () => {
@@ -251,9 +292,70 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const fetchAdminReports = useCallback(async ({ status = 'all', silent = false } = {}) => {
+    try {
+      const token = requireAuthToken();
+
+      if (!silent) {
+        setReportLoading(true);
+      }
+
+      setReportError('');
+
+      const payload = await fetchAdminPropertyReportsApi(token, {
+        limit: 500,
+        status,
+      });
+
+      setAdminReports(Array.isArray(payload?.reports) ? payload.reports : []);
+      setUnreadReportCount(Number(payload?.unreadCount || 0));
+    } catch (requestError) {
+      setReportError(requestError.message || 'Erreur de chargement des signalements.');
+    } finally {
+      if (!silent) {
+        setReportLoading(false);
+      }
+    }
+  }, []);
+
   const refreshDashboardData = useCallback(async () => {
-    await Promise.all([fetchUsers(), fetchScrapeSites(), fetchAdminProperties()]);
-  }, [fetchAdminProperties, fetchScrapeSites, fetchUsers]);
+    await Promise.all([
+      fetchUsers(),
+      fetchScrapeSites(),
+      fetchAdminProperties(),
+      fetchAdminReports({ status: reportStatusFilter }),
+    ]);
+  }, [fetchAdminProperties, fetchAdminReports, fetchScrapeSites, fetchUsers, reportStatusFilter]);
+
+  const handleReportStatusUpdate = async (report, nextStatus) => {
+    try {
+      const token = requireAuthToken();
+      setReportSubmittingId(report.id);
+      setReportFormMessage('');
+      setReportError('');
+
+      await updateAdminPropertyReportStatusApi(
+        report.id,
+        {
+          status: nextStatus,
+        },
+        token,
+      );
+
+      setReportFormMessage('Signalement mis a jour.');
+
+      if (report.status === 'unread' && nextStatus !== 'unread') {
+        setUnreadReportCount((prev) => Math.max(0, prev - 1));
+      }
+
+      await fetchAdminReports({ status: reportStatusFilter, silent: true });
+    } catch (requestError) {
+      setReportFormMessage('');
+      setReportError(requestError.message || 'Erreur pendant la mise a jour du signalement.');
+    } finally {
+      setReportSubmittingId(null);
+    }
+  };
 
   const resetForm = () => {
     setFormMode('create');
@@ -695,6 +797,18 @@ export default function AdminDashboard() {
     fetchAdminProperties();
   }, [fetchAdminProperties, fetchScrapeSites, fetchUsers]);
 
+  useEffect(() => {
+    fetchAdminReports({ status: reportStatusFilter });
+  }, [fetchAdminReports, reportStatusFilter]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAdminReports({ status: reportStatusFilter, silent: true });
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchAdminReports, reportStatusFilter]);
+
   const roleTotals = useMemo(() => {
     return users.reduce(
       (acc, user) => {
@@ -877,6 +991,7 @@ export default function AdminDashboard() {
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
     { key: 'properties', label: 'Annonces', icon: FaBuilding },
+    { key: 'reports', label: 'Signalements', icon: FaBell },
     { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
     { key: 'activities', label: 'Activites', icon: FaListAlt },
     { key: 'stats', label: 'Statistiques', icon: FaChartLine },
@@ -887,6 +1002,7 @@ export default function AdminDashboard() {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
     properties: 'Gestion des annonces',
+    reports: 'Signalements clients',
     sites: 'Gestion des sites scrapes',
     activities: 'Activites recentes',
     stats: 'Statistiques',
@@ -955,8 +1071,18 @@ export default function AdminDashboard() {
               </p>
             </div>
             <div className="admin-topbar-actions">
-              <button type="button" className="admin-icon-btn" aria-label="Notifications">
+              <button
+                type="button"
+                className="admin-icon-btn admin-icon-btn--notification"
+                aria-label="Notifications"
+                onClick={() => setActiveSection('reports')}
+              >
                 <FaBell />
+                {unreadReportCount > 0 && (
+                  <span className="admin-notification-badge">
+                    {unreadReportCount > 99 ? '99+' : unreadReportCount}
+                  </span>
+                )}
               </button>
               <button type="button" className="admin-icon-btn" aria-label="Messages">
                 <FaEnvelope />
@@ -1044,6 +1170,15 @@ export default function AdminDashboard() {
                     <div>
                       <h3>Sites actifs</h3>
                       <p>{siteTotals.active || 0}</p>
+                    </div>
+                  </div>
+                  <div className="admin-kpi-card">
+                    <div className="icon">
+                      <FaBell />
+                    </div>
+                    <div>
+                      <h3>Signalements non lus</h3>
+                      <p>{unreadReportCount}</p>
                     </div>
                   </div>
                 </div>
@@ -1380,6 +1515,138 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeSection === 'reports' && (
+            <div className="admin-content-grid admin-content-single">
+              <section className="admin-analytics-column">
+                <div className="admin-card admin-reports-card">
+                  <div className="admin-users-header">
+                    <h2>Signalements clients</h2>
+                    <div className="admin-users-header-actions">
+                      <span className="admin-users-count">{adminReports.length}</span>
+                    </div>
+                  </div>
+
+                  <p className="admin-section-help">
+                    Les clients peuvent signaler un probleme sur une annonce.
+                    Traitez les signalements pour nettoyer les sources et proteger l experience.
+                  </p>
+
+                  <div className="admin-users-toolbar admin-toolbar-row">
+                    <div className="admin-filter-chips" aria-label="Filtrer les signalements par statut">
+                      {REPORT_STATUS_FILTER_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`admin-filter-chip ${reportStatusFilter === option.value ? 'is-active' : ''}`}
+                          onClick={() => setReportStatusFilter(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {reportFormMessage && <p className="admin-form-message">{reportFormMessage}</p>}
+                  {reportError && <p className="admin-form-message admin-form-message--error">{reportError}</p>}
+
+                  {reportLoading ? (
+                    <div className="admin-state admin-state--inline">
+                      <FaSyncAlt className="spin" />
+                      <p>Chargement des signalements...</p>
+                    </div>
+                  ) : adminReports.length === 0 ? (
+                    <p className="empty">Aucun signalement trouve.</p>
+                  ) : (
+                    <div className="admin-reports-list">
+                      {adminReports.map((report) => {
+                        const canMoveToInReview = report.status === 'unread';
+                        const canMoveToResolved = report.status === 'unread' || report.status === 'in_review';
+                        const canMoveToRejected = report.status === 'unread' || report.status === 'in_review';
+                        const isSubmitting = String(reportSubmittingId) === String(report.id);
+
+                        return (
+                          <article key={report.id} className={`admin-report-card status-${report.status}`}>
+                            <div className="admin-report-card-head">
+                              <div>
+                                <h3>{report.property_title || `Bien #${report.property_id}`}</h3>
+                                <p className="admin-report-meta">
+                                  Rapport #{report.id} · Bien #{report.property_id}
+                                </p>
+                              </div>
+                              <span className={`admin-report-status-pill status-${report.status}`}>
+                                {formatReportStatus(report.status)}
+                              </span>
+                            </div>
+
+                            <p className="admin-report-category">{formatReportCategory(report.category)}</p>
+                            <p className="admin-report-message">{report.message}</p>
+
+                            <div className="admin-report-footnote">
+                              <span>
+                                <strong>Client:</strong>{' '}
+                                {report.reporter_name || report.reporter_email || `#${report.reporter_user_id}`}
+                              </span>
+                              <span>
+                                <strong>Date:</strong> {formatDate(report.created_at)}
+                              </span>
+                            </div>
+
+                            {report.property_url && (
+                              <div className="admin-property-link-row">
+                                <span className="admin-property-link-label">Source:</span>
+                                <a
+                                  href={report.property_url}
+                                  className="admin-property-link"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Ouvrir l annonce
+                                </a>
+                              </div>
+                            )}
+
+                            {report.admin_note && (
+                              <p className="admin-report-note">
+                                <strong>Note admin:</strong> {report.admin_note}
+                              </p>
+                            )}
+
+                            <div className="admin-table-actions admin-report-actions">
+                              <button
+                                type="button"
+                                className="admin-secondary"
+                                onClick={() => handleReportStatusUpdate(report, 'in_review')}
+                                disabled={!canMoveToInReview || isSubmitting}
+                              >
+                                En revue
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-refresh"
+                                onClick={() => handleReportStatusUpdate(report, 'resolved')}
+                                disabled={!canMoveToResolved || isSubmitting}
+                              >
+                                Resolu
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-danger"
+                                onClick={() => handleReportStatusUpdate(report, 'rejected')}
+                                disabled={!canMoveToRejected || isSubmitting}
+                              >
+                                Rejete
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
           {activeSection === 'sites' && (
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
@@ -1596,6 +1863,7 @@ export default function AdminDashboard() {
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs charges: {users.length}</li>
                     <li>Annonces chargees: {adminProperties.length}</li>
+                    <li>Signalements non lus: {unreadReportCount}</li>
                     <li>Sites de collecte charges: {scrapeSites.length}</li>
                     <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode edition annonce: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>

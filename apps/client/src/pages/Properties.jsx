@@ -4,6 +4,7 @@ import {
   FaBath,
   FaBed,
   FaExternalLinkAlt,
+  FaFlag,
   FaHeart,
   FaMapMarkerAlt,
   FaRegHeart,
@@ -17,6 +18,7 @@ import {
   fetchFavoritesApi,
   getAuthSession,
   removeFavoriteApi,
+  submitPropertyReportApi,
 } from '../lib/auth';
 import { fetchPropertyRows } from '../lib/properties';
 import '../styles/Properties.css';
@@ -24,6 +26,14 @@ import '../styles/Properties.css';
 const TYPE_LABELS = ['Appartement', 'Villa', 'Maison', 'Terrain', 'Studio', 'Bureau'];
 const DEFAULT_AMENITIES = ['Garden', 'Gym', 'Garage', 'Pool'];
 const PROPERTIES_PER_PAGE = 25;
+const REPORT_CATEGORY_OPTIONS = [
+  { value: 'cannot_open_site', label: 'Impossible d ouvrir le site source' },
+  { value: 'bad_owner_experience', label: 'Mauvaise experience avec le proprietaire' },
+  { value: 'bad_agency_experience', label: 'Mauvaise experience avec l agence' },
+  { value: 'scam_suspicion', label: 'Suspicion d arnaque' },
+  { value: 'incorrect_information', label: 'Informations incorrectes' },
+  { value: 'other', label: 'Autre probleme' },
+];
 const inferTypeFromTitle = (title) => {
   const lower = (title || '').toLowerCase();
   if (lower.includes('appartement')) return 'Appartement';
@@ -69,6 +79,12 @@ const Properties = () => {
   const [favoritePendingId, setFavoritePendingId] = useState(null);
   const [favoriteError, setFavoriteError] = useState('');
   const [favoriteNotice, setFavoriteNotice] = useState('');
+  const [reportModalProperty, setReportModalProperty] = useState(null);
+  const [reportCategory, setReportCategory] = useState('cannot_open_site');
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportNotice, setReportNotice] = useState('');
 
   const currentUserRole = authSession?.user?.role || null;
   const isClientSession = Boolean(authSession?.token && currentUserRole === 'client');
@@ -437,6 +453,69 @@ const Properties = () => {
     }
   };
 
+  const openReportModal = (property, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    setReportError('');
+    setReportNotice('');
+
+    if (!authSession?.token) {
+      navigate('/login', { state: { from: `/properties${location.search}` } });
+      return;
+    }
+
+    if (currentUserRole !== 'client') {
+      setReportError('Le signalement est disponible uniquement pour les comptes client.');
+      return;
+    }
+
+    setReportCategory('cannot_open_site');
+    setReportMessage('');
+    setReportModalProperty(property);
+  };
+
+  const closeReportModal = () => {
+    if (reportSubmitting) return;
+    setReportModalProperty(null);
+  };
+
+  const submitReport = async (event) => {
+    event.preventDefault();
+    if (!reportModalProperty) return;
+
+    const trimmedMessage = reportMessage.trim();
+    if (trimmedMessage.length < 6) {
+      setReportError('Veuillez decrire le probleme avec au moins 6 caracteres.');
+      return;
+    }
+
+    try {
+      setReportSubmitting(true);
+      setReportError('');
+
+      await submitPropertyReportApi(
+        reportModalProperty.id,
+        {
+          category: reportCategory,
+          message: trimmedMessage,
+        },
+        authSession.token,
+      );
+
+      setReportNotice('Votre signalement a ete envoye a l equipe admin.');
+      setReportModalProperty(null);
+      setReportMessage('');
+      setReportCategory('cannot_open_site');
+    } catch (err) {
+      console.error('Failed to submit property report:', err);
+      setReportError(err.message || 'Impossible d envoyer le signalement.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   return (
     <div className="properties-page marketplace-mode">
       <div className="marketplace-shell">
@@ -580,6 +659,8 @@ const Properties = () => {
           {error && <div className="properties-warning">{error}</div>}
           {favoriteError && <div className="properties-error">{favoriteError}</div>}
           {favoriteNotice && <div className="properties-success">{favoriteNotice}</div>}
+          {reportError && <div className="properties-error">{reportError}</div>}
+          {reportNotice && <div className="properties-success">{reportNotice}</div>}
           {!loading && favoritesOnly && !authSession?.token && (
             <div className="properties-warning">
               Connectez-vous pour retrouver vos biens favoris sauvegardes.
@@ -625,6 +706,14 @@ const Properties = () => {
                           disabled={isFavoritePending}
                         >
                           {isFavorite ? <FaHeart /> : <FaRegHeart />}
+                        </button>
+                        <button
+                          type="button"
+                          className="report-toggle-btn"
+                          onClick={(event) => openReportModal(property, event)}
+                          aria-label="Signaler cette annonce"
+                        >
+                          <FaFlag />
                         </button>
                       </div>
 
@@ -733,6 +822,14 @@ const Properties = () => {
                         : 'Ajouter aux favoris'}
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    className="details-report-btn"
+                    onClick={(event) => openReportModal(selectedProperty, event)}
+                  >
+                    <FaFlag />
+                    <span>Signaler un probleme</span>
+                  </button>
                 </div>
               </div>
 
@@ -783,6 +880,71 @@ const Properties = () => {
           )}
         </aside>
       </div>
+
+      {reportModalProperty && (
+        <div className="properties-modal-backdrop" role="dialog" aria-modal="true" onClick={closeReportModal}>
+          <div className="properties-report-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="properties-report-head">
+              <h3>Signaler un probleme</h3>
+              <button
+                type="button"
+                className="properties-report-close"
+                onClick={closeReportModal}
+                disabled={reportSubmitting}
+                aria-label="Fermer"
+              >
+                x
+              </button>
+            </div>
+
+            <p className="properties-report-context">
+              Bien concerne: <strong>{reportModalProperty.title || `#${reportModalProperty.id}`}</strong>
+            </p>
+
+            <form className="properties-report-form" onSubmit={submitReport}>
+              <label htmlFor="report-category">Categorie du probleme</label>
+              <select
+                id="report-category"
+                value={reportCategory}
+                onChange={(event) => setReportCategory(event.target.value)}
+                disabled={reportSubmitting}
+              >
+                {REPORT_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <label htmlFor="report-message">Details</label>
+              <textarea
+                id="report-message"
+                rows={5}
+                value={reportMessage}
+                onChange={(event) => setReportMessage(event.target.value)}
+                placeholder="Expliquez le probleme rencontre avec cette annonce."
+                disabled={reportSubmitting}
+              />
+
+              {reportError && <p className="properties-report-error">{reportError}</p>}
+
+              <div className="properties-report-actions">
+                <button
+                  type="button"
+                  className="btn-light"
+                  onClick={closeReportModal}
+                  disabled={reportSubmitting}
+                >
+                  Annuler
+                </button>
+                <button type="submit" className="btn-primary" disabled={reportSubmitting}>
+                  {reportSubmitting ? 'Envoi...' : 'Envoyer le signalement'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

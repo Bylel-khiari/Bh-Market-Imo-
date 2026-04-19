@@ -198,6 +198,29 @@
   transform: translateY(-1px);
 }
 
+.admin-icon-btn--notification {
+  position: relative;
+}
+
+.admin-notification-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid #0a2240;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  box-shadow: 0 10px 24px rgba(204, 0, 0, 0.28);
+}
+
 .admin-topbar-btn {
   display: inline-flex;
   align-items: center;
@@ -1270,6 +1293,111 @@
   flex-wrap: wrap;
 }
 
+.admin-reports-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-report-card {
+  border: 1px solid rgba(10, 34, 64, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96));
+  box-shadow: 0 12px 28px rgba(10, 34, 64, 0.08);
+}
+
+.admin-report-card.status-unread {
+  border-color: rgba(204, 0, 0, 0.24);
+  box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.08), 0 12px 28px rgba(10, 34, 64, 0.08);
+}
+
+.admin-report-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-report-card h3 {
+  margin: 0;
+  color: #0a2240;
+  font-size: 19px;
+}
+
+.admin-report-meta {
+  margin: 5px 0 0;
+  color: #607489;
+  font-size: 12px;
+  font-family: "Consolas", "Courier New", monospace;
+}
+
+.admin-report-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-report-status-pill.status-unread {
+  background: rgba(204, 0, 0, 0.1);
+  color: #b00000;
+}
+
+.admin-report-status-pill.status-in_review {
+  background: rgba(239, 125, 0, 0.14);
+  color: #d57600;
+}
+
+.admin-report-status-pill.status-resolved {
+  background: rgba(44, 122, 75, 0.12);
+  color: #226640;
+}
+
+.admin-report-status-pill.status-rejected {
+  background: rgba(10, 34, 64, 0.1);
+  color: #0a2240;
+}
+
+.admin-report-category {
+  margin: 10px 0 0;
+  color: #0a4d8c;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.admin-report-message {
+  margin: 10px 0 0;
+  color: #29435f;
+  line-height: 1.6;
+}
+
+.admin-report-footnote {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #48627d;
+  font-size: 13px;
+}
+
+.admin-report-note {
+  margin: 10px 0 0;
+  color: #233e5d;
+  background: rgba(10, 34, 64, 0.04);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.admin-report-actions {
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
 .admin-toggle-btn {
   border: 1px solid rgba(10, 34, 64, 0.12);
   background: rgba(255, 255, 255, 0.92);
@@ -1567,6 +1695,10 @@
   }
 
   .admin-property-card-head {
+    flex-direction: column;
+  }
+
+  .admin-report-card-head {
     flex-direction: column;
   }
 

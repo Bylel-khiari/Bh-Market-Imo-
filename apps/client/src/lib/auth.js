@@ -106,6 +106,13 @@ export async function removeFavoriteApi(propertyId, token) {
   });
 }
 
+export async function submitPropertyReportApi(propertyId, input, token) {
+  return authorizedJsonRequest(`/api/properties/${propertyId}/reports`, token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export function saveAuthSession(session) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
@@ -201,6 +208,28 @@ export async function updateAdminPropertyApi(propertyId, input, token) {
 export async function deleteAdminPropertyApi(propertyId, token) {
   return authorizedJsonRequest(`/api/admin/properties/${propertyId}`, token, {
     method: 'DELETE',
+  });
+}
+
+export async function fetchAdminPropertyReportsApi(token, { limit = 200, status = 'all' } = {}) {
+  const params = new URLSearchParams();
+
+  if (limit != null) {
+    params.set('limit', String(limit));
+  }
+
+  if (status) {
+    params.set('status', status);
+  }
+
+  const query = params.toString();
+  return authorizedJsonRequest(`/api/admin/property-reports${query ? `?${query}` : ''}`, token);
+}
+
+export async function updateAdminPropertyReportStatusApi(reportId, input, token) {
+  return authorizedJsonRequest(`/api/admin/property-reports/${reportId}/status`, token, {
+    method: 'PATCH',
+    body: input,
   });
 }
 
