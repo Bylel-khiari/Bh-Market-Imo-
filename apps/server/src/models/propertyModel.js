@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
@@ -5,6 +6,7 @@ const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 5000);
 const MAX_FAVORITES_LIMIT = Number(process.env.FAVORITES_MAX_LIMIT || 500);
 const MAX_ADMIN_PROPERTIES_LIMIT = Number(process.env.ADMIN_PROPERTIES_MAX_LIMIT || 5000);
 const ADMIN_PROPERTY_ID_START = 9000000000000;
+const PROPERTY_TABLE = "clean_listings";
 
 const PROPERTY_EFFECTIVE_SELECT_COLUMNS = `
   p.id,
@@ -139,52 +141,27 @@ function toAdminProperty(row) {
   };
 }
 
+function buildAdminDedupeKey(propertyId, source, url, title) {
+  return createHash("sha1")
+    .update(`admin:${propertyId}:${source}:${url || ""}:${title}`)
+    .digest("hex");
+}
+
 async function ensurePropertiesInfrastructure() {
   if (!ensurePropertiesInfrastructurePromise) {
     ensurePropertiesInfrastructurePromise = (async () => {
-      const [tableRows] = await dbPool.query("SHOW TABLES LIKE 'properties'");
+      const [tableRows] = await dbPool.query(`SHOW TABLES LIKE '${PROPERTY_TABLE}'`);
       if (!tableRows.length) {
-        await dbPool.query(`
-          CREATE TABLE properties (
-            id BIGINT UNSIGNED NOT NULL,
-            title VARCHAR(255) NULL,
-            price_raw VARCHAR(255) NULL,
-            price_value DECIMAL(15, 2) NULL,
-            location_raw VARCHAR(255) NULL,
-            city VARCHAR(120) NULL,
-            country VARCHAR(120) NULL,
-            image TEXT NULL,
-            description LONGTEXT NULL,
-            source VARCHAR(120) NULL,
-            url TEXT NULL,
-            scraped_at DATETIME NULL,
-            is_active TINYINT(1) NOT NULL DEFAULT 1,
-            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
-            created_by_admin TINYINT(1) NOT NULL DEFAULT 0,
-            manual_title VARCHAR(255) NULL,
-            manual_price_raw VARCHAR(255) NULL,
-            manual_price_value DECIMAL(15, 2) NULL,
-            manual_location_raw VARCHAR(255) NULL,
-            manual_city VARCHAR(120) NULL,
-            manual_country VARCHAR(120) NULL,
-            manual_image TEXT NULL,
-            manual_description LONGTEXT NULL,
-            manual_source VARCHAR(120) NULL,
-            manual_url TEXT NULL,
-            manual_scraped_at DATETIME NULL,
-            admin_updated_at TIMESTAMP NULL DEFAULT NULL,
-            PRIMARY KEY (id)
-          )
-        `);
+        throw new Error(`Source table ${PROPERTY_TABLE} does not exist.`);
       }
 
-      const [columnRows] = await dbPool.query("SHOW COLUMNS FROM properties");
+      const [columnRows] = await dbPool.query(`SHOW COLUMNS FROM ${PROPERTY_TABLE}`);
       const existingColumns = new Set(columnRows.map((row) => row.Field));
       const addColumnStatements = [];
 
       const ensureColumn = (columnName, definition) => {
         if (!existingColumns.has(columnName)) {
-          addColumnStatements.push(`ALTER TABLE properties ADD COLUMN ${definition}`);
+          addColumnStatements.push(`ALTER TABLE ${PROPERTY_TABLE} ADD COLUMN ${definition}`);
         }
       };
 
@@ -270,7 +247,7 @@ async function findAdminPropertyRowById(propertyId) {
     `
     SELECT
       ${ADMIN_PROPERTY_SELECT_COLUMNS}
-    FROM properties p
+    FROM ${PROPERTY_TABLE} p
     WHERE p.id = ?
     LIMIT 1
     `,
@@ -284,7 +261,7 @@ async function assertVisiblePropertyExists(propertyId) {
   const [rows] = await dbPool.execute(
     `
     SELECT id
-    FROM properties
+    FROM ${PROPERTY_TABLE}
     WHERE id = ?
       AND COALESCE(is_deleted, 0) = 0
       AND COALESCE(is_active, 1) = 1
@@ -302,7 +279,7 @@ async function getNextAdminPropertyId(connection) {
   const [rows] = await connection.query(
     `
     SELECT MAX(id) AS max_admin_id
-    FROM properties
+    FROM ${PROPERTY_TABLE}
     WHERE created_by_admin = 1
     `
   );
@@ -318,7 +295,7 @@ export async function fetchProperties({ limit = 24, city = "" } = {}) {
   let sql = `
     SELECT
       ${PROPERTY_EFFECTIVE_SELECT_COLUMNS}
-    FROM properties p
+    FROM ${PROPERTY_TABLE} p
     WHERE COALESCE(p.is_deleted, 0) = 0
       AND COALESCE(p.is_active, 1) = 1
   `;
@@ -347,7 +324,7 @@ export async function fetchFavoriteProperties(userId, { limit = 100 } = {}) {
       ${PROPERTY_EFFECTIVE_SELECT_COLUMNS},
       ufp.created_at AS favorite_created_at
     FROM user_favorite_properties ufp
-    INNER JOIN properties p ON p.id = ufp.property_id
+    INNER JOIN ${PROPERTY_TABLE} p ON p.id = ufp.property_id
     WHERE ufp.user_id = ?
       AND COALESCE(p.is_deleted, 0) = 0
       AND COALESCE(p.is_active, 1) = 1
@@ -394,7 +371,7 @@ export async function fetchAdminProperties({ limit = 100 } = {}) {
     `
     SELECT
       ${ADMIN_PROPERTY_SELECT_COLUMNS}
-    FROM properties p
+    FROM ${PROPERTY_TABLE} p
     WHERE COALESCE(p.is_deleted, 0) = 0
     ORDER BY p.id DESC
     LIMIT ${boundedLimit}
@@ -426,40 +403,51 @@ export async function createPropertyByAdmin(payload = {}) {
     await connection.beginTransaction();
 
     const nextPropertyId = await getNextAdminPropertyId(connection);
+    const normalizedLocation = [country, city, locationRaw].filter(Boolean).join(" ").toLowerCase() || null;
+    const propertyDedupeKey = buildAdminDedupeKey(nextPropertyId, source, url, title);
     await connection.execute(
       `
-      INSERT INTO properties (
+      INSERT INTO ${PROPERTY_TABLE} (
         id,
+        raw_id,
+        source,
         title,
+        normalized_title,
         price_raw,
         price_value,
         location_raw,
+        normalized_location,
         city,
         country,
         image,
         description,
-        source,
+        normalized_description,
         url,
+        dedupe_key,
         scraped_at,
         is_active,
         is_deleted,
         created_by_admin,
         admin_updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NOW())
+      VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NOW())
       `,
       [
         nextPropertyId,
-        title,
-        priceRaw === undefined ? null : priceRaw,
-        priceValue === undefined ? null : priceValue,
-        locationRaw === undefined ? null : locationRaw,
-        city === undefined ? null : city,
-        country === undefined ? null : country,
-        image === undefined ? null : image,
-        description === undefined ? null : description,
         source,
-        url === undefined ? null : url,
+        title,
+        title.toLowerCase(),
+        priceRaw ?? null,
+        priceValue ?? null,
+        locationRaw ?? null,
+        normalizedLocation,
+        city ?? null,
+        country ?? null,
+        image ?? null,
+        description ?? null,
+        description?.toLowerCase() || null,
+        url ?? null,
+        propertyDedupeKey,
         scrapedAt,
         isActive,
       ]
@@ -558,7 +546,7 @@ export async function updatePropertyByAdmin(propertyId, payload = {}) {
   updates.push("admin_updated_at = NOW()");
 
   await dbPool.execute(
-    `UPDATE properties SET ${updates.join(", ")} WHERE id = ?`,
+    `UPDATE ${PROPERTY_TABLE} SET ${updates.join(", ")} WHERE id = ?`,
     [...params, normalizedPropertyId]
   );
 
@@ -574,7 +562,7 @@ export async function deletePropertyByAdmin(propertyId) {
 
   const [result] = await dbPool.execute(
     `
-    UPDATE properties
+    UPDATE ${PROPERTY_TABLE}
     SET is_deleted = 1,
         is_active = 0,
         admin_updated_at = NOW()

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
-  FaBell,
   FaBuilding,
   FaChartLine,
   FaCheckCircle,
@@ -63,7 +62,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 const REPORT_STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'Tous les signalements' },
+  { value: 'all', label: 'Toutes les reclamations' },
   { value: 'unread', label: 'Non lus' },
   { value: 'in_review', label: 'En revue' },
   { value: 'resolved', label: 'Resolus' },
@@ -310,7 +309,7 @@ export default function AdminDashboard() {
       setAdminReports(Array.isArray(payload?.reports) ? payload.reports : []);
       setUnreadReportCount(Number(payload?.unreadCount || 0));
     } catch (requestError) {
-      setReportError(requestError.message || 'Erreur de chargement des signalements.');
+      setReportError(requestError.message || 'Erreur de chargement des reclamations.');
     } finally {
       if (!silent) {
         setReportLoading(false);
@@ -342,7 +341,7 @@ export default function AdminDashboard() {
         token,
       );
 
-      setReportFormMessage('Signalement mis a jour.');
+      setReportFormMessage('Reclamation mise a jour.');
 
       if (report.status === 'unread' && nextStatus !== 'unread') {
         setUnreadReportCount((prev) => Math.max(0, prev - 1));
@@ -351,7 +350,7 @@ export default function AdminDashboard() {
       await fetchAdminReports({ status: reportStatusFilter, silent: true });
     } catch (requestError) {
       setReportFormMessage('');
-      setReportError(requestError.message || 'Erreur pendant la mise a jour du signalement.');
+      setReportError(requestError.message || 'Erreur pendant la mise a jour de la reclamation.');
     } finally {
       setReportSubmittingId(null);
     }
@@ -991,7 +990,7 @@ export default function AdminDashboard() {
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
     { key: 'properties', label: 'Annonces', icon: FaBuilding },
-    { key: 'reports', label: 'Signalements', icon: FaBell },
+    { key: 'mail', label: 'Mail', icon: FaEnvelope },
     { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
     { key: 'activities', label: 'Activites', icon: FaListAlt },
     { key: 'stats', label: 'Statistiques', icon: FaChartLine },
@@ -1002,7 +1001,7 @@ export default function AdminDashboard() {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
     properties: 'Gestion des annonces',
-    reports: 'Signalements clients',
+    mail: 'Boite mail reclamations',
     sites: 'Gestion des sites scrapes',
     activities: 'Activites recentes',
     stats: 'Statistiques',
@@ -1074,18 +1073,15 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-icon-btn admin-icon-btn--notification"
-                aria-label="Notifications"
-                onClick={() => setActiveSection('reports')}
+                aria-label="Mail reclamations"
+                onClick={() => setActiveSection('mail')}
               >
-                <FaBell />
+                <FaEnvelope />
                 {unreadReportCount > 0 && (
                   <span className="admin-notification-badge">
                     {unreadReportCount > 99 ? '99+' : unreadReportCount}
                   </span>
                 )}
-              </button>
-              <button type="button" className="admin-icon-btn" aria-label="Messages">
-                <FaEnvelope />
               </button>
               <button
                 type="button"
@@ -1174,10 +1170,10 @@ export default function AdminDashboard() {
                   </div>
                   <div className="admin-kpi-card">
                     <div className="icon">
-                      <FaBell />
+                      <FaEnvelope />
                     </div>
                     <div>
-                      <h3>Signalements non lus</h3>
+                      <h3>Reclamations non lues</h3>
                       <p>{unreadReportCount}</p>
                     </div>
                   </div>
@@ -1515,24 +1511,24 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeSection === 'reports' && (
+          {activeSection === 'mail' && (
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
                 <div className="admin-card admin-reports-card">
                   <div className="admin-users-header">
-                    <h2>Signalements clients</h2>
+                    <h2>Mail reclamations</h2>
                     <div className="admin-users-header-actions">
                       <span className="admin-users-count">{adminReports.length}</span>
                     </div>
                   </div>
 
                   <p className="admin-section-help">
-                    Les clients peuvent signaler un probleme sur une annonce.
-                    Traitez les signalements pour nettoyer les sources et proteger l experience.
+                    Cette boite regroupe les reclamations envoyees par les clients depuis les annonces.
+                    Traitez chaque message pour suivre l incident et garder un historique clair.
                   </p>
 
                   <div className="admin-users-toolbar admin-toolbar-row">
-                    <div className="admin-filter-chips" aria-label="Filtrer les signalements par statut">
+                    <div className="admin-filter-chips" aria-label="Filtrer les reclamations par statut">
                       {REPORT_STATUS_FILTER_OPTIONS.map((option) => (
                         <button
                           key={option.value}
@@ -1552,10 +1548,10 @@ export default function AdminDashboard() {
                   {reportLoading ? (
                     <div className="admin-state admin-state--inline">
                       <FaSyncAlt className="spin" />
-                      <p>Chargement des signalements...</p>
+                      <p>Chargement des reclamations...</p>
                     </div>
                   ) : adminReports.length === 0 ? (
-                    <p className="empty">Aucun signalement trouve.</p>
+                    <p className="empty">Aucune reclamation trouvee.</p>
                   ) : (
                     <div className="admin-reports-list">
                       {adminReports.map((report) => {
@@ -1570,7 +1566,7 @@ export default function AdminDashboard() {
                               <div>
                                 <h3>{report.property_title || `Bien #${report.property_id}`}</h3>
                                 <p className="admin-report-meta">
-                                  Rapport #{report.id} · Bien #{report.property_id}
+                                  Reclamation #{report.id} - Bien #{report.property_id}
                                 </p>
                               </div>
                               <span className={`admin-report-status-pill status-${report.status}`}>
@@ -1863,7 +1859,7 @@ export default function AdminDashboard() {
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs charges: {users.length}</li>
                     <li>Annonces chargees: {adminProperties.length}</li>
-                    <li>Signalements non lus: {unreadReportCount}</li>
+                    <li>Reclamations non lues: {unreadReportCount}</li>
                     <li>Sites de collecte charges: {scrapeSites.length}</li>
                     <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode edition annonce: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>

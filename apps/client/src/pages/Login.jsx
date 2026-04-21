@@ -14,7 +14,21 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const redirectTo = location.state?.from || '/';
+  const resolveDestination = (user) => {
+    if (location.state?.from) {
+      return location.state.from;
+    }
+
+    if (user?.role === 'admin') {
+      return '/admin/dashboard';
+    }
+
+    if (user?.role === 'responsable_decisionnel') {
+      return '/dashboard';
+    }
+
+    return '/';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +44,7 @@ const Login = () => {
     try {
       const payload = await loginApi({ email: identifier.trim(), password });
       saveAuthSession({ token: payload.token, user: payload.user });
-      navigate(redirectTo, { replace: true });
+      navigate(resolveDestination(payload.user), { replace: true });
     } catch (error) {
       setErrorMessage(error.message || 'Echec de connexion.');
     } finally {

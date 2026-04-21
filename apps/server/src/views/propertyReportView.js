@@ -1,5 +1,5 @@
 export function renderCreatedPropertyReport(res, report) {
-  return res.status(201).json({ message: "Report submitted", report });
+  return res.status(201).json({ message: "Reclamation submitted", report });
 }
 
 export function renderAdminPropertyReportList(res, payload) {

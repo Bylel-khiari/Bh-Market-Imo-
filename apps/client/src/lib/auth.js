@@ -90,6 +90,10 @@ export async function meApi(token) {
   return authorizedJsonRequest('/api/auth/me', token);
 }
 
+export async function fetchDecisionDashboardApi(token) {
+  return authorizedJsonRequest('/api/decision/dashboard', token);
+}
+
 export async function fetchFavoritesApi(token) {
   return authorizedJsonRequest('/api/favorites', token);
 }

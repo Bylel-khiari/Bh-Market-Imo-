@@ -20,7 +20,7 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const fullscreenRoutes = ['/admin/dashboard'];
+  const fullscreenRoutes = ['/dashboard', '/admin/dashboard'];
   const hideNavFooter = ['/login', '/register', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
   const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;

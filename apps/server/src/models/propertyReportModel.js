@@ -2,19 +2,42 @@ import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
 const MAX_ADMIN_REPORTS_LIMIT = Number(process.env.ADMIN_PROPERTY_REPORTS_MAX_LIMIT || 500);
+const PROPERTY_TABLE = "clean_listings";
+const RECLAMATION_TABLE = "reclamations";
+const RECLAMATION_HISTORY_TABLE = "reclamation_history";
+const LEGACY_REPORT_TABLE = "property_reports";
+const DEFAULT_SOURCE_KIND = "ANNONCE";
+const DEFAULT_PRIORITY = "MOYENNE";
+
+const STATUS_TO_DB = {
+  unread: "NON_LU",
+  in_review: "EN_COURS",
+  resolved: "RESOLU",
+  rejected: "REJETE",
+};
+
+const STATUS_FROM_DB = Object.fromEntries(
+  Object.entries(STATUS_TO_DB).map(([appStatus, dbStatus]) => [dbStatus, appStatus])
+);
 
 const REPORT_SELECT_COLUMNS = `
-  pr.id,
-  pr.property_id,
-  pr.reporter_user_id,
-  pr.category,
-  pr.message,
-  pr.status,
-  pr.admin_note,
-  pr.reviewed_at,
-  pr.reviewed_by_admin_user_id,
-  pr.created_at,
-  pr.updated_at,
+  r.id,
+  r.annonce_id AS property_id,
+  r.client_id AS reporter_user_id,
+  r.type AS category,
+  r.message,
+  CASE r.statut
+    WHEN 'NON_LU' THEN 'unread'
+    WHEN 'EN_COURS' THEN 'in_review'
+    WHEN 'RESOLU' THEN 'resolved'
+    WHEN 'REJETE' THEN 'rejected'
+    ELSE LOWER(r.statut)
+  END AS status,
+  r.note_admin AS admin_note,
+  r.resolved_at AS reviewed_at,
+  r.admin_id AS reviewed_by_admin_user_id,
+  r.created_at,
+  r.updated_at,
   COALESCE(p.manual_title, p.title) AS property_title,
   COALESCE(p.manual_location_raw, p.location_raw, p.city) AS property_location,
   COALESCE(p.manual_url, p.url) AS property_url,
@@ -67,33 +90,158 @@ function toPublicPropertyReport(row) {
   };
 }
 
+function toDbStatus(status) {
+  return STATUS_TO_DB[status] || status;
+}
+
+async function tableExists(tableName) {
+  const [rows] = await dbPool.query("SHOW TABLES LIKE ?", [tableName]);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function appendReclamationHistory(
+  executor,
+  { reclamationId, action, previousStatus = null, nextStatus = null, commentaire = null, adminId = null }
+) {
+  await executor.execute(
+    `
+    INSERT INTO ${RECLAMATION_HISTORY_TABLE} (
+      reclamation_id,
+      action,
+      old_status,
+      new_status,
+      commentaire,
+      admin_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [reclamationId, action, previousStatus, nextStatus, commentaire, adminId]
+  );
+}
+
+async function migrateLegacyReportsIfNeeded() {
+  if (!(await tableExists(LEGACY_REPORT_TABLE))) {
+    return;
+  }
+
+  await dbPool.query(
+    `
+    INSERT INTO ${RECLAMATION_TABLE} (
+      id,
+      client_id,
+      annonce_id,
+      site_source_id,
+      source_kind,
+      type,
+      message,
+      statut,
+      priorite,
+      admin_id,
+      note_admin,
+      created_at,
+      updated_at,
+      resolved_at
+    )
+    SELECT
+      legacy.id,
+      legacy.reporter_user_id,
+      legacy.property_id,
+      NULL,
+      '${DEFAULT_SOURCE_KIND}',
+      legacy.category,
+      legacy.message,
+      CASE legacy.status
+        WHEN 'unread' THEN 'NON_LU'
+        WHEN 'in_review' THEN 'EN_COURS'
+        WHEN 'resolved' THEN 'RESOLU'
+        WHEN 'rejected' THEN 'REJETE'
+        ELSE UPPER(legacy.status)
+      END,
+      '${DEFAULT_PRIORITY}',
+      legacy.reviewed_by_admin_user_id,
+      legacy.admin_note,
+      legacy.created_at,
+      legacy.updated_at,
+      legacy.reviewed_at
+    FROM ${LEGACY_REPORT_TABLE} legacy
+    LEFT JOIN ${RECLAMATION_TABLE} current_table ON current_table.id = legacy.id
+    WHERE current_table.id IS NULL
+    `
+  );
+
+  await dbPool.query(
+    `
+    INSERT INTO ${RECLAMATION_HISTORY_TABLE} (
+      reclamation_id,
+      action,
+      old_status,
+      new_status,
+      commentaire,
+      admin_id,
+      created_at
+    )
+    SELECT
+      r.id,
+      'migrated',
+      NULL,
+      r.statut,
+      COALESCE(NULLIF(r.note_admin, ''), 'Migrated from property_reports'),
+      r.admin_id,
+      r.created_at
+    FROM ${RECLAMATION_TABLE} r
+    LEFT JOIN ${RECLAMATION_HISTORY_TABLE} rh ON rh.reclamation_id = r.id
+    WHERE rh.id IS NULL
+    `
+  );
+}
+
 async function ensurePropertyReportsTable() {
   if (!ensurePropertyReportsTablePromise) {
-    ensurePropertyReportsTablePromise = dbPool
-      .query(`
-        CREATE TABLE IF NOT EXISTS property_reports (
+    ensurePropertyReportsTablePromise = (async () => {
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS ${RECLAMATION_TABLE} (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-          property_id BIGINT UNSIGNED NOT NULL,
-          reporter_user_id BIGINT NOT NULL,
-          category VARCHAR(64) NOT NULL,
+          client_id BIGINT NOT NULL,
+          annonce_id BIGINT UNSIGNED NULL,
+          site_source_id BIGINT UNSIGNED NULL,
+          source_kind VARCHAR(24) NOT NULL DEFAULT '${DEFAULT_SOURCE_KIND}',
+          type VARCHAR(64) NOT NULL,
           message TEXT NOT NULL,
-          status VARCHAR(24) NOT NULL DEFAULT 'unread',
-          admin_note TEXT NULL,
-          reviewed_at DATETIME NULL,
-          reviewed_by_admin_user_id BIGINT NULL,
+          statut VARCHAR(24) NOT NULL DEFAULT 'NON_LU',
+          priorite VARCHAR(24) NOT NULL DEFAULT '${DEFAULT_PRIORITY}',
+          admin_id BIGINT NULL,
+          note_admin TEXT NULL,
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          resolved_at DATETIME NULL,
           PRIMARY KEY (id),
-          KEY idx_property_reports_property_id (property_id),
-          KEY idx_property_reports_reporter_user_id (reporter_user_id),
-          KEY idx_property_reports_status_created_at (status, created_at),
-          KEY idx_property_reports_created_at (created_at)
+          KEY idx_reclamations_client_id (client_id),
+          KEY idx_reclamations_annonce_id (annonce_id),
+          KEY idx_reclamations_status_created_at (statut, created_at)
         )
-      `)
-      .catch((error) => {
-        ensurePropertyReportsTablePromise = null;
-        throw error;
-      });
+      `);
+
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS ${RECLAMATION_HISTORY_TABLE} (
+          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+          reclamation_id BIGINT UNSIGNED NOT NULL,
+          action VARCHAR(64) NOT NULL,
+          old_status VARCHAR(24) NULL,
+          new_status VARCHAR(24) NULL,
+          commentaire TEXT NULL,
+          admin_id BIGINT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          KEY idx_reclamation_history_reclamation_id (reclamation_id),
+          KEY idx_reclamation_history_created_at (created_at)
+        )
+      `);
+
+      await migrateLegacyReportsIfNeeded();
+    })().catch((error) => {
+      ensurePropertyReportsTablePromise = null;
+      throw error;
+    });
   }
 
   return ensurePropertyReportsTablePromise;
@@ -114,7 +262,7 @@ async function assertReportablePropertyExists(propertyId) {
   const [rows] = await dbPool.execute(
     `
     SELECT id
-    FROM properties
+    FROM ${PROPERTY_TABLE}
     WHERE id = ?
       AND COALESCE(is_deleted, 0) = 0
       AND COALESCE(is_active, 1) = 1
@@ -133,11 +281,11 @@ async function findPropertyReportRowById(reportId) {
     `
     SELECT
       ${REPORT_SELECT_COLUMNS}
-    FROM property_reports pr
-    LEFT JOIN properties p ON p.id = pr.property_id
-    LEFT JOIN users reporter ON reporter.id = pr.reporter_user_id
-    LEFT JOIN users reviewer ON reviewer.id = pr.reviewed_by_admin_user_id
-    WHERE pr.id = ?
+    FROM ${RECLAMATION_TABLE} r
+    LEFT JOIN ${PROPERTY_TABLE} p ON p.id = r.annonce_id
+    LEFT JOIN users reporter ON reporter.id = r.client_id
+    LEFT JOIN users reviewer ON reviewer.id = r.admin_id
+    WHERE r.id = ?
     LIMIT 1
     `,
     [reportId]
@@ -165,16 +313,47 @@ export async function createPropertyReport({ propertyId, reporterUserId, categor
 
   await assertReportablePropertyExists(normalizedPropertyId);
 
-  const [result] = await dbPool.execute(
-    `
-    INSERT INTO property_reports (property_id, reporter_user_id, category, message)
-    VALUES (?, ?, ?, ?)
-    `,
-    [normalizedPropertyId, normalizedReporterUserId, category, normalizedMessage]
-  );
+  const connection = await dbPool.getConnection();
 
-  const row = await findPropertyReportRowById(result.insertId);
-  return toPublicPropertyReport(row);
+  try {
+    await connection.beginTransaction();
+
+    const [result] = await connection.execute(
+      `
+      INSERT INTO ${RECLAMATION_TABLE} (
+        client_id,
+        annonce_id,
+        site_source_id,
+        source_kind,
+        type,
+        message,
+        statut,
+        priorite
+      )
+      VALUES (?, ?, NULL, ?, ?, ?, 'NON_LU', ?)
+      `,
+      [normalizedReporterUserId, normalizedPropertyId, DEFAULT_SOURCE_KIND, category, normalizedMessage, DEFAULT_PRIORITY]
+    );
+
+    await appendReclamationHistory(connection, {
+      reclamationId: result.insertId,
+      action: "created",
+      previousStatus: null,
+      nextStatus: "NON_LU",
+      commentaire: normalizedMessage,
+      adminId: null,
+    });
+
+    await connection.commit();
+
+    const row = await findPropertyReportRowById(result.insertId);
+    return toPublicPropertyReport(row);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function fetchAdminPropertyReports({ limit = 100, status = "all" } = {}) {
@@ -185,8 +364,8 @@ export async function fetchAdminPropertyReports({ limit = 100, status = "all" } 
   const params = [];
 
   if (normalizedStatus && normalizedStatus !== "all") {
-    whereClauses.push("pr.status = ?");
-    params.push(normalizedStatus);
+    whereClauses.push("r.statut = ?");
+    params.push(toDbStatus(normalizedStatus));
   }
 
   const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -195,21 +374,21 @@ export async function fetchAdminPropertyReports({ limit = 100, status = "all" } 
     `
     SELECT
       ${REPORT_SELECT_COLUMNS}
-    FROM property_reports pr
-    LEFT JOIN properties p ON p.id = pr.property_id
-    LEFT JOIN users reporter ON reporter.id = pr.reporter_user_id
-    LEFT JOIN users reviewer ON reviewer.id = pr.reviewed_by_admin_user_id
+    FROM ${RECLAMATION_TABLE} r
+    LEFT JOIN ${PROPERTY_TABLE} p ON p.id = r.annonce_id
+    LEFT JOIN users reporter ON reporter.id = r.client_id
+    LEFT JOIN users reviewer ON reviewer.id = r.admin_id
     ${whereSql}
     ORDER BY
-      CASE pr.status
-        WHEN 'unread' THEN 0
-        WHEN 'in_review' THEN 1
-        WHEN 'resolved' THEN 2
-        WHEN 'rejected' THEN 3
+      CASE r.statut
+        WHEN 'NON_LU' THEN 0
+        WHEN 'EN_COURS' THEN 1
+        WHEN 'RESOLU' THEN 2
+        WHEN 'REJETE' THEN 3
         ELSE 4
       END,
-      pr.created_at DESC,
-      pr.id DESC
+      r.created_at DESC,
+      r.id DESC
     LIMIT ${boundedLimit}
     `,
     params
@@ -220,7 +399,7 @@ export async function fetchAdminPropertyReports({ limit = 100, status = "all" } 
 
 export async function fetchUnreadPropertyReportCount() {
   const [[row]] = await dbPool.query(
-    "SELECT COUNT(*) AS total FROM property_reports WHERE status = 'unread'"
+    `SELECT COUNT(*) AS total FROM ${RECLAMATION_TABLE} WHERE statut = 'NON_LU'`
   );
 
   return Number(row?.total || 0);
@@ -261,26 +440,54 @@ export async function updatePropertyReportStatus(
 
   const currentRow = await findPropertyReportRowById(normalizedReportId);
   if (!currentRow) {
-    throw httpError(404, "Report not found");
+    throw httpError(404, "Reclamation not found");
   }
 
   assertStatusTransition(currentRow.status, status);
 
   const nextAdminNote =
     adminNote === undefined ? currentRow.admin_note : normalizeOptionalString(adminNote);
+  const nextDbStatus = toDbStatus(status);
+  const previousDbStatus = toDbStatus(currentRow.status);
+  const resolvedAtValue =
+    nextDbStatus === "RESOLU" || nextDbStatus === "REJETE"
+      ? new Date().toISOString().slice(0, 19).replace("T", " ")
+      : null;
 
-  await dbPool.execute(
-    `
-    UPDATE property_reports
-    SET status = ?,
-        admin_note = ?,
-        reviewed_at = NOW(),
-        reviewed_by_admin_user_id = ?
-    WHERE id = ?
-    `,
-    [status, nextAdminNote, normalizedAdminUserId, normalizedReportId]
-  );
+  const connection = await dbPool.getConnection();
 
-  const updatedRow = await findPropertyReportRowById(normalizedReportId);
-  return toPublicPropertyReport(updatedRow);
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `
+      UPDATE ${RECLAMATION_TABLE}
+      SET statut = ?,
+          note_admin = ?,
+          admin_id = ?,
+          resolved_at = ?
+      WHERE id = ?
+      `,
+      [nextDbStatus, nextAdminNote, normalizedAdminUserId, resolvedAtValue, normalizedReportId]
+    );
+
+    await appendReclamationHistory(connection, {
+      reclamationId: normalizedReportId,
+      action: "status_updated",
+      previousStatus: previousDbStatus,
+      nextStatus: nextDbStatus,
+      commentaire: nextAdminNote,
+      adminId: normalizedAdminUserId,
+    });
+
+    await connection.commit();
+
+    const updatedRow = await findPropertyReportRowById(normalizedReportId);
+    return toPublicPropertyReport(updatedRow);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }

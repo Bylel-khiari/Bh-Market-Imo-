@@ -1,3 +1,3 @@
-export function renderDecisionDashboard(res, summary) {
-  return res.json({ summary });
+export function renderDecisionDashboard(res, payload) {
+  return res.json(payload);
 }

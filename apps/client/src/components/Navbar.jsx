@@ -58,7 +58,7 @@ const Navbar = () => {
 
   if (currentRole === 'responsable_decisionnel') {
     accountMenuLinks.push({
-      label: 'Indicateurs financiers',
+      label: 'Dashboard decisionnel',
       to: '/dashboard',
       icon: FaChartLine,
     });
