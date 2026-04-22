@@ -94,6 +94,10 @@ export async function fetchDecisionDashboardApi(token) {
   return authorizedJsonRequest('/api/decision/dashboard', token);
 }
 
+export async function fetchAgentProfileApi(token) {
+  return authorizedJsonRequest('/api/agent/profile', token);
+}
+
 export async function fetchFavoritesApi(token) {
   return authorizedJsonRequest('/api/favorites', token);
 }
@@ -112,6 +116,13 @@ export async function removeFavoriteApi(propertyId, token) {
 
 export async function submitPropertyReportApi(propertyId, input, token) {
   return authorizedJsonRequest(`/api/properties/${propertyId}/reports`, token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function submitCreditApplicationApi(input, token) {
+  return authorizedJsonRequest('/api/credit-applications', token, {
     method: 'POST',
     body: input,
   });
@@ -141,6 +152,10 @@ export function requireAuthToken() {
   }
 
   return token;
+}
+
+export async function fetchClientCreditApplicationsApi(token, limit = 20) {
+  return authorizedJsonRequest(`/api/client/credit-applications?limit=${limit}`, token);
 }
 
 export async function fetchAdminUsersApi(token, limit = 100) {
@@ -232,6 +247,35 @@ export async function fetchAdminPropertyReportsApi(token, { limit = 200, status 
 
 export async function updateAdminPropertyReportStatusApi(reportId, input, token) {
   return authorizedJsonRequest(`/api/admin/property-reports/${reportId}/status`, token, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export async function fetchAgentCreditApplicationsApi(
+  token,
+  { limit = 150, status = 'all', search = '' } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (limit != null) {
+    params.set('limit', String(limit));
+  }
+
+  if (status) {
+    params.set('status', status);
+  }
+
+  if (search) {
+    params.set('search', search);
+  }
+
+  const query = params.toString();
+  return authorizedJsonRequest(`/api/agent/credit-applications${query ? `?${query}` : ''}`, token);
+}
+
+export async function updateAgentCreditApplicationApi(applicationId, input, token) {
+  return authorizedJsonRequest(`/api/agent/credit-applications/${applicationId}`, token, {
     method: 'PATCH',
     body: input,
   });

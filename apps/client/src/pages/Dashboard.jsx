@@ -5,9 +5,10 @@ import {
   FaChartLine,
   FaCheckCircle,
   FaClipboardList,
-  FaExternalLinkAlt,
   FaDownload,
+  FaExternalLinkAlt,
   FaExclamationTriangle,
+  FaHome,
   FaLayerGroup,
   FaMapMarkedAlt,
   FaSignOutAlt,
@@ -321,6 +322,10 @@ export default function Dashboard() {
     navigate('/login', { replace: true });
   };
 
+  const handleGoHome = () => {
+    navigate('/');
+  };
+
   const handleOpenPowerBi = () => {
     if (!hasPowerBiEmbed) {
       return;
@@ -391,6 +396,10 @@ export default function Dashboard() {
               <button type="button" className="decision-action-btn decision-action-btn--ghost" onClick={loadDashboard}>
                 <FaSyncAlt />
                 <span>Actualiser</span>
+              </button>
+              <button type="button" className="decision-action-btn decision-action-btn--ghost" onClick={handleGoHome}>
+                <FaHome />
+                <span>Accueil</span>
               </button>
               {hasPowerBiEmbed ? (
                 <button type="button" className="decision-action-btn decision-action-btn--ghost" onClick={handleOpenPowerBi}>

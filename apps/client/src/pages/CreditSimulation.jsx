@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaCalculator, FaHome, FaMoneyCheckAlt, FaPercent, FaUserClock } from 'react-icons/fa';
 import '../styles/CreditSimulation.css';
 
@@ -14,6 +14,7 @@ const DEBT_RATIO_LIMITS = {
 
 const CreditSimulation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const [formData, setFormData] = useState({
@@ -164,6 +165,43 @@ const CreditSimulation = () => {
         creditAmount: Math.max(propertyPrice - contribution, 10000),
       }));
     }
+  };
+
+  const openCreditPortal = () => {
+    if (!simulationResult) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams();
+
+    if (formData.propertyId) nextParams.set('propertyId', String(formData.propertyId));
+    if (formData.propertyTitle) nextParams.set('title', formData.propertyTitle);
+    if (formData.propertyLocation) nextParams.set('location', formData.propertyLocation);
+    if (Number(formData.propertyPrice || 0) > 0) nextParams.set('price', String(formData.propertyPrice));
+    if (simulationResult.amount > 0) nextParams.set('amount', String(Math.round(simulationResult.amount)));
+    if (Number(formData.personalContribution || 0) > 0) {
+      nextParams.set('contribution', String(Math.round(Number(formData.personalContribution || 0))));
+    }
+    if (Number(formData.grossIncome || 0) > 0) {
+      nextParams.set('income', String(Math.round(Number(formData.grossIncome || 0))));
+    }
+    if (formData.incomePeriod) nextParams.set('incomePeriod', formData.incomePeriod);
+    if (Number(formData.durationMonths || 0) > 0) {
+      nextParams.set('duration', String(Math.round(Number(formData.durationMonths || 0))));
+    }
+    if (simulationResult.monthlyPayment > 0) {
+      nextParams.set('monthlyPayment', simulationResult.monthlyPayment.toFixed(2));
+    }
+    if (simulationResult.appliedRate > 0) {
+      nextParams.set('rate', simulationResult.appliedRate.toFixed(3));
+    }
+    if (simulationResult.debtRatio > 0) {
+      nextParams.set('debtRatio', simulationResult.debtRatio.toFixed(2));
+    }
+    if (formData.fundingType) nextParams.set('fundingType', formData.fundingType);
+    if (formData.socioCategory) nextParams.set('socioCategory', formData.socioCategory);
+
+    navigate(`/credit-immobilier-bh?${nextParams.toString()}`);
   };
 
   return (
@@ -329,7 +367,9 @@ const CreditSimulation = () => {
               </div>
 
               <div className="result-actions">
-                <button className="btn btn-primary">Demander ce credit</button>
+                <button className="btn btn-primary" type="button" onClick={openCreditPortal}>
+                  Demander ce credit
+                </button>
                 <button className="btn btn-secondary">Exporter ma simulation</button>
               </div>
             </div>

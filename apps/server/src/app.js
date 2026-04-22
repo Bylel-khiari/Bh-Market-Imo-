@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import healthRoutes from "./routes/healthRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
 import propertyReportRoutes from "./routes/propertyReportRoutes.js";
+import creditApplicationRoutes from "./routes/creditApplicationRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
@@ -17,6 +18,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { httpError } from "./utils/httpError.js";
 import { initializePropertyStore } from "./models/propertyModel.js";
 import { initializePropertyReportStore } from "./models/propertyReportModel.js";
+import { initializeCreditApplicationStore } from "./models/creditApplicationModel.js";
 import { initializeScrapeSiteStore } from "./models/scrapeSiteModel.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
@@ -86,6 +88,7 @@ app.use("/api/auth", authRateLimiter);
 app.use(healthRoutes);
 app.use(propertyRoutes);
 app.use(propertyReportRoutes);
+app.use(creditApplicationRoutes);
 app.use(authRoutes);
 app.use(clientRoutes);
 app.use(agentRoutes);
@@ -100,6 +103,7 @@ export async function startServer() {
   await Promise.all([
     initializePropertyStore(),
     initializePropertyReportStore(),
+    initializeCreditApplicationStore(),
     initializeScrapeSiteStore(),
   ]);
   return new Promise((resolve, reject) => {

@@ -1,20 +1,64 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
 
-export default function CreditImmobilierBHPortal() {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return 'Non renseigne';
+  }
+
+  return `${new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(Math.round(amount))} DT`;
+}
+
+function createEmptyFormData(authSession) {
+  return {
+    fullName: authSession?.user?.name || '',
+    email: authSession?.user?.email || '',
     phone: '',
     cin: '',
     rib: '',
-  });
+  };
+}
+
+export default function CreditImmobilierBHPortal() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [authSession, setAuthSession] = useState(() => getAuthSession());
+  const [formData, setFormData] = useState(() => createEmptyFormData(getAuthSession()));
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [formResetKey, setFormResetKey] = useState(0);
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+  const propertyContext = useMemo(() => {
+    const propertyPrice = Number(params.get('price') || 0);
+    const requestedAmount = Number(params.get('amount') || 0);
+    const monthlyPayment = Number(params.get('monthlyPayment') || 0);
+    const debtRatio = Number(params.get('debtRatio') || 0);
+
+    return {
+      propertyId: params.get('propertyId') || '',
+      propertyTitle: params.get('title') || '',
+      propertyLocation: params.get('location') || '',
+      propertyPrice: Number.isFinite(propertyPrice) ? propertyPrice : 0,
+      requestedAmount: Number.isFinite(requestedAmount) ? requestedAmount : 0,
+      contribution: Number(params.get('contribution') || 0) || 0,
+      income: Number(params.get('income') || 0) || 0,
+      incomePeriod: params.get('incomePeriod') || '',
+      duration: Number(params.get('duration') || 0) || 0,
+      monthlyPayment: Number.isFinite(monthlyPayment) ? monthlyPayment : 0,
+      rate: Number(params.get('rate') || 0) || 0,
+      debtRatio: Number.isFinite(debtRatio) ? debtRatio : 0,
+      fundingType: params.get('fundingType') || '',
+      socioCategory: params.get('socioCategory') || '',
+    };
+  }, [params]);
 
   useEffect(() => {
-    // Inject Bootstrap CSS only while this page is mounted.
     const bootstrapId = 'bh-bootstrap-css';
     let injectedBootstrapLink = null;
 
@@ -34,6 +78,29 @@ export default function CreditImmobilierBHPortal() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncAuthSession = () => {
+      const nextSession = getAuthSession();
+      setAuthSession(nextSession);
+      setFormData((prev) => ({
+        ...prev,
+        fullName: prev.fullName || nextSession?.user?.name || '',
+        email: prev.email || nextSession?.user?.email || '',
+      }));
+    };
+
+    window.addEventListener('storage', syncAuthSession);
+    return () => window.removeEventListener('storage', syncAuthSession);
+  }, []);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      fullName: prev.fullName || authSession?.user?.name || '',
+      email: prev.email || authSession?.user?.email || '',
+    }));
+  }, [authSession]);
+
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -47,30 +114,73 @@ export default function CreditImmobilierBHPortal() {
     }));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
-    setSuccessMessage('Vos documents ont été exportés et votre demande est envoyée avec succès !');
-
-    setFormData({
-      fullName: '',
-      email: '',
-      phone: '',
-      cin: '',
-      rib: '',
-    });
-
-    setUploadedFiles({});
-    setFormResetKey((prev) => prev + 1);
-  };
-
   const openSubmissionModal = () => {
     setSuccessMessage('');
+    setErrorMessage('');
     setIsSubmissionOpen(true);
   };
 
   const closeSubmissionModal = () => {
+    if (submitting) return;
     setIsSubmissionOpen(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    if (!authSession?.token) {
+      navigate('/login', { state: { from: `/credit-immobilier-bh${location.search}` } });
+      return;
+    }
+
+    if (authSession?.user?.role !== 'client') {
+      setErrorMessage('Le depot de dossier est reserve aux comptes client.');
+      return;
+    }
+
+    const documents = Object.values(uploadedFiles).filter(Boolean);
+
+    try {
+      setSubmitting(true);
+
+      await submitCreditApplicationApi(
+        {
+          property_id: propertyContext.propertyId ? Number(propertyContext.propertyId) : undefined,
+          full_name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          cin: formData.cin.trim(),
+          rib: formData.rib.trim(),
+          funding_type: propertyContext.fundingType || null,
+          socio_category: propertyContext.socioCategory || null,
+          property_title: propertyContext.propertyTitle || null,
+          property_location: propertyContext.propertyLocation || null,
+          property_price_value: propertyContext.propertyPrice > 0 ? propertyContext.propertyPrice : null,
+          property_price_raw: propertyContext.propertyPrice > 0 ? formatCurrency(propertyContext.propertyPrice) : null,
+          requested_amount: propertyContext.requestedAmount > 0 ? propertyContext.requestedAmount : null,
+          personal_contribution: propertyContext.contribution > 0 ? propertyContext.contribution : null,
+          gross_income: propertyContext.income > 0 ? propertyContext.income : null,
+          income_period: propertyContext.incomePeriod || null,
+          duration_months: propertyContext.duration > 0 ? propertyContext.duration : null,
+          estimated_monthly_payment: propertyContext.monthlyPayment > 0 ? propertyContext.monthlyPayment : null,
+          estimated_rate: propertyContext.rate > 0 ? propertyContext.rate : null,
+          debt_ratio: propertyContext.debtRatio > 0 ? propertyContext.debtRatio : null,
+          documents,
+        },
+        authSession.token,
+      );
+
+      setSuccessMessage('Votre dossier a ete transmis a l equipe bancaire avec succes.');
+      setUploadedFiles({});
+      setFormData(createEmptyFormData(authSession));
+      setFormResetKey((prev) => prev + 1);
+    } catch (requestError) {
+      setErrorMessage(requestError.message || 'Impossible de deposer votre dossier.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const documentCategories = [
@@ -86,31 +196,31 @@ export default function CreditImmobilierBHPortal() {
       title: 'Financiers',
       documents: [
         { id: 'doc-work', label: 'Attestation de travail' },
-        { id: 'doc-payroll', label: 'Fiches de paie (3 à 6 mois)' },
-        { id: 'doc-bank', label: 'Relevés bancaires (6 mois)' },
+        { id: 'doc-payroll', label: 'Fiches de paie (3 a 6 mois)' },
+        { id: 'doc-bank', label: 'Releves bancaires (6 mois)' },
         { id: 'doc-rib', label: 'RIB bancaire (document)' },
-        { id: 'doc-tax', label: "Déclaration d'impôts / Patente" },
+        { id: 'doc-tax', label: "Declaration d'impots / Patente" },
       ],
     },
     {
       title: 'Immobiliers',
       documents: [
-        { id: 'doc-promise', label: 'Promesse de vente légalisée' },
-        { id: 'doc-title', label: 'Certificat de propriété (Titre bleu)' },
+        { id: 'doc-promise', label: 'Promesse de vente legalisee' },
+        { id: 'doc-title', label: 'Certificat de propriete (Titre bleu)' },
         { id: 'doc-plan', label: 'Plan architectural' },
-        { id: 'doc-tax-property', label: 'Quittance de taxe foncière' },
+        { id: 'doc-tax-property', label: 'Quittance de taxe fonciere' },
       ],
     },
   ];
 
   const steps = [
-    'Simulation de la capacité de remboursement',
+    'Simulation de la capacite de remboursement',
     'Signature de la promesse de vente',
-    'Montage et dépôt du dossier',
-    'Expertise immobilière par la banque',
+    'Montage et depot du dossier',
+    'Expertise immobiliere par la banque',
     'Accord de principe et assurances',
-    'Signature des contrats et hypothèque',
-    'Déblocage des fonds',
+    'Signature des contrats et hypotheque',
+    'Deblocage des fonds',
   ];
 
   return (
@@ -185,11 +295,6 @@ export default function CreditImmobilierBHPortal() {
           padding: 1.25rem;
         }
 
-        .bh-dropzone:hover {
-          border-color: #0f2a4f;
-          background: #f1f7ff;
-        }
-
         .bh-upload-group {
           border: 1px solid #dbe3ee;
           border-radius: 0.85rem;
@@ -208,6 +313,40 @@ export default function CreditImmobilierBHPortal() {
           border: 1px solid #dbe3ee;
           border-radius: 1rem;
           box-shadow: 0 10px 24px rgba(17, 34, 68, 0.07);
+        }
+
+        .bh-summary-card {
+          border: 1px solid #dbe3ee;
+          border-radius: 1rem;
+          background: #ffffff;
+          padding: 1.2rem;
+          box-shadow: 0 10px 24px rgba(17, 34, 68, 0.07);
+        }
+
+        .bh-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 0.9rem;
+        }
+
+        .bh-summary-grid span {
+          display: grid;
+          gap: 0.25rem;
+          border-radius: 0.85rem;
+          background: #f6f9fd;
+          padding: 0.9rem 1rem;
+        }
+
+        .bh-summary-grid strong {
+          color: #0f2a4f;
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .bh-summary-grid small {
+          color: #425a76;
+          font-size: 0.98rem;
         }
 
         .bh-submit-backdrop {
@@ -262,12 +401,55 @@ export default function CreditImmobilierBHPortal() {
 
       <div className="container">
         <header className="bh-hero p-4 p-md-5 mb-4">
-          <h1 className="display-6 fw-bold mb-2">Demande de Crédit Immobilier BH Bank - Guide & Soumission en ligne</h1>
-          <p className="lead mb-0">Préparez votre dossier et déposez votre demande en quelques clics.</p>
+          <h1 className="display-6 fw-bold mb-2">Demande de credit immobilier BH Bank</h1>
+          <p className="lead mb-0">Preparez votre dossier et deposez votre demande en quelques clics.</p>
         </header>
 
+        {!!propertyContext.requestedAmount && (
+          <section className="bh-summary-card mb-4">
+            <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+              <div>
+                <h2 className="h4 fw-bold text-primary-emphasis mb-1">Resume du projet a financer</h2>
+                <p className="text-secondary mb-0">
+                  Les donnees issues de la simulation sont reprises pour aider l agent bancaire a analyser votre dossier.
+                </p>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={openSubmissionModal}>
+                Deposer ce dossier
+              </button>
+            </div>
+
+            <div className="bh-summary-grid">
+              <span>
+                <strong>Bien</strong>
+                <small>{propertyContext.propertyTitle || 'Projet libre'}</small>
+              </span>
+              <span>
+                <strong>Montant demande</strong>
+                <small>{formatCurrency(propertyContext.requestedAmount)}</small>
+              </span>
+              <span>
+                <strong>Apport</strong>
+                <small>{formatCurrency(propertyContext.contribution)}</small>
+              </span>
+              <span>
+                <strong>Mensualite estimee</strong>
+                <small>{formatCurrency(propertyContext.monthlyPayment)}</small>
+              </span>
+              <span>
+                <strong>Taux d endettement</strong>
+                <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseigne'}</small>
+              </span>
+              <span>
+                <strong>Duree</strong>
+                <small>{propertyContext.duration ? `${propertyContext.duration} mois` : 'Non renseignee'}</small>
+              </span>
+            </div>
+          </section>
+        )}
+
         <section className="bh-section-card bg-white p-4 mb-4">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les 7 étapes de votre parcours de financement</h2>
+          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les 7 etapes de votre parcours de financement</h2>
           <div className="row g-3">
             {steps.map((step, index) => (
               <div className="col-12 col-md-6 col-xl-4" key={step}>
@@ -281,14 +463,14 @@ export default function CreditImmobilierBHPortal() {
         </section>
 
         <section className="bh-section-card bg-white p-4 mb-4 bh-docs">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les documents nécessaires</h2>
+          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les documents necessaires</h2>
 
           <details open>
             <summary>Administratifs</summary>
             <ul className="mt-2 mb-0">
               <li>CIN</li>
               <li>Extrait de naissance</li>
-              <li>Justificatif d'adresse</li>
+              <li>Justificatif d adresse</li>
             </ul>
           </details>
 
@@ -296,52 +478,95 @@ export default function CreditImmobilierBHPortal() {
             <summary>Financiers</summary>
             <ul className="mt-2 mb-0">
               <li>Attestation de travail</li>
-              <li>Fiches de paie (3 à 6 mois)</li>
-              <li>Relevés bancaires (6 mois)</li>
-              <li>Déclaration d'impôts (ou Patente pour les indépendants)</li>
+              <li>Fiches de paie (3 a 6 mois)</li>
+              <li>Releves bancaires (6 mois)</li>
+              <li>Declaration d impots ou patente</li>
             </ul>
           </details>
 
           <details>
             <summary>Immobiliers</summary>
             <ul className="mt-2 mb-0">
-              <li>Promesse de vente légalisée</li>
-              <li>Certificat de propriété (Titre bleu)</li>
+              <li>Promesse de vente legalisee</li>
+              <li>Certificat de propriete</li>
               <li>Plan architectural</li>
-              <li>Quittance de taxe foncière</li>
+              <li>Quittance de taxe fonciere</li>
             </ul>
           </details>
         </section>
 
         <section className="alert alert-primary border-0 shadow-sm mb-4" role="alert">
-          <h2 className="h5 fw-bold mb-2">Instructions pour le dépôt en ligne</h2>
+          <h2 className="h5 fw-bold mb-2">Instructions pour le depot en ligne</h2>
           <p className="mb-0">
-            Comment bien préparer vos fichiers : Numérisez vos documents clairement, regroupez-les idéalement au
-            format PDF ou JPG de haute qualité, et assurez-vous que tous les noms de fichiers sont clairs
-            (ex: CIN_Nom.pdf).
+            Numerisez vos documents clairement, privilegiez les formats PDF ou JPG, et nommez les fichiers de facon explicite.
           </p>
         </section>
 
         <section className="bh-submit-launch p-4 p-md-5">
           <h2 className="h4 fw-bold text-primary-emphasis mb-2">Soumission de votre dossier</h2>
-          <p className="text-secondary mb-3">Ouvrez le mini portail pour transmettre vos informations et documents en toute sécurité.</p>
-          <button type="button" className="btn btn-primary btn-lg" onClick={openSubmissionModal}>
-            Accéder au formulaire
-          </button>
+          <p className="text-secondary mb-3">
+            Ouvrez le mini portail pour transmettre vos informations et documents. Les demandes deposees apparaissent ensuite
+            dans le dashboard de l agent bancaire.
+          </p>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <button type="button" className="btn btn-primary btn-lg" onClick={openSubmissionModal}>
+              Acceder au formulaire
+            </button>
+            {!authSession?.token && (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-lg"
+                onClick={() => navigate('/login', { state: { from: `/credit-immobilier-bh${location.search}` } })}
+              >
+                Se connecter avant le depot
+              </button>
+            )}
+          </div>
+          {errorMessage && <div className="alert alert-danger mt-3 mb-0">{errorMessage}</div>}
+          {successMessage && <div className="alert alert-success mt-3 mb-0">{successMessage}</div>}
         </section>
 
         {isSubmissionOpen && (
           <div className="bh-submit-backdrop" role="dialog" aria-modal="true" onClick={closeSubmissionModal}>
             <section className="bh-submit-modal bg-white p-4 p-md-5" onClick={(event) => event.stopPropagation()}>
               <div className="bh-submit-modal-head mb-3">
-                <h2 className="h4 fw-bold text-primary-emphasis mb-0">Formulaire de soumission</h2>
+                <div>
+                  <h2 className="h4 fw-bold text-primary-emphasis mb-0">Formulaire de soumission</h2>
+                  <p className="text-secondary mb-0">
+                    Completez les informations ci-dessous pour envoyer votre dossier a un agent bancaire.
+                  </p>
+                </div>
                 <button
                   type="button"
                   className="btn-close"
                   aria-label="Fermer"
                   onClick={closeSubmissionModal}
+                  disabled={submitting}
                 />
               </div>
+
+              {propertyContext.requestedAmount > 0 && (
+                <div className="bh-summary-card mb-4">
+                  <div className="bh-summary-grid">
+                    <span>
+                      <strong>Montant demande</strong>
+                      <small>{formatCurrency(propertyContext.requestedAmount)}</small>
+                    </span>
+                    <span>
+                      <strong>Taux estime</strong>
+                      <small>{propertyContext.rate ? `${propertyContext.rate.toFixed(2)}%` : 'Non renseigne'}</small>
+                    </span>
+                    <span>
+                      <strong>Dette</strong>
+                      <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseignee'}</small>
+                    </span>
+                    <span>
+                      <strong>Projet</strong>
+                      <small>{propertyContext.propertyTitle || 'Projet libre'}</small>
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <form key={formResetKey} onSubmit={handleSubmit} noValidate>
                 <div className="row g-3">
@@ -355,11 +580,12 @@ export default function CreditImmobilierBHPortal() {
                       required
                       value={formData.fullName}
                       onChange={handleInputChange}
+                      disabled={submitting}
                     />
                   </div>
 
                   <div className="col-12 col-md-6">
-                    <label htmlFor="email" className="form-label fw-semibold">Adresse Email</label>
+                    <label htmlFor="email" className="form-label fw-semibold">Adresse email</label>
                     <input
                       id="email"
                       name="email"
@@ -368,11 +594,12 @@ export default function CreditImmobilierBHPortal() {
                       required
                       value={formData.email}
                       onChange={handleInputChange}
+                      disabled={submitting}
                     />
                   </div>
 
                   <div className="col-12 col-md-6">
-                    <label htmlFor="phone" className="form-label fw-semibold">Numéro de téléphone</label>
+                    <label htmlFor="phone" className="form-label fw-semibold">Numero de telephone</label>
                     <input
                       id="phone"
                       name="phone"
@@ -381,11 +608,12 @@ export default function CreditImmobilierBHPortal() {
                       required
                       value={formData.phone}
                       onChange={handleInputChange}
+                      disabled={submitting}
                     />
                   </div>
 
                   <div className="col-12 col-md-6">
-                    <label htmlFor="cin" className="form-label fw-semibold">Numéro de CIN</label>
+                    <label htmlFor="cin" className="form-label fw-semibold">Numero de CIN</label>
                     <input
                       id="cin"
                       name="cin"
@@ -394,6 +622,7 @@ export default function CreditImmobilierBHPortal() {
                       required
                       value={formData.cin}
                       onChange={handleInputChange}
+                      disabled={submitting}
                     />
                   </div>
 
@@ -408,12 +637,13 @@ export default function CreditImmobilierBHPortal() {
                       placeholder="Ex: 04 123 000 12345678901 23"
                       value={formData.rib}
                       onChange={handleInputChange}
+                      disabled={submitting}
                     />
-                    <div className="small text-secondary mt-1">Veuillez renseigner le RIB du compte à débiter.</div>
+                    <div className="small text-secondary mt-1">Veuillez renseigner le compte a debiter.</div>
                   </div>
 
                   <div className="col-12">
-                    <label className="form-label fw-semibold">Uploadez vos documents prêts ici (document par document)</label>
+                    <label className="form-label fw-semibold">Joindre vos documents (un document par champ)</label>
                     <div className="bh-dropzone">
                       <div className="row g-3">
                         {documentCategories.map((category) => (
@@ -425,21 +655,21 @@ export default function CreditImmobilierBHPortal() {
                                   <div className="col-12 col-md-6" key={doc.id}>
                                     <div className="bh-upload-group">
                                       <label htmlFor={doc.id} className="bh-upload-label d-block">
-                                        {doc.label} <span className="text-danger">*</span>
+                                        {doc.label}
                                       </label>
                                       <input
                                         id={doc.id}
                                         name={doc.id}
                                         type="file"
                                         className="form-control"
-                                        required
-                                        accept=".pdf, .jpg, .png, .jpeg"
+                                        accept=".pdf,.jpg,.png,.jpeg"
                                         onChange={(event) => handleDocumentChange(doc.id, event)}
+                                        disabled={submitting}
                                       />
                                       <div className="small mt-1">
                                         {uploadedFiles[doc.id]
-                                          ? <span className="text-success">Fichier ajouté: {uploadedFiles[doc.id]}</span>
-                                          : <span className="text-secondary">Formats acceptés : PDF, JPG, PNG, JPEG</span>}
+                                          ? <span className="text-success">Fichier ajoute: {uploadedFiles[doc.id]}</span>
+                                          : <span className="text-secondary">Formats acceptes: PDF, JPG, PNG, JPEG</span>}
                                       </div>
                                     </div>
                                   </div>
@@ -453,9 +683,16 @@ export default function CreditImmobilierBHPortal() {
                   </div>
                 </div>
 
+                {errorMessage && <div className="alert alert-danger mt-4 mb-0">{errorMessage}</div>}
+                {successMessage && <div className="alert alert-success mt-4 mb-0">{successMessage}</div>}
+
                 <div className="mt-4 d-flex flex-wrap gap-2 align-items-center">
-                  <button type="submit" className="btn btn-primary btn-lg">Déposer ma demande</button>
-                  {successMessage && <span className="badge text-bg-success p-2">{successMessage}</span>}
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
+                    {submitting ? 'Envoi...' : 'Deposer ma demande'}
+                  </button>
+                  <button type="button" className="btn btn-outline-secondary btn-lg" onClick={closeSubmissionModal} disabled={submitting}>
+                    Fermer
+                  </button>
                 </div>
               </form>
             </section>

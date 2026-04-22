@@ -17,6 +17,7 @@ import {
   FaSignOutAlt,
   FaChartLine,
   FaUserShield,
+  FaUserTie,
 } from 'react-icons/fa';
 import '../styles/Navbar.css';
 import logo from '../assets/favicon.ico';
@@ -61,6 +62,14 @@ const Navbar = () => {
       label: 'Dashboard decisionnel',
       to: '/dashboard',
       icon: FaChartLine,
+    });
+  }
+
+  if (currentRole === 'agent_bancaire') {
+    accountMenuLinks.push({
+      label: 'Dashboard agent',
+      to: '/agent/dashboard',
+      icon: FaUserTie,
     });
   }
 

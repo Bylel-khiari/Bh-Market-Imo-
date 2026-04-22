@@ -128,6 +128,13 @@ const propertyReportCategorySchema = z.enum([
 ]);
 
 const propertyReportStatusSchema = z.enum(["unread", "in_review", "resolved", "rejected"]);
+const creditApplicationStatusSchema = z.enum([
+  "submitted",
+  "under_review",
+  "documents_pending",
+  "approved",
+  "rejected",
+]);
 
 export const adminCreateScrapeSiteBodySchema = z
   .object(scrapeSiteBaseSchema)
@@ -191,3 +198,55 @@ export const adminUpdatePropertyReportStatusBodySchema = z
     admin_note: z.string().trim().max(2000).optional().nullable(),
   })
   .strict();
+
+export const creditApplicationCreateBodySchema = z
+  .object({
+    property_id: z.coerce.number().int().positive().optional(),
+    full_name: z.string().trim().min(2).max(160),
+    email: z.string().trim().email().max(190),
+    phone: z.string().trim().min(8).max(40),
+    cin: z.string().trim().min(4).max(40),
+    rib: z.string().trim().min(8).max(64),
+    funding_type: z.string().trim().max(64).optional().nullable(),
+    socio_category: z.string().trim().max(64).optional().nullable(),
+    property_title: z.string().trim().max(255).optional().nullable(),
+    property_location: z.string().trim().max(255).optional().nullable(),
+    property_price_value: z.coerce.number().finite().min(0).optional().nullable(),
+    property_price_raw: z.string().trim().max(255).optional().nullable(),
+    requested_amount: z.coerce.number().finite().min(0).optional().nullable(),
+    personal_contribution: z.coerce.number().finite().min(0).optional().nullable(),
+    gross_income: z.coerce.number().finite().min(0).optional().nullable(),
+    income_period: z.enum(["monthly", "annual"]).optional().nullable(),
+    duration_months: z.coerce.number().int().min(12).max(360).optional().nullable(),
+    estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
+    estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
+    debt_ratio: z.coerce.number().finite().min(0).max(100).optional().nullable(),
+    documents: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
+  })
+  .strict();
+
+export const creditApplicationListQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const agentListCreditApplicationsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(500).optional(),
+    status: z.union([z.literal("all"), creditApplicationStatusSchema]).optional(),
+    search: z.string().trim().max(190).optional(),
+  })
+  .strict();
+
+export const agentUpdateCreditApplicationBodySchema = z
+  .object({
+    status: creditApplicationStatusSchema.optional(),
+    compliance_score: z.coerce.number().int().min(0).max(100).optional().nullable(),
+    compliance_summary: z.string().trim().max(4000).optional().nullable(),
+    agent_note: z.string().trim().max(4000).optional().nullable(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });

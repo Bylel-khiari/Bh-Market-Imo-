@@ -7,6 +7,7 @@ import Properties from './pages/Properties';
 import CreditSimulation from './pages/CreditSimulation';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AgentDashboard from './pages/AgentDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
@@ -20,7 +21,7 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const fullscreenRoutes = ['/dashboard', '/admin/dashboard'];
+  const fullscreenRoutes = ['/dashboard', '/admin/dashboard', '/agent/dashboard'];
   const hideNavFooter = ['/login', '/register', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
   const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;
@@ -40,6 +41,10 @@ function App() {
           <Route
             path="/admin/dashboard"
             element={role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/agent/dashboard"
+            element={role === 'agent_bancaire' ? <AgentDashboard /> : <Navigate to="/" replace />}
           />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

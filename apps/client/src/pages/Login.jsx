@@ -23,6 +23,10 @@ const Login = () => {
       return '/admin/dashboard';
     }
 
+    if (user?.role === 'agent_bancaire') {
+      return '/agent/dashboard';
+    }
+
     if (user?.role === 'responsable_decisionnel') {
       return '/dashboard';
     }

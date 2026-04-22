@@ -53,6 +53,42 @@ function toBoundedLimit(limit, fallback, max) {
   return Math.min(Math.max(Number(limit) || fallback, 1), max);
 }
 
+function isNullableColumn(column) {
+  return String(column?.Null || "").toUpperCase() === "YES";
+}
+
+async function getTableColumns(tableName) {
+  const [rows] = await dbPool.query(`SHOW COLUMNS FROM ${tableName}`);
+  return new Map((rows || []).map((row) => [row.Field, row]));
+}
+
+async function ensureTableColumns(tableName, definitions) {
+  const columns = await getTableColumns(tableName);
+  const alterations = [];
+
+  definitions.forEach((definition) => {
+    const column = columns.get(definition.name);
+
+    if (!column) {
+      alterations.push(`ADD COLUMN ${definition.addSql}`);
+      return;
+    }
+
+    if (typeof definition.needsAlter === "function" && definition.needsAlter(column)) {
+      alterations.push(`MODIFY COLUMN ${definition.modifySql}`);
+    }
+  });
+
+  if (!alterations.length) {
+    return;
+  }
+
+  await dbPool.query(`
+    ALTER TABLE ${tableName}
+    ${alterations.join(",\n    ")}
+  `);
+}
+
 function normalizeOptionalString(value) {
   if (value === undefined) {
     return undefined;
@@ -236,6 +272,50 @@ async function ensurePropertyReportsTable() {
           KEY idx_reclamation_history_created_at (created_at)
         )
       `);
+
+      await ensureTableColumns(RECLAMATION_TABLE, [
+        {
+          name: "site_source_id",
+          addSql: "site_source_id BIGINT UNSIGNED NULL AFTER annonce_id",
+        },
+        {
+          name: "source_kind",
+          addSql: `source_kind VARCHAR(24) NOT NULL DEFAULT '${DEFAULT_SOURCE_KIND}' AFTER site_source_id`,
+        },
+        {
+          name: "priorite",
+          addSql: `priorite VARCHAR(24) NOT NULL DEFAULT '${DEFAULT_PRIORITY}' AFTER statut`,
+        },
+        {
+          name: "note_admin",
+          addSql: "note_admin TEXT NULL AFTER admin_id",
+        },
+        {
+          name: "resolved_at",
+          addSql: "resolved_at DATETIME NULL AFTER updated_at",
+        },
+      ]);
+
+      await ensureTableColumns(RECLAMATION_HISTORY_TABLE, [
+        {
+          name: "old_status",
+          addSql: "old_status VARCHAR(24) NULL AFTER action",
+        },
+        {
+          name: "new_status",
+          addSql: "new_status VARCHAR(24) NULL AFTER old_status",
+        },
+        {
+          name: "commentaire",
+          addSql: "commentaire TEXT NULL AFTER new_status",
+        },
+        {
+          name: "admin_id",
+          addSql: "admin_id BIGINT NULL AFTER commentaire",
+          modifySql: "admin_id BIGINT NULL",
+          needsAlter: (column) => !isNullableColumn(column),
+        },
+      ]);
 
       await migrateLegacyReportsIfNeeded();
     })().catch((error) => {

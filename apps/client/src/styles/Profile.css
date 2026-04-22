@@ -81,6 +81,107 @@
   gap: 16px;
 }
 
+.profile-credit-list {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-credit-card {
+  border: 1px solid #e2e8f2;
+  border-radius: 18px;
+  background: #fbfcff;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(15, 42, 79, 0.06);
+}
+
+.profile-credit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.profile-credit-head h3 {
+  margin: 0;
+  color: #133255;
+}
+
+.profile-credit-head p {
+  margin: 6px 0 0;
+}
+
+.profile-credit-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.profile-credit-status.status-submitted {
+  background: rgba(217, 22, 22, 0.1);
+  color: #b00000;
+}
+
+.profile-credit-status.status-under_review {
+  background: rgba(239, 125, 0, 0.14);
+  color: #d57600;
+}
+
+.profile-credit-status.status-documents_pending {
+  background: rgba(10, 77, 140, 0.12);
+  color: #0a4d8c;
+}
+
+.profile-credit-status.status-approved {
+  background: rgba(44, 122, 75, 0.12);
+  color: #226640;
+}
+
+.profile-credit-status.status-rejected {
+  background: rgba(10, 34, 64, 0.1);
+  color: #0a2240;
+}
+
+.profile-credit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.profile-credit-grid span {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f3f7fc;
+}
+
+.profile-credit-grid strong {
+  color: #12345a;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-credit-grid small {
+  color: #556d86;
+  font-size: 13px;
+}
+
+.profile-credit-note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #eef4fb;
+  color: #29435f;
+}
+
 .profile-favorite-card {
   overflow: hidden;
   border: 1px solid #e2e8f2;
@@ -152,5 +253,9 @@
   .profile-favorites-link {
     width: 100%;
     justify-content: center;
+  }
+
+  .profile-credit-head {
+    flex-direction: column;
   }
 }
