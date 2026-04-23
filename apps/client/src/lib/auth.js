@@ -186,6 +186,30 @@ export async function fetchAdminScrapeSitesApi(token, limit = 200) {
   return authorizedJsonRequest(`/api/admin/scrape-sites?limit=${limit}`, token);
 }
 
+export async function fetchAdminScraperControlApi(token) {
+  return authorizedJsonRequest('/api/admin/scraper-control', token);
+}
+
+export async function updateAdminScraperControlApi(input, token) {
+  return authorizedJsonRequest('/api/admin/scraper-control', token, {
+    method: 'PUT',
+    body: input,
+  });
+}
+
+export async function startAdminScraperApi(input, token) {
+  return authorizedJsonRequest('/api/admin/scraper-control/start', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function stopAdminScraperApi(token) {
+  return authorizedJsonRequest('/api/admin/scraper-control/stop', token, {
+    method: 'POST',
+  });
+}
+
 export async function createAdminScrapeSiteApi(input, token) {
   return authorizedJsonRequest('/api/admin/scrape-sites', token, {
     method: 'POST',

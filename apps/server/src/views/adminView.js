@@ -45,3 +45,7 @@ export function renderUpdatedScrapeSite(res, site) {
 export function renderDeletedScrapeSite(res) {
   return res.status(204).send();
 }
+
+export function renderScraperControl(res, control) {
+  return res.json({ control });
+}

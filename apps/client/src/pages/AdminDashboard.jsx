@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
@@ -13,7 +13,9 @@ import {
   FaListAlt,
   FaMapMarkerAlt,
   FaPlus,
+  FaPlay,
   FaSignOutAlt,
+  FaStop,
   FaSyncAlt,
   FaTimes,
   FaUser,
@@ -41,14 +43,18 @@ import {
   deleteAdminPropertyApi,
   deleteAdminScrapeSiteApi,
   deleteAdminUserApi,
+  fetchAdminScraperControlApi,
   fetchAdminPropertyReportsApi,
   fetchAdminPropertiesApi,
   fetchAdminScrapeSitesApi,
   fetchAdminUsersApi,
   getApiBaseUrl,
   requireAuthToken,
+  startAdminScraperApi,
+  stopAdminScraperApi,
   updateAdminPropertyReportStatusApi,
   updateAdminPropertyApi,
+  updateAdminScraperControlApi,
   updateAdminScrapeSiteApi,
   updateAdminUserApi,
 } from '../lib/auth';
@@ -151,6 +157,13 @@ function formatDate(dateLike) {
   return d.toLocaleDateString('fr-FR');
 }
 
+function formatDateTime(dateLike) {
+  if (!dateLike) return '-';
+  const d = new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('fr-FR');
+}
+
 function formatDateTimeLocalValue(dateLike) {
   if (!dateLike) return '';
 
@@ -190,6 +203,23 @@ function getInitials(nameOrEmail) {
   const parts = value.split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+}
+
+function formatScraperStatus(control) {
+  if (!control) return 'Inconnu';
+
+  switch (control.status) {
+    case 'running':
+      return 'Cycle en cours';
+    case 'stopping':
+      return 'Arret en cours';
+    case 'error':
+      return control.is_enabled ? 'Erreur, relance planifiee' : 'Erreur';
+    case 'scheduled':
+      return 'Automatique active';
+    default:
+      return control.is_enabled ? 'Automatique active' : 'Arrete';
+  }
 }
 
 export default function AdminDashboard() {
@@ -238,6 +268,14 @@ export default function AdminDashboard() {
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
   const [reportSubmittingId, setReportSubmittingId] = useState(null);
   const [unreadReportCount, setUnreadReportCount] = useState(0);
+  const [scraperControl, setScraperControl] = useState(null);
+  const [scraperControlLoading, setScraperControlLoading] = useState(true);
+  const [scraperControlError, setScraperControlError] = useState('');
+  const [scraperControlMessage, setScraperControlMessage] = useState('');
+  const [scraperSubmitting, setScraperSubmitting] = useState(false);
+  const [scraperIntervalDays, setScraperIntervalDays] = useState('7');
+  const [scraperIntervalDirty, setScraperIntervalDirty] = useState(false);
+  const scraperIntervalDirtyRef = useRef(false);
   const apiBaseUrl = getApiBaseUrl();
 
   const goToHomePage = () => {
@@ -274,6 +312,32 @@ export default function AdminDashboard() {
       setSiteError(requestError.message || 'Erreur de chargement des sites.');
     } finally {
       setSiteLoading(false);
+    }
+  }, []);
+
+  const fetchScraperControl = useCallback(async ({ silent = false } = {}) => {
+    try {
+      const token = requireAuthToken();
+
+      if (!silent) {
+        setScraperControlLoading(true);
+      }
+
+      setScraperControlError('');
+      const payload = await fetchAdminScraperControlApi(token);
+      const nextControl = payload?.control || null;
+
+      setScraperControl(nextControl);
+
+      if (nextControl?.interval_days && !scraperIntervalDirtyRef.current) {
+        setScraperIntervalDays(String(nextControl.interval_days));
+      }
+    } catch (requestError) {
+      setScraperControlError(requestError.message || 'Erreur de chargement du controle du scraper.');
+    } finally {
+      if (!silent) {
+        setScraperControlLoading(false);
+      }
     }
   }, []);
 
@@ -321,10 +385,18 @@ export default function AdminDashboard() {
     await Promise.all([
       fetchUsers(),
       fetchScrapeSites(),
+      fetchScraperControl(),
       fetchAdminProperties(),
       fetchAdminReports({ status: reportStatusFilter }),
     ]);
-  }, [fetchAdminProperties, fetchAdminReports, fetchScrapeSites, fetchUsers, reportStatusFilter]);
+  }, [
+    fetchAdminProperties,
+    fetchAdminReports,
+    fetchScrapeSites,
+    fetchScraperControl,
+    fetchUsers,
+    reportStatusFilter,
+  ]);
 
   const handleReportStatusUpdate = async (report, nextStatus) => {
     try {
@@ -621,6 +693,113 @@ export default function AdminDashboard() {
     }
   };
 
+  const syncScraperControlState = (control, message = '') => {
+    setScraperControl(control || null);
+
+    if (control?.interval_days) {
+      setScraperIntervalDays(String(control.interval_days));
+    }
+
+    scraperIntervalDirtyRef.current = false;
+    setScraperIntervalDirty(false);
+    setScraperControlMessage(message);
+  };
+
+  const readScraperIntervalDays = () => {
+    const value = Number(scraperIntervalDays);
+
+    if (!Number.isInteger(value) || value < 1 || value > 365) {
+      setScraperControlMessage('');
+      setScraperControlError('Choisissez un intervalle valide entre 1 et 365 jours.');
+      return null;
+    }
+
+    return value;
+  };
+
+  const handleScraperIntervalChange = (event) => {
+    setScraperIntervalDays(event.target.value);
+    setScraperControlError('');
+    scraperIntervalDirtyRef.current = true;
+    setScraperIntervalDirty(true);
+  };
+
+  const handleSaveScraperConfig = async () => {
+    const intervalDays = readScraperIntervalDays();
+    if (!intervalDays) return;
+
+    try {
+      const token = requireAuthToken();
+      setScraperSubmitting(true);
+      setScraperControlError('');
+      setScraperControlMessage('');
+
+      const payload = await updateAdminScraperControlApi(
+        {
+          interval_days: intervalDays,
+        },
+        token,
+      );
+
+      syncScraperControlState(
+        payload?.control || scraperControl,
+        'Intervalle de rescrape mis a jour.',
+      );
+    } catch (requestError) {
+      setScraperControlError(requestError.message || 'Erreur pendant la mise a jour du scraper.');
+    } finally {
+      setScraperSubmitting(false);
+    }
+  };
+
+  const handleStartScraper = async () => {
+    const intervalDays = readScraperIntervalDays();
+    if (!intervalDays) return;
+
+    try {
+      const token = requireAuthToken();
+      setScraperSubmitting(true);
+      setScraperControlError('');
+      setScraperControlMessage('');
+
+      const payload = await startAdminScraperApi(
+        {
+          interval_days: intervalDays,
+        },
+        token,
+      );
+
+      syncScraperControlState(
+        payload?.control || scraperControl,
+        'Cycle de scraping demarre. Les prochains rescrapes suivront cet intervalle.',
+      );
+    } catch (requestError) {
+      setScraperControlError(requestError.message || 'Erreur pendant le demarrage du scraper.');
+    } finally {
+      setScraperSubmitting(false);
+    }
+  };
+
+  const handleStopScraper = async () => {
+    try {
+      const token = requireAuthToken();
+      setScraperSubmitting(true);
+      setScraperControlError('');
+      setScraperControlMessage('');
+
+      const payload = await stopAdminScraperApi(token);
+
+      syncScraperControlState(
+        payload?.control || scraperControl,
+        'Le scraping automatique a ete arrete.',
+      );
+    } catch (requestError) {
+      setScraperControlError(requestError.message || 'Erreur pendant l arret du scraper.');
+    } finally {
+      setScraperSubmitting(false);
+    }
+  };
+
   const resetPropertyForm = () => {
     setPropertyFormMode('create');
     setEditingPropertyId(null);
@@ -793,8 +972,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchUsers();
     fetchScrapeSites();
+    fetchScraperControl();
     fetchAdminProperties();
-  }, [fetchAdminProperties, fetchScrapeSites, fetchUsers]);
+  }, [fetchAdminProperties, fetchScrapeSites, fetchScraperControl, fetchUsers]);
 
   useEffect(() => {
     fetchAdminReports({ status: reportStatusFilter });
@@ -807,6 +987,21 @@ export default function AdminDashboard() {
 
     return () => clearInterval(intervalId);
   }, [fetchAdminReports, reportStatusFilter]);
+
+  useEffect(() => {
+    const shouldPollScraper =
+      activeSection === 'sites' || Boolean(scraperControl?.is_enabled) || Boolean(scraperControl?.is_running);
+
+    if (!shouldPollScraper) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      fetchScraperControl({ silent: true });
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [activeSection, fetchScraperControl, scraperControl?.is_enabled, scraperControl?.is_running]);
 
   const roleTotals = useMemo(() => {
     return users.reduce(
@@ -833,6 +1028,20 @@ export default function AdminDashboard() {
       { total: 0, active: 0, inactive: 0 },
     );
   }, [scrapeSites]);
+
+  const scraperIsRunning = Boolean(scraperControl?.is_running) || scraperControl?.status === 'running';
+  const scraperIsEnabled = Boolean(scraperControl?.is_enabled);
+  const scraperStatusLabel = formatScraperStatus(scraperControl);
+  const scraperStatusClassName =
+    scraperControl?.status === 'running'
+      ? 'is-running'
+      : scraperControl?.status === 'stopping'
+        ? 'is-stopping'
+        : scraperControl?.status === 'error'
+          ? 'is-error'
+          : scraperIsEnabled
+            ? 'is-scheduled'
+            : 'is-idle';
 
   const propertyTotals = useMemo(() => {
     return adminProperties.reduce(
@@ -1645,7 +1854,202 @@ export default function AdminDashboard() {
 
           {activeSection === 'sites' && (
             <div className="admin-content-grid admin-content-single">
-              <section className="admin-analytics-column">
+              <section className="admin-analytics-column admin-sites-column">
+                <div className="admin-card admin-scraper-control-card">
+                  <div className="admin-scraper-control-head">
+                    <div className="admin-scraper-title-block">
+                      <span className="admin-scraper-kicker">Mission controle</span>
+                      <h2>Automatisation du scraping</h2>
+                      <p className="admin-section-help">
+                        Demarrer lance un cycle de collecte tout de suite puis planifie les
+                        prochains rescrapes automatiquement. Arreter coupe la planification et
+                        tente d interrompre le process en cours.
+                      </p>
+                    </div>
+                    <div className="admin-scraper-top-meta">
+                      <span className={`admin-scraper-badge ${scraperStatusClassName}`}>
+                        {scraperStatusLabel}
+                      </span>
+                      <span className="admin-scraper-sites-pill">
+                        Sites actifs {siteTotals.active} / {siteTotals.total}
+                      </span>
+                    </div>
+                  </div>
+
+                  {scraperControlMessage && (
+                    <p
+                      className={`admin-form-message ${scraperControlMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
+                    >
+                      {scraperControlMessage}
+                    </p>
+                  )}
+                  {scraperControlError && (
+                    <p className="admin-form-message admin-form-message--error">{scraperControlError}</p>
+                  )}
+
+                  {scraperControlLoading ? (
+                    <div className="admin-state admin-state--inline">
+                      <FaSyncAlt className="spin" />
+                      <p>Chargement du controle du scraper...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="admin-scraper-control-grid">
+                        <div className="admin-scraper-main">
+                          <div className="admin-scraper-main-panel">
+                            <div className="admin-scraper-mini-grid">
+                              <div className="admin-scraper-mini-card">
+                                <span>Cadence actuelle</span>
+                                <strong>
+                                  {(scraperControl?.interval_days || Number(scraperIntervalDays) || 0)} jours
+                                </strong>
+                              </div>
+                              <div className="admin-scraper-mini-card">
+                                <span>Mode</span>
+                                <strong>
+                                  {scraperIsRunning
+                                    ? 'Cycle en direct'
+                                    : scraperIsEnabled
+                                      ? 'Planifie'
+                                      : 'Arrete'}
+                                </strong>
+                              </div>
+                            </div>
+
+                            <div className="admin-scraper-form-shell">
+                              <div className="admin-field-block">
+                                <label className="admin-field-label" htmlFor="scraper-interval-days">
+                                  Intervalle de rescrape automatique
+                                </label>
+                                <p className="admin-scraper-field-help">
+                                  Definissez dans combien de jours le prochain cycle doit etre relance
+                                  automatiquement.
+                                </p>
+                                <div className="admin-inline-control">
+                                  <input
+                                    id="scraper-interval-days"
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    step="1"
+                                    value={scraperIntervalDays}
+                                    onChange={handleScraperIntervalChange}
+                                    disabled={scraperSubmitting}
+                                  />
+                                  <span className="admin-inline-suffix">jours</span>
+                                  <button
+                                    type="button"
+                                    className="admin-secondary admin-scraper-btn admin-scraper-btn--save"
+                                    onClick={handleSaveScraperConfig}
+                                    disabled={scraperSubmitting || !scraperIntervalDirty}
+                                  >
+                                    Enregistrer
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="admin-form-actions admin-scraper-actions">
+                                <button
+                                  type="button"
+                                  className="admin-refresh admin-scraper-btn admin-scraper-btn--start"
+                                  onClick={handleStartScraper}
+                                  disabled={scraperSubmitting || scraperIsRunning}
+                                >
+                                  <FaPlay />
+                                  {scraperIsEnabled ? 'Relancer maintenant' : 'Demarrer'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-danger admin-scraper-btn admin-scraper-btn--stop"
+                                  onClick={handleStopScraper}
+                                  disabled={scraperSubmitting || (!scraperIsEnabled && !scraperIsRunning)}
+                                >
+                                  <FaStop />
+                                  Arreter
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-secondary admin-scraper-btn admin-scraper-btn--refresh"
+                                  onClick={() => fetchScraperControl()}
+                                  disabled={scraperSubmitting || scraperControlLoading}
+                                >
+                                  <FaSyncAlt />
+                                  Actualiser
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="admin-scraper-stats">
+                          <div className="admin-scraper-stat">
+                            <div className="admin-scraper-stat-head">
+                              <span className="admin-scraper-stat-icon">
+                                <FaCog />
+                              </span>
+                              <span>Etat courant</span>
+                            </div>
+                            <strong>{scraperStatusLabel}</strong>
+                            <small>{scraperControl?.current_step || 'Aucun cycle actif.'}</small>
+                          </div>
+                          <div className="admin-scraper-stat">
+                            <div className="admin-scraper-stat-head">
+                              <span className="admin-scraper-stat-icon">
+                                <FaGlobe />
+                              </span>
+                              <span>Spider courant</span>
+                            </div>
+                            <strong>{scraperControl?.current_spider_name || '-'}</strong>
+                            <small>
+                              {scraperControl?.current_command || 'Aucune commande en cours.'}
+                            </small>
+                          </div>
+                          <div className="admin-scraper-stat">
+                            <div className="admin-scraper-stat-head">
+                              <span className="admin-scraper-stat-icon">
+                                <FaCheckCircle />
+                              </span>
+                              <span>Dernier succes</span>
+                            </div>
+                            <strong>{formatDateTime(scraperControl?.last_success_at)}</strong>
+                            <small>
+                              Dernier lancement: {formatDateTime(scraperControl?.last_started_at)}
+                            </small>
+                          </div>
+                          <div className="admin-scraper-stat">
+                            <div className="admin-scraper-stat-head">
+                              <span className="admin-scraper-stat-icon">
+                                <FaSyncAlt />
+                              </span>
+                              <span>Prochain rescrape</span>
+                            </div>
+                            <strong>
+                              {scraperIsEnabled
+                                ? formatDateTime(scraperControl?.next_run_at)
+                                : 'Desactive'}
+                            </strong>
+                            <small>
+                              Sites actifs: {siteTotals.active} / {siteTotals.total}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+
+                      {scraperControl?.last_error && (
+                        <div className="admin-scraper-alert">
+                          <div className="admin-scraper-alert-icon">
+                            <FaExclamationTriangle />
+                          </div>
+                          <div>
+                            <strong>Derniere erreur detectee</strong>
+                            <p>{scraperControl.last_error}</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
                 <div className="admin-card admin-sites-card">
                   <div className="admin-users-header">
                     <h2>Sites de collecte</h2>

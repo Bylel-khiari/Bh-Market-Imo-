@@ -12,6 +12,12 @@ import {
 } from "../models/adminModel.js";
 import { createScrapeSite, deleteScrapeSite, fetchScrapeSites, updateScrapeSite } from "../models/scrapeSiteModel.js";
 import {
+  configureScraperAutomation,
+  fetchScraperAutomationStatus,
+  startScraperCycle,
+  stopScraperCycle,
+} from "../services/scraperControlService.js";
+import {
   renderAdminPropertiesList,
   renderCreatedAdminProperty,
   renderCreatedUser,
@@ -19,6 +25,7 @@ import {
   renderDeletedAdminProperty,
   renderDeletedUser,
   renderDeletedScrapeSite,
+  renderScraperControl,
   renderScrapeSitesList,
   renderUpdatedAdminProperty,
   renderUpdatedUser,
@@ -84,4 +91,24 @@ export async function updateScrapeSiteByAdmin(req, res) {
 export async function deleteScrapeSiteByAdmin(req, res) {
   await deleteScrapeSite(req.params.id);
   return renderDeletedScrapeSite(res);
+}
+
+export async function getScraperControlByAdmin(req, res) {
+  const control = await fetchScraperAutomationStatus();
+  return renderScraperControl(res, control);
+}
+
+export async function updateScraperControlByAdmin(req, res) {
+  const control = await configureScraperAutomation(req.body || {});
+  return renderScraperControl(res, control);
+}
+
+export async function startScraperByAdmin(req, res) {
+  const control = await startScraperCycle(req.body || {});
+  return renderScraperControl(res, control);
+}
+
+export async function stopScraperByAdmin(req, res) {
+  const control = await stopScraperCycle();
+  return renderScraperControl(res, control);
 }

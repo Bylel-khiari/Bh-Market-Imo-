@@ -6,10 +6,14 @@ import {
 	deleteProperty,
 	deleteScrapeSiteByAdmin,
 	deleteUser,
+	getScraperControlByAdmin,
 	listPropertiesByAdmin,
 	listScrapeSites,
 	listUsers,
+	startScraperByAdmin,
+	stopScraperByAdmin,
 	updateProperty,
+	updateScraperControlByAdmin,
 	updateScrapeSiteByAdmin,
 	updateUser,
 } from "../controllers/adminController.js";
@@ -22,7 +26,9 @@ import {
 	adminListPropertiesQuerySchema,
 	adminListScrapeSitesQuerySchema,
 	adminListUsersQuerySchema,
+	adminStartScraperBodySchema,
 	adminUpdatePropertyBodySchema,
+	adminUpdateScraperControlBodySchema,
 	adminUpdateScrapeSiteBodySchema,
 	adminUpdateUserBodySchema,
 	idParamSchema,
@@ -85,6 +91,32 @@ router.delete(
 	requireRoles("admin"),
 	validateRequest({ params: idParamSchema }),
 	deleteProperty
+);
+router.get(
+	"/api/admin/scraper-control",
+	requireAuth,
+	requireRoles("admin"),
+	getScraperControlByAdmin
+);
+router.put(
+	"/api/admin/scraper-control",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ body: adminUpdateScraperControlBodySchema }),
+	updateScraperControlByAdmin
+);
+router.post(
+	"/api/admin/scraper-control/start",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ body: adminStartScraperBodySchema }),
+	startScraperByAdmin
+);
+router.post(
+	"/api/admin/scraper-control/stop",
+	requireAuth,
+	requireRoles("admin"),
+	stopScraperByAdmin
 );
 router.get(
 	"/api/admin/scrape-sites",

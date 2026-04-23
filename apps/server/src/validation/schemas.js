@@ -41,6 +41,22 @@ export const adminListScrapeSitesQuerySchema = z
   })
   .strict();
 
+export const adminStartScraperBodySchema = z
+  .object({
+    interval_days: z.coerce.number().int().min(1).max(365).optional(),
+  })
+  .strict();
+
+export const adminUpdateScraperControlBodySchema = z
+  .object({
+    interval_days: z.coerce.number().int().min(1).max(365).optional(),
+    is_enabled: z.boolean().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });
+
 export const adminListPropertiesQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(5000).optional(),
