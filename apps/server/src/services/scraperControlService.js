@@ -1,4 +1,6 @@
-import { spawn } from "child_process";
+import { existsSync } from "fs";
+import { join } from "path";
+import { spawn, spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { fetchScrapeSites } from "../models/scrapeSiteModel.js";
 import {
@@ -14,10 +16,10 @@ const LISTING_CLEANER_SCRIPT = fileURLToPath(new URL("../../../../tools/listing_
 const SYNC_PROPERTIES_SCRIPT = fileURLToPath(
   new URL("../../../../apps/server/scripts/syncCleanListingsToProperties.mjs", import.meta.url)
 );
-const PYTHON_BIN = process.env.SCRAPER_PYTHON_BIN || process.env.PYTHON_BIN || "python";
 const NODE_BIN = process.env.SCRAPER_NODE_BIN || process.execPath || "node";
 const LOG_SNIPPET_MAX_LENGTH = 2500;
 const RUNNING_STATUSES = new Set(["running", "stopping"]);
+const SCRAPER_RUNTIME_MODULES = ["scrapy", "mysql.connector", "rapidfuzz"];
 
 const runtimeState = {
   initializePromise: null,
@@ -46,6 +48,158 @@ function appendLog(currentValue, nextChunk) {
 
 function addDays(date, days) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function getPythonExecutableName(platform = process.platform) {
+  return platform === "win32" ? "python.exe" : "python";
+}
+
+function getPythonScriptsDirectory(platform = process.platform) {
+  return platform === "win32" ? "Scripts" : "bin";
+}
+
+function getScraperPythonCandidates(platform = process.platform) {
+  const scriptsDirectory = getPythonScriptsDirectory(platform);
+  const executableName = getPythonExecutableName(platform);
+
+  return [
+    join(SCRAPER_PROJECT_DIR, ".venv", scriptsDirectory, executableName),
+    join(REPO_ROOT, ".venv", scriptsDirectory, executableName),
+    join(SCRAPER_PROJECT_DIR, "venv", scriptsDirectory, executableName),
+    join(REPO_ROOT, "venv", scriptsDirectory, executableName),
+  ];
+}
+
+function getFallbackPythonCandidates(platform = process.platform) {
+  if (platform === "win32") {
+    return ["python", "py"];
+  }
+
+  return ["python"];
+}
+
+function inspectPythonRuntime(
+  command,
+  {
+    env = process.env,
+    spawnSyncImpl = spawnSync,
+  } = {}
+) {
+  const moduleProbeScript = [
+    "import importlib",
+    `modules = ${JSON.stringify(SCRAPER_RUNTIME_MODULES)}`,
+    "missing = []",
+    "for name in modules:",
+    "    try:",
+    "        importlib.import_module(name)",
+    "    except ModuleNotFoundError:",
+    "        missing.append(name)",
+    "print('\\n'.join(missing)) if missing else None",
+    "raise SystemExit(1 if missing else 0)",
+  ].join("\n");
+
+  const result = spawnSyncImpl(command, ["-c", moduleProbeScript], {
+    cwd: SCRAPER_PROJECT_DIR,
+    env: { ...env },
+    encoding: "utf8",
+    windowsHide: true,
+  });
+
+  if (result.error) {
+    return {
+      ok: false,
+      missingModules: [],
+      diagnostics: result.error.message,
+    };
+  }
+
+  const missingModules = String(result.stdout || "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const diagnostics = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
+
+  return {
+    ok: result.status === 0,
+    missingModules,
+    diagnostics,
+  };
+}
+
+export function resolveScraperPythonBin({
+  env = process.env,
+  exists = existsSync,
+  platform = process.platform,
+  canUsePythonBin = (candidate) => inspectPythonRuntime(candidate, { env }).ok,
+} = {}) {
+  const explicitBinary = String(env.SCRAPER_PYTHON_BIN || env.PYTHON_BIN || "").trim();
+  if (explicitBinary) {
+    return explicitBinary;
+  }
+
+  const localCandidates = getScraperPythonCandidates(platform).filter((candidate) => exists(candidate));
+  const allCandidates = [...localCandidates, ...getFallbackPythonCandidates(platform)];
+
+  for (const candidate of allCandidates) {
+    if (canUsePythonBin(candidate)) {
+      return candidate;
+    }
+  }
+
+  return localCandidates[0] || getFallbackPythonCandidates(platform)[0];
+}
+
+export function buildScraperDependencyHelpMessage({
+  pythonBin,
+  missingModules = [],
+  platform = process.platform,
+  diagnostics = "",
+} = {}) {
+  const normalizedModules = missingModules.filter(Boolean);
+  const venvPath = platform === "win32"
+    ? "services\\scraper\\.venv\\Scripts\\python.exe"
+    : "services/scraper/.venv/bin/python";
+  const requirementsPath = platform === "win32"
+    ? "services\\scraper\\requirements.txt"
+    : "services/scraper/requirements.txt";
+
+  const lines = [
+    `L'environnement Python du scraper est incomplet (${pythonBin}).`,
+  ];
+
+  if (normalizedModules.length) {
+    lines.push(`Modules manquants: ${normalizedModules.join(", ")}.`);
+  }
+
+  lines.push(
+    `Creez un environnement virtuel local puis installez ${requirementsPath}: ` +
+    `python -m venv services/scraper/.venv && ${venvPath} -m pip install -r ${requirementsPath}.`
+  );
+  lines.push(
+    "Le serveur detecte automatiquement services/scraper/.venv si SCRAPER_PYTHON_BIN n'est pas defini."
+  );
+
+  if (diagnostics) {
+    lines.push(`Diagnostic: ${truncateLog(diagnostics)}`);
+  }
+
+  return lines.join(" ");
+}
+
+function verifyPythonRuntime(command) {
+  const inspection = inspectPythonRuntime(command);
+
+  if (inspection.ok) {
+    return;
+  }
+
+  throw new Error(
+    buildScraperDependencyHelpMessage({
+      pythonBin: command,
+      missingModules: inspection.missingModules,
+      diagnostics: inspection.diagnostics,
+    })
+  );
 }
 
 function clearScheduledRun() {
@@ -174,6 +328,26 @@ async function fetchActiveSites() {
   return sites.filter((site) => site?.is_active);
 }
 
+export function buildInitialScraperRunState(activeSites = []) {
+  const firstActiveSite = activeSites.find((site) => site?.spider_name) || null;
+
+  if (!firstActiveSite) {
+    return {
+      current_step: null,
+      current_spider_name: null,
+      current_command: null,
+    };
+  }
+
+  const siteLabel = firstActiveSite.name || firstActiveSite.spider_name;
+
+  return {
+    current_step: `Collecte du site ${siteLabel}`,
+    current_spider_name: firstActiveSite.spider_name,
+    current_command: `le spider ${firstActiveSite.spider_name}`,
+  };
+}
+
 function toStatusLabel(status, isEnabled) {
   if (status === "running") return "running";
   if (status === "stopping") return "stopping";
@@ -198,15 +372,20 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
       ? "idle"
       : toStatusLabel("error", isEnabled);
 
-  const updatedControl = await patchScraperControl({
+  const updates = {
     status: nextStatus,
     current_step: null,
     current_spider_name: null,
     last_finished_at: finishedAt,
-    last_success_at: succeeded ? finishedAt : undefined,
     next_run_at: nextRunAt,
     last_error: succeeded ? null : errorMessage,
-  });
+  };
+
+  if (succeeded) {
+    updates.last_success_at = finishedAt;
+  }
+
+  const updatedControl = await patchScraperControl(updates);
 
   if (updatedControl.is_enabled && updatedControl.next_run_at) {
     queueScheduledRun(updatedControl.next_run_at);
@@ -217,13 +396,16 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
   return updatedControl;
 }
 
-async function executeScraperCycle(trigger) {
+async function executeScraperCycle(trigger, preloadedActiveSites = null) {
   try {
-    const activeSites = await fetchActiveSites();
+    const activeSites = preloadedActiveSites || await fetchActiveSites();
+    const pythonBin = resolveScraperPythonBin();
 
     if (!activeSites.length) {
       throw new Error("Aucun site actif n est configure pour le scraping.");
     }
+
+    verifyPythonRuntime(pythonBin);
 
     for (const site of activeSites) {
       if (runtimeState.stopRequested) {
@@ -237,7 +419,7 @@ async function executeScraperCycle(trigger) {
       });
 
       await runCommand({
-        command: PYTHON_BIN,
+        command: pythonBin,
         args: ["-m", "scrapy", "crawl", site.spider_name],
         cwd: SCRAPER_PROJECT_DIR,
         label: `le spider ${site.spider_name}`,
@@ -255,7 +437,7 @@ async function executeScraperCycle(trigger) {
     });
 
     await runCommand({
-      command: PYTHON_BIN,
+      command: pythonBin,
       args: [LISTING_CLEANER_SCRIPT],
       cwd: REPO_ROOT,
       label: "le nettoyage des annonces",
@@ -426,16 +608,24 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
   }
 
   clearScheduledRun();
+  const activeSites = await fetchActiveSites();
+
+  if (!activeSites.length) {
+    throw httpError(400, "Aucun site actif n est configure pour le scraping.");
+  }
+
+  const initialRunState = buildInitialScraperRunState(activeSites);
 
   const startedAt = new Date();
   const updates = {
     is_enabled: true,
     status: "running",
     current_step:
-      trigger === "manual"
+      initialRunState.current_step ||
+      (trigger === "manual"
         ? "Demarrage manuel du cycle de scraping"
-        : "Demarrage automatique du cycle de scraping",
-    current_spider_name: null,
+        : "Demarrage automatique du cycle de scraping"),
+    current_spider_name: initialRunState.current_spider_name,
     last_started_at: startedAt,
     last_finished_at: null,
     next_run_at: null,
@@ -449,7 +639,10 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
   await patchScraperControl(updates);
 
   runtimeState.stopRequested = false;
-  runtimeState.currentRunPromise = executeScraperCycle(trigger);
+  runtimeState.currentChildLabel = initialRunState.current_command;
+  runtimeState.currentRunPromise = executeScraperCycle(trigger, activeSites).catch((error) => {
+    console.error("Unexpected scraper cycle failure:", error);
+  });
 
   return fetchScraperAutomationStatus();
 }
@@ -457,15 +650,20 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
 export async function stopScraperCycle() {
   clearScheduledRun();
 
-  const currentControl = await patchScraperControl({
+  const updates = {
     is_enabled: false,
     next_run_at: null,
     status: runtimeState.currentRunPromise ? "stopping" : "idle",
     current_step: runtimeState.currentRunPromise
       ? "Arret du cycle de scraping en cours"
       : null,
-    current_spider_name: runtimeState.currentRunPromise ? undefined : null,
-  });
+  };
+
+  if (!runtimeState.currentRunPromise) {
+    updates.current_spider_name = null;
+  }
+
+  const currentControl = await patchScraperControl(updates);
 
   if (!runtimeState.currentRunPromise) {
     return fetchScraperAutomationStatus();

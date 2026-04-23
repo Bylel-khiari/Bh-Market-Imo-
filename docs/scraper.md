@@ -16,8 +16,10 @@
 From repository root:
 
 ```bash
+python -m venv services/scraper/.venv
+services/scraper/.venv/Scripts/python -m pip install -r services/scraper/requirements.txt
 cd services/scraper
-scrapy crawl afariat
+.venv/Scripts/python -m scrapy crawl afariat
 ```
 
 ## Run Listing Cleaner
@@ -51,6 +53,12 @@ Cleaner tool uses standard MySQL variables:
 - MYSQL_USER
 - MYSQL_PASSWORD
 - MYSQL_DATABASE
+
+## Local Python Setup
+
+- The backend now auto-detects `services/scraper/.venv` before falling back to global `python`.
+- You can still override the interpreter with `SCRAPER_PYTHON_BIN`.
+- Install scraper dependencies with `services/scraper/requirements.txt`.
 
 ## Cleanup Policy Applied
 

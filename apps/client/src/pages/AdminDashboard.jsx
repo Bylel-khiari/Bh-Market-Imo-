@@ -996,12 +996,19 @@ export default function AdminDashboard() {
       return undefined;
     }
 
+    const pollDelayMs =
+      scraperControl?.status === 'running' || scraperControl?.status === 'stopping' || scraperControl?.is_running
+        ? 3000
+        : activeSection === 'sites'
+          ? 10000
+          : 15000;
+
     const intervalId = setInterval(() => {
       fetchScraperControl({ silent: true });
-    }, 15000);
+    }, pollDelayMs);
 
     return () => clearInterval(intervalId);
-  }, [activeSection, fetchScraperControl, scraperControl?.is_enabled, scraperControl?.is_running]);
+  }, [activeSection, fetchScraperControl, scraperControl?.is_enabled, scraperControl?.is_running, scraperControl?.status]);
 
   const roleTotals = useMemo(() => {
     return users.reduce(
@@ -1032,6 +1039,13 @@ export default function AdminDashboard() {
   const scraperIsRunning = Boolean(scraperControl?.is_running) || scraperControl?.status === 'running';
   const scraperIsEnabled = Boolean(scraperControl?.is_enabled);
   const scraperStatusLabel = formatScraperStatus(scraperControl);
+  const scraperCurrentCommandLabel =
+    scraperControl?.current_command ||
+    (scraperControl?.current_spider_name
+      ? `Execution du spider ${scraperControl.current_spider_name}`
+      : scraperIsRunning
+        ? 'Execution en cours.'
+        : 'Aucune commande en cours.');
   const scraperStatusClassName =
     scraperControl?.status === 'running'
       ? 'is-running'
@@ -2000,9 +2014,7 @@ export default function AdminDashboard() {
                               <span>Spider courant</span>
                             </div>
                             <strong>{scraperControl?.current_spider_name || '-'}</strong>
-                            <small>
-                              {scraperControl?.current_command || 'Aucune commande en cours.'}
-                            </small>
+                            <small>{scraperCurrentCommandLabel}</small>
                           </div>
                           <div className="admin-scraper-stat">
                             <div className="admin-scraper-stat-head">

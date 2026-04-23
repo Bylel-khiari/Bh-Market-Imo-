@@ -6,7 +6,7 @@ import mysql from "mysql2/promise";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env"), quiet: true });
 
 const ADMIN_PROPERTY_COLUMNS = [
   ["is_active", "is_active TINYINT(1) NOT NULL DEFAULT 1"],
@@ -25,6 +25,7 @@ const ADMIN_PROPERTY_COLUMNS = [
   ["manual_scraped_at", "manual_scraped_at DATETIME NULL"],
   ["admin_updated_at", "admin_updated_at TIMESTAMP NULL DEFAULT NULL"],
 ];
+const ADMIN_MANAGED_COLUMN_NAMES = ADMIN_PROPERTY_COLUMNS.map(([columnName]) => columnName);
 
 function getEnv(name, fallback) {
   const value = process.env[name];
@@ -92,6 +93,61 @@ function buildPreservedAdminSelects(hasPreviousRows) {
   ];
 }
 
+export function buildSyncPlan({ cleanColumns, propertiesColumns }) {
+  const cleanColumnSet = new Set(cleanColumns);
+  const propertiesColumnSet = new Set(propertiesColumns);
+  const sourceHasAuthoritativeAdminColumns = ADMIN_MANAGED_COLUMN_NAMES.every((columnName) =>
+    cleanColumnSet.has(columnName)
+  );
+
+  const sharedColumns = cleanColumns.filter((columnName) => {
+    if (!propertiesColumnSet.has(columnName)) {
+      return false;
+    }
+
+    if (!sourceHasAuthoritativeAdminColumns && ADMIN_MANAGED_COLUMN_NAMES.includes(columnName)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  if (sharedColumns.length === 0) {
+    throw new Error("No shared columns between clean_listings and properties.");
+  }
+
+  const sourceProjection = sharedColumns.map((columnName) => `src.${quoteIdentifier(columnName)}`);
+  const canMatchPreviousById = sharedColumns.includes("id");
+  const canMatchPreviousByUrl = sharedColumns.includes("url");
+  const previousJoinCondition = canMatchPreviousById
+    ? "prev.id = src.id"
+    : canMatchPreviousByUrl
+      ? "prev.url = src.url"
+      : "";
+
+  if (sourceHasAuthoritativeAdminColumns) {
+    return {
+      sharedColumns,
+      insertColumns: sharedColumns,
+      selectFragments: sourceProjection,
+      previousJoinCondition: "",
+      replaceAllRows: true,
+    };
+  }
+
+  return {
+    sharedColumns,
+    insertColumns: [...sharedColumns, ...ADMIN_MANAGED_COLUMN_NAMES],
+    selectFragments: [...sourceProjection, ...buildPreservedAdminSelects(Boolean(previousJoinCondition))],
+    previousJoinCondition,
+    replaceAllRows: false,
+  };
+}
+
+function isDirectExecution() {
+  return process.argv[1] ? path.resolve(process.argv[1]) === __filename : false;
+}
+
 async function main() {
   const connection = await mysql.createConnection({
     host: getEnv("MYSQL_HOST", "127.0.0.1"),
@@ -133,51 +189,25 @@ async function main() {
       }
     }
 
-    const sharedColumns = cleanColumns.filter((columnName) => propertiesColumns.has(columnName));
-    if (sharedColumns.length === 0) {
-      throw new Error("No shared columns between clean_listings and properties.");
-    }
-
-    const insertColumns = [
-      ...sharedColumns,
-      "is_active",
-      "is_deleted",
-      "created_by_admin",
-      "manual_title",
-      "manual_price_raw",
-      "manual_price_value",
-      "manual_location_raw",
-      "manual_city",
-      "manual_country",
-      "manual_image",
-      "manual_description",
-      "manual_source",
-      "manual_url",
-      "manual_scraped_at",
-      "admin_updated_at",
-    ];
-
-    const sourceProjection = sharedColumns.map((columnName) => `src.${quoteIdentifier(columnName)}`);
-    const canMatchPreviousById = sharedColumns.includes("id");
-    const canMatchPreviousByUrl = sharedColumns.includes("url");
-    const previousJoinCondition = canMatchPreviousById
-      ? "prev.id = src.id"
-      : canMatchPreviousByUrl
-        ? "prev.url = src.url"
-        : "";
-
-    const preservedAdminSelects = buildPreservedAdminSelects(Boolean(previousJoinCondition));
+    const syncPlan = buildSyncPlan({
+      cleanColumns,
+      propertiesColumns: [...propertiesColumns],
+    });
 
     await connection.beginTransaction();
-    await connection.query("CREATE TEMPORARY TABLE properties_previous AS SELECT * FROM properties");
-    await connection.query("DELETE FROM properties WHERE COALESCE(created_by_admin, 0) = 0");
 
-    const selectFragments = [...sourceProjection, ...preservedAdminSelects];
+    if (syncPlan.replaceAllRows) {
+      await connection.query("DELETE FROM properties");
+    } else {
+      await connection.query("CREATE TEMPORARY TABLE properties_previous AS SELECT * FROM properties");
+      await connection.query("DELETE FROM properties WHERE COALESCE(created_by_admin, 0) = 0");
+    }
+
     const insertSql = `
-      INSERT INTO properties (${insertColumns.map(quoteIdentifier).join(", ")})
-      SELECT ${selectFragments.join(", ")}
+      INSERT INTO properties (${syncPlan.insertColumns.map(quoteIdentifier).join(", ")})
+      SELECT ${syncPlan.selectFragments.join(", ")}
       FROM clean_listings src
-      ${previousJoinCondition ? `LEFT JOIN properties_previous prev ON ${previousJoinCondition}` : ""}
+      ${syncPlan.previousJoinCondition ? `LEFT JOIN properties_previous prev ON ${syncPlan.previousJoinCondition}` : ""}
     `;
 
     const [insertResult] = await connection.query(insertSql);
@@ -216,7 +246,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error("Failed to sync clean_listings to properties:", error.message);
-  process.exitCode = 1;
-});
+if (isDirectExecution()) {
+  main().catch((error) => {
+    console.error("Failed to sync clean_listings to properties:", error.message);
+    process.exitCode = 1;
+  });
+}

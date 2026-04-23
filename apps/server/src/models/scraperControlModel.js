@@ -172,59 +172,58 @@ export async function patchScraperControl(payload = {}) {
   const updates = [];
   const params = [];
 
-  if ("is_enabled" in payload) {
-    updates.push("is_enabled = ?");
-    params.push(payload.is_enabled ? 1 : 0);
+  const pushUpdate = (column, value) => {
+    if (value === undefined) {
+      return;
+    }
+
+    updates.push(`${column} = ?`);
+    params.push(value);
+  };
+
+  if ("is_enabled" in payload && payload.is_enabled !== undefined) {
+    pushUpdate("is_enabled", payload.is_enabled ? 1 : 0);
   }
 
-  if ("interval_days" in payload) {
-    updates.push("interval_days = ?");
-    params.push(normalizeIntervalDays(payload.interval_days));
+  if ("interval_days" in payload && payload.interval_days !== undefined) {
+    pushUpdate("interval_days", normalizeIntervalDays(payload.interval_days));
   }
 
-  if ("status" in payload) {
+  if ("status" in payload && payload.status !== undefined) {
     const status = normalizeOptionalString(payload.status);
     if (!status) {
       throw httpError(400, "status is required");
     }
 
-    updates.push("status = ?");
-    params.push(status);
+    pushUpdate("status", status);
   }
 
   if ("current_step" in payload) {
-    updates.push("current_step = ?");
-    params.push(normalizeOptionalString(payload.current_step));
+    pushUpdate("current_step", normalizeOptionalString(payload.current_step));
   }
 
   if ("current_spider_name" in payload) {
-    updates.push("current_spider_name = ?");
-    params.push(normalizeOptionalString(payload.current_spider_name));
+    pushUpdate("current_spider_name", normalizeOptionalString(payload.current_spider_name));
   }
 
   if ("last_started_at" in payload) {
-    updates.push("last_started_at = ?");
-    params.push(normalizeOptionalDateTime(payload.last_started_at, "last_started_at"));
+    pushUpdate("last_started_at", normalizeOptionalDateTime(payload.last_started_at, "last_started_at"));
   }
 
   if ("last_finished_at" in payload) {
-    updates.push("last_finished_at = ?");
-    params.push(normalizeOptionalDateTime(payload.last_finished_at, "last_finished_at"));
+    pushUpdate("last_finished_at", normalizeOptionalDateTime(payload.last_finished_at, "last_finished_at"));
   }
 
   if ("last_success_at" in payload) {
-    updates.push("last_success_at = ?");
-    params.push(normalizeOptionalDateTime(payload.last_success_at, "last_success_at"));
+    pushUpdate("last_success_at", normalizeOptionalDateTime(payload.last_success_at, "last_success_at"));
   }
 
   if ("next_run_at" in payload) {
-    updates.push("next_run_at = ?");
-    params.push(normalizeOptionalDateTime(payload.next_run_at, "next_run_at"));
+    pushUpdate("next_run_at", normalizeOptionalDateTime(payload.next_run_at, "next_run_at"));
   }
 
   if ("last_error" in payload) {
-    updates.push("last_error = ?");
-    params.push(normalizeOptionalString(payload.last_error));
+    pushUpdate("last_error", normalizeOptionalString(payload.last_error));
   }
 
   if (!updates.length) {
@@ -242,11 +241,11 @@ export async function patchScraperControl(payload = {}) {
 export async function updateScraperControlSettings(payload = {}) {
   const updates = {};
 
-  if ("interval_days" in payload) {
+  if ("interval_days" in payload && payload.interval_days !== undefined) {
     updates.interval_days = payload.interval_days;
   }
 
-  if ("is_enabled" in payload) {
+  if ("is_enabled" in payload && payload.is_enabled !== undefined) {
     updates.is_enabled = payload.is_enabled;
   }
 
