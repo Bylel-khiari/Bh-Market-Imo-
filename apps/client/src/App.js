@@ -5,13 +5,11 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Properties from './pages/Properties';
 import CreditSimulation from './pages/CreditSimulation';
-import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
-import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Contact from './pages/Contact';
 import CreditImmobilierBHPortal from './pages/CreditImmobilierBHPortal';
@@ -21,8 +19,8 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const fullscreenRoutes = ['/dashboard', '/admin/dashboard', '/agent/dashboard'];
-  const hideNavFooter = ['/login', '/register', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
+  const fullscreenRoutes = ['/admin/dashboard', '/agent/dashboard'];
+  const hideNavFooter = ['/login', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
   const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;
 
@@ -35,10 +33,6 @@ function App() {
           <Route path="/properties" element={<Properties />} />
           <Route path="/credit-simulation" element={<CreditSimulation />} />
           <Route
-            path="/dashboard"
-            element={role === 'responsable_decisionnel' ? <Dashboard /> : <Navigate to="/" replace />}
-          />
-          <Route
             path="/admin/dashboard"
             element={role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />}
           />
@@ -47,7 +41,6 @@ function App() {
             element={role === 'agent_bancaire' ? <AgentDashboard /> : <Navigate to="/" replace />}
           />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/la-banque" element={<LaBanque />} />

@@ -6,7 +6,7 @@ const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 5000);
 const MAX_FAVORITES_LIMIT = Number(process.env.FAVORITES_MAX_LIMIT || 500);
 const MAX_ADMIN_PROPERTIES_LIMIT = Number(process.env.ADMIN_PROPERTIES_MAX_LIMIT || 5000);
 const ADMIN_PROPERTY_ID_START = 9000000000000;
-const PROPERTY_TABLE = "clean_listings";
+const PROPERTY_TABLE = "properties";
 
 const PROPERTY_EFFECTIVE_SELECT_COLUMNS = `
   p.id,
@@ -152,7 +152,36 @@ async function ensurePropertiesInfrastructure() {
     ensurePropertiesInfrastructurePromise = (async () => {
       const [tableRows] = await dbPool.query(`SHOW TABLES LIKE '${PROPERTY_TABLE}'`);
       if (!tableRows.length) {
-        throw new Error(`Source table ${PROPERTY_TABLE} does not exist.`);
+        const [stagingRows] = await dbPool.query("SHOW TABLES LIKE 'clean_listings'");
+        if (stagingRows.length) {
+          await dbPool.query("CREATE TABLE properties LIKE clean_listings");
+        } else {
+          await dbPool.query(`
+            CREATE TABLE properties (
+              id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+              raw_id VARCHAR(190) NULL,
+              source VARCHAR(120) NULL,
+              title VARCHAR(255) NULL,
+              normalized_title VARCHAR(255) NULL,
+              price_raw VARCHAR(255) NULL,
+              price_value DECIMAL(15, 2) NULL,
+              location_raw VARCHAR(255) NULL,
+              normalized_location VARCHAR(255) NULL,
+              city VARCHAR(120) NULL,
+              country VARCHAR(120) NULL,
+              image TEXT NULL,
+              description LONGTEXT NULL,
+              normalized_description LONGTEXT NULL,
+              url TEXT NULL,
+              dedupe_key VARCHAR(64) NULL,
+              scraped_at DATETIME NULL,
+              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_properties_city (city),
+              KEY idx_properties_source (source)
+            )
+          `);
+        }
       }
 
       const [columnRows] = await dbPool.query(`SHOW COLUMNS FROM ${PROPERTY_TABLE}`);
@@ -165,17 +194,23 @@ async function ensurePropertiesInfrastructure() {
         }
       };
 
+      ensureColumn("raw_id", "raw_id VARCHAR(190) NULL");
       ensureColumn("title", "title VARCHAR(255) NULL");
+      ensureColumn("normalized_title", "normalized_title VARCHAR(255) NULL");
       ensureColumn("price_raw", "price_raw VARCHAR(255) NULL");
       ensureColumn("price_value", "price_value DECIMAL(15, 2) NULL");
       ensureColumn("location_raw", "location_raw VARCHAR(255) NULL");
+      ensureColumn("normalized_location", "normalized_location VARCHAR(255) NULL");
       ensureColumn("city", "city VARCHAR(120) NULL");
       ensureColumn("country", "country VARCHAR(120) NULL");
       ensureColumn("image", "image TEXT NULL");
       ensureColumn("description", "description LONGTEXT NULL");
+      ensureColumn("normalized_description", "normalized_description LONGTEXT NULL");
       ensureColumn("source", "source VARCHAR(120) NULL");
       ensureColumn("url", "url TEXT NULL");
+      ensureColumn("dedupe_key", "dedupe_key VARCHAR(64) NULL");
       ensureColumn("scraped_at", "scraped_at DATETIME NULL");
+      ensureColumn("created_at", "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
       ensureColumn("is_active", "is_active TINYINT(1) NOT NULL DEFAULT 1");
       ensureColumn("is_deleted", "is_deleted TINYINT(1) NOT NULL DEFAULT 0");
       ensureColumn("created_by_admin", "created_by_admin TINYINT(1) NOT NULL DEFAULT 0");

@@ -28,6 +28,12 @@ function prepareRequestBody(headers, body) {
   return body;
 }
 
+function createHttpError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 async function parseJsonResponse(response) {
   const raw = await response.text().catch(() => '');
   let payload = {};
@@ -42,7 +48,7 @@ async function parseJsonResponse(response) {
 
   if (!response.ok) {
     const message = payload?.message || `HTTP ${response.status}`;
-    throw new Error(message);
+    throw createHttpError(message, response.status);
   }
 
   return payload;
@@ -63,20 +69,13 @@ export async function jsonRequest(path, options = {}) {
 
 export async function authorizedJsonRequest(path, token, options = {}) {
   if (!token) {
-    throw new Error('Session invalide. Veuillez vous reconnecter.');
+    throw createHttpError('Session invalide. Veuillez vous reconnecter.', 401);
   }
 
   const headers = new Headers(options.headers || {});
   headers.set('Authorization', `Bearer ${token}`);
 
   return jsonRequest(path, { ...options, headers });
-}
-
-export async function registerApi(input) {
-  return jsonRequest('/api/auth/register', {
-    method: 'POST',
-    body: input,
-  });
 }
 
 export async function loginApi(input) {
@@ -90,8 +89,8 @@ export async function meApi(token) {
   return authorizedJsonRequest('/api/auth/me', token);
 }
 
-export async function fetchDecisionDashboardApi(token) {
-  return authorizedJsonRequest('/api/decision/dashboard', token);
+export async function fetchAgentDashboardApi(token) {
+  return authorizedJsonRequest('/api/agent/dashboard', token);
 }
 
 export async function fetchAgentProfileApi(token) {
@@ -148,10 +147,29 @@ export function requireAuthToken() {
   const token = getAuthSession()?.token;
 
   if (!token) {
-    throw new Error('Session invalide. Veuillez vous reconnecter.');
+    throw createHttpError('Session invalide. Veuillez vous reconnecter.', 401);
   }
 
   return token;
+}
+
+export function isAuthError(error) {
+  if (Number(error?.status) === 401) {
+    return true;
+  }
+
+  const message = String(error?.message || '').toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'invalid or expired token',
+    'missing or invalid authorization header',
+    'session invalide',
+    'veuillez vous reconnecter',
+    'unauthorized',
+  ].some((item) => message.includes(item));
 }
 
 export async function fetchClientCreditApplicationsApi(token, limit = 20) {

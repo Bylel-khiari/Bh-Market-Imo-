@@ -2,7 +2,7 @@ import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
 const MAX_ADMIN_REPORTS_LIMIT = Number(process.env.ADMIN_PROPERTY_REPORTS_MAX_LIMIT || 500);
-const PROPERTY_TABLE = "clean_listings";
+const PROPERTY_TABLE = "properties";
 const RECLAMATION_TABLE = "reclamations";
 const RECLAMATION_HISTORY_TABLE = "reclamation_history";
 const LEGACY_REPORT_TABLE = "property_reports";

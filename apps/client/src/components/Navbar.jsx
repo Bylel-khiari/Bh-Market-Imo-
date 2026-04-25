@@ -15,7 +15,6 @@ import {
   FaChevronDown,
   FaHeart,
   FaSignOutAlt,
-  FaChartLine,
   FaUserShield,
   FaUserTie,
 } from 'react-icons/fa';
@@ -54,14 +53,6 @@ const Navbar = () => {
       label: 'Mes favoris',
       to: '/properties?favorites=1',
       icon: FaHeart,
-    });
-  }
-
-  if (currentRole === 'responsable_decisionnel') {
-    accountMenuLinks.push({
-      label: 'Dashboard decisionnel',
-      to: '/dashboard',
-      icon: FaChartLine,
     });
   }
 

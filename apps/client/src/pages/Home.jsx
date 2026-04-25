@@ -1,15 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaChartLine, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
+import { FaHome, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
 import TunisiaMapHome from '../components/TunisiaMapHome';
 import PropertyCarousel from '../components/PropertyCarousel';
-import { getAuthSession } from '../lib/auth';
 import '../styles/Home.css';
 
 const Home = () => {
-  const role = getAuthSession()?.user?.role;
-  const canSeeDashboardService = role === 'responsable_decisionnel';
-
   return (
     <div className="home">
 
@@ -56,7 +52,7 @@ const Home = () => {
               <h2>Solutions Immobilieres</h2>
             </div>
           </div>
-          <div className={`services-grid ${canSeeDashboardService ? '' : 'services-grid--client'}`.trim()}>
+          <div className="services-grid services-grid--client">
             <div className="service-card">
               <div className="service-icon"><FaHome /></div>
               <div className="service-text">
@@ -73,16 +69,6 @@ const Home = () => {
               </div>
               <button className="service-action"><FaArrowRight /></button>
             </div>
-            {canSeeDashboardService && (
-              <div className="service-card">
-                <div className="service-icon"><FaChartLine /></div>
-                <div className="service-text">
-                  <h3>Tableaux de Bord</h3>
-                  <p>Suivez les KPI et l'evolution du marche immobilier avec des analyses en temps reel</p>
-                </div>
-                <Link to="/dashboard" className="service-action"><FaArrowRight /></Link>
-              </div>
-            )}
             <div className="service-card">
               <div className="service-icon"><FaFileAlt /></div>
               <div className="service-text">

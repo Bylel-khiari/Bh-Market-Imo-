@@ -81,7 +81,7 @@ const ForgotPassword = () => {
               <span>ou</span>
             </div>
 
-            <div className="login-register">
+            <div className="login-account-note">
               <p>
                 Vous vous souvenez de votre mot de passe ? <Link to="/login">Se connecter</Link>
               </p>

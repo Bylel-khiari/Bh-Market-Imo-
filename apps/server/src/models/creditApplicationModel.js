@@ -3,16 +3,25 @@ import { httpError } from "../utils/httpError.js";
 
 const CREDIT_APPLICATION_TABLE = "credit_applications";
 const CREDIT_APPLICATION_HISTORY_TABLE = "credit_application_history";
-const PROPERTY_TABLE = "clean_listings";
+const PROPERTY_TABLE = "properties";
 const MAX_AGENT_APPLICATIONS_LIMIT = Number(process.env.AGENT_CREDIT_APPLICATIONS_MAX_LIMIT || 500);
 
 const CREDIT_APPLICATION_STATUSES = new Set([
-  "submitted",
-  "under_review",
-  "documents_pending",
-  "approved",
-  "rejected",
+  "SOUMIS",
+  "DOCUMENTS_MANQUANTS",
+  "EN_VERIFICATION",
+  "EN_ETUDE",
+  "ACCEPTE",
+  "REFUSE",
 ]);
+
+const LEGACY_STATUS_MAP = {
+  submitted: "SOUMIS",
+  documents_pending: "DOCUMENTS_MANQUANTS",
+  under_review: "EN_ETUDE",
+  approved: "ACCEPTE",
+  rejected: "REFUSE",
+};
 
 let initializeCreditApplicationStorePromise = null;
 
@@ -62,6 +71,12 @@ function normalizeDocumentNames(documents) {
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .slice(0, 40);
+}
+
+function normalizeCreditApplicationStatus(status) {
+  const rawStatus = String(status || "").trim();
+  const legacyStatus = LEGACY_STATUS_MAP[rawStatus.toLowerCase()];
+  return legacyStatus || rawStatus.toUpperCase();
 }
 
 function serializeDocumentNames(documents) {
@@ -137,7 +152,7 @@ function toPublicCreditApplication(row) {
     estimated_monthly_payment: normalizeOptionalNumber(row.estimated_monthly_payment),
     estimated_rate: normalizeOptionalNumber(row.estimated_rate),
     debt_ratio: normalizeOptionalNumber(row.debt_ratio),
-    status: row.status,
+    status: normalizeCreditApplicationStatus(row.status),
     compliance_score: complianceScore,
     compliance_level: getComplianceLevel(complianceScore),
     compliance_summary: row.compliance_summary,
@@ -203,7 +218,7 @@ async function ensureCreditApplicationTables() {
       estimated_monthly_payment DECIMAL(14, 2) NULL,
       estimated_rate DECIMAL(8, 3) NULL,
       debt_ratio DECIMAL(6, 2) NULL,
-      status VARCHAR(32) NOT NULL DEFAULT 'submitted',
+      status VARCHAR(32) NOT NULL DEFAULT 'SOUMIS',
       compliance_score TINYINT UNSIGNED NULL,
       compliance_summary TEXT NULL,
       agent_note TEXT NULL,
@@ -217,6 +232,20 @@ async function ensureCreditApplicationTables() {
       KEY idx_credit_applications_agent_id (assigned_agent_user_id),
       KEY idx_credit_applications_status_created_at (status, created_at)
     )
+  `);
+
+  await dbPool.query(`
+    UPDATE ${CREDIT_APPLICATION_TABLE}
+    SET status = CASE LOWER(status)
+      WHEN 'submitted' THEN 'SOUMIS'
+      WHEN 'documents_pending' THEN 'DOCUMENTS_MANQUANTS'
+      WHEN 'under_review' THEN 'EN_ETUDE'
+      WHEN 'approved' THEN 'ACCEPTE'
+      WHEN 'rejected' THEN 'REFUSE'
+      ELSE UPPER(status)
+    END
+    WHERE status <> UPPER(status)
+       OR LOWER(status) IN ('submitted', 'documents_pending', 'under_review', 'approved', 'rejected')
   `);
 
   await dbPool.query(`
@@ -327,18 +356,19 @@ async function findCreditApplicationRowById(applicationId) {
 }
 
 function assertValidCreditApplicationStatus(status) {
-  if (!CREDIT_APPLICATION_STATUSES.has(status)) {
+  if (!CREDIT_APPLICATION_STATUSES.has(normalizeCreditApplicationStatus(status))) {
     throw httpError(400, `Invalid credit application status: ${status}`);
   }
 }
 
 function assertStatusTransition(currentStatus, nextStatus) {
   const transitions = {
-    submitted: new Set(["under_review", "documents_pending", "approved", "rejected"]),
-    under_review: new Set(["documents_pending", "approved", "rejected"]),
-    documents_pending: new Set(["under_review", "approved", "rejected"]),
-    approved: new Set([]),
-    rejected: new Set([]),
+    SOUMIS: new Set(["EN_VERIFICATION", "DOCUMENTS_MANQUANTS", "EN_ETUDE", "ACCEPTE", "REFUSE"]),
+    EN_VERIFICATION: new Set(["DOCUMENTS_MANQUANTS", "EN_ETUDE", "ACCEPTE", "REFUSE"]),
+    DOCUMENTS_MANQUANTS: new Set(["EN_VERIFICATION", "EN_ETUDE", "ACCEPTE", "REFUSE"]),
+    EN_ETUDE: new Set(["EN_VERIFICATION", "DOCUMENTS_MANQUANTS", "ACCEPTE", "REFUSE"]),
+    ACCEPTE: new Set([]),
+    REFUSE: new Set([]),
   };
 
   if (currentStatus === nextStatus) {
@@ -450,7 +480,7 @@ export async function createCreditApplication({
         status,
         document_names_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOUMIS', ?)
       `,
       [
         normalizedClientUserId,
@@ -482,7 +512,7 @@ export async function createCreditApplication({
       applicationId: result.insertId,
       action: "created",
       previousStatus: null,
-      nextStatus: "submitted",
+      nextStatus: "SOUMIS",
       comment: normalizedDocuments.length
         ? `Documents fournis: ${normalizedDocuments.join(", ")}`
         : "Application created",
@@ -534,15 +564,16 @@ export async function fetchAgentCreditApplications({
   search = "",
 } = {}) {
   const boundedLimit = toBoundedLimit(limit, 150, MAX_AGENT_APPLICATIONS_LIMIT);
-  const normalizedStatus = String(status || "all").trim().toLowerCase();
+  const normalizedStatus = String(status || "all").trim();
   const normalizedSearch = String(search || "").trim();
   const whereClauses = [];
   const params = [];
 
-  if (normalizedStatus && normalizedStatus !== "all") {
-    assertValidCreditApplicationStatus(normalizedStatus);
+  if (normalizedStatus && normalizedStatus.toLowerCase() !== "all") {
+    const nextStatus = normalizeCreditApplicationStatus(normalizedStatus);
+    assertValidCreditApplicationStatus(nextStatus);
     whereClauses.push("ca.status = ?");
-    params.push(normalizedStatus);
+    params.push(nextStatus);
   }
 
   if (normalizedSearch) {
@@ -572,12 +603,13 @@ export async function fetchAgentCreditApplications({
     ${whereSql}
     ORDER BY
       CASE ca.status
-        WHEN 'submitted' THEN 0
-        WHEN 'under_review' THEN 1
-        WHEN 'documents_pending' THEN 2
-        WHEN 'approved' THEN 3
-        WHEN 'rejected' THEN 4
-        ELSE 5
+        WHEN 'SOUMIS' THEN 0
+        WHEN 'EN_VERIFICATION' THEN 1
+        WHEN 'DOCUMENTS_MANQUANTS' THEN 2
+        WHEN 'EN_ETUDE' THEN 3
+        WHEN 'ACCEPTE' THEN 4
+        WHEN 'REFUSE' THEN 5
+        ELSE 6
       END,
       ca.created_at DESC,
       ca.id DESC
@@ -594,11 +626,12 @@ export async function fetchAgentCreditApplicationSummary() {
     `
     SELECT
       COUNT(*) AS total,
-      SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS submitted,
-      SUM(CASE WHEN status = 'under_review' THEN 1 ELSE 0 END) AS under_review,
-      SUM(CASE WHEN status = 'documents_pending' THEN 1 ELSE 0 END) AS documents_pending,
-      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
-      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected,
+      SUM(CASE WHEN status = 'SOUMIS' THEN 1 ELSE 0 END) AS SOUMIS,
+      SUM(CASE WHEN status = 'EN_VERIFICATION' THEN 1 ELSE 0 END) AS EN_VERIFICATION,
+      SUM(CASE WHEN status = 'DOCUMENTS_MANQUANTS' THEN 1 ELSE 0 END) AS DOCUMENTS_MANQUANTS,
+      SUM(CASE WHEN status = 'EN_ETUDE' THEN 1 ELSE 0 END) AS EN_ETUDE,
+      SUM(CASE WHEN status = 'ACCEPTE' THEN 1 ELSE 0 END) AS ACCEPTE,
+      SUM(CASE WHEN status = 'REFUSE' THEN 1 ELSE 0 END) AS REFUSE,
       ROUND(AVG(compliance_score), 0) AS average_compliance_score
     FROM ${CREDIT_APPLICATION_TABLE}
     `
@@ -606,11 +639,12 @@ export async function fetchAgentCreditApplicationSummary() {
 
   return {
     total: Number(row?.total || 0),
-    submitted: Number(row?.submitted || 0),
-    under_review: Number(row?.under_review || 0),
-    documents_pending: Number(row?.documents_pending || 0),
-    approved: Number(row?.approved || 0),
-    rejected: Number(row?.rejected || 0),
+    SOUMIS: Number(row?.SOUMIS || 0),
+    EN_VERIFICATION: Number(row?.EN_VERIFICATION || 0),
+    DOCUMENTS_MANQUANTS: Number(row?.DOCUMENTS_MANQUANTS || 0),
+    EN_ETUDE: Number(row?.EN_ETUDE || 0),
+    ACCEPTE: Number(row?.ACCEPTE || 0),
+    REFUSE: Number(row?.REFUSE || 0),
     average_compliance_score: normalizeOptionalInteger(row?.average_compliance_score) || 0,
   };
 }
@@ -636,9 +670,10 @@ export async function updateCreditApplicationReview(
     throw httpError(404, "Credit application not found");
   }
 
-  const nextStatus = status ? String(status).trim().toLowerCase() : currentRow.status;
+  const currentStatus = normalizeCreditApplicationStatus(currentRow.status);
+  const nextStatus = status ? normalizeCreditApplicationStatus(status) : currentStatus;
   assertValidCreditApplicationStatus(nextStatus);
-  assertStatusTransition(currentRow.status, nextStatus);
+  assertStatusTransition(currentStatus, nextStatus);
 
   const nextComplianceScore =
     complianceScore === undefined
@@ -653,7 +688,7 @@ export async function updateCreditApplicationReview(
   const currentComplianceScore = normalizeOptionalInteger(currentRow.compliance_score);
 
   const hasAnyChange =
-    nextStatus !== currentRow.status ||
+    nextStatus !== currentStatus ||
     nextComplianceScore !== currentComplianceScore ||
     nextComplianceSummary !== currentRow.compliance_summary ||
     nextAgentNote !== currentRow.agent_note ||
@@ -695,8 +730,8 @@ export async function updateCreditApplicationReview(
 
     await appendCreditApplicationHistory(connection, {
       applicationId: normalizedApplicationId,
-      action: nextStatus !== currentRow.status ? "status_updated" : "review_updated",
-      previousStatus: currentRow.status,
+      action: nextStatus !== currentStatus ? "status_updated" : "review_updated",
+      previousStatus: currentStatus,
       nextStatus,
       comment: historyComment,
       agentUserId: normalizedAgentUserId,

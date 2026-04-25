@@ -34,6 +34,9 @@ python tools/listing_cleaner.py
 
 - Scraper writes raw rows to raw_properties.
 - listing_cleaner.py filters rent and out-of-scope rows, deduplicates entries, and writes clean_listings and duplicates_log.
+- clean_listings is an import/staging table only.
+- syncCleanListingsToProperties.mjs validates and imports staged rows into properties.
+- properties is the canonical BienImmobilier table consumed by the API and credit flow.
 
 ## Environment Variables
 

@@ -1,6 +1,6 @@
-import { fetchAgentProfile } from "../models/agentModel.js";
+import { fetchAgentDashboardSummary, fetchAgentProfile } from "../models/agentModel.js";
 import { httpError } from "../utils/httpError.js";
-import { renderAgentProfile } from "../views/agentView.js";
+import { renderAgentDashboard, renderAgentProfile } from "../views/agentView.js";
 
 export async function getMyAgentProfile(req, res) {
   const userId = req.user?.sub;
@@ -11,4 +11,9 @@ export async function getMyAgentProfile(req, res) {
   }
 
   return renderAgentProfile(res, profile);
+}
+
+export async function getAgentDashboard(req, res) {
+  const dashboard = await fetchAgentDashboardSummary();
+  return renderAgentDashboard(res, dashboard);
 }

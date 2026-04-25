@@ -39,7 +39,7 @@ const router = Router();
 router.get(
 	"/api/admin/users",
 	requireAuth,
-	requireRoles("responsable_decisionnel", "admin"),
+	requireRoles("admin"),
 	validateRequest({ query: adminListUsersQuerySchema }),
 	listUsers
 );

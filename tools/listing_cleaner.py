@@ -727,7 +727,7 @@ def build_existing_indexes(existing_clean: List[Tuple[int, Candidate]]):
     return by_dedupe_key, by_governorate
 
 
-def register_existing_candidate(
+def record_existing_candidate(
     by_dedupe_key: Dict[str, Tuple[int, Candidate]],
     by_governorate: Dict[str, List[Tuple[int, Candidate]]],
     clean_id: int,
@@ -954,7 +954,7 @@ def main():
 
             new_clean_id = insert_clean_listing(conn, candidate)
             existing_clean.append((new_clean_id, candidate))
-            register_existing_candidate(existing_by_dedupe_key, existing_by_governorate, new_clean_id, candidate)
+            record_existing_candidate(existing_by_dedupe_key, existing_by_governorate, new_clean_id, candidate)
             update_raw_status(conn, candidate.raw_id, STATUS_ACCEPTED)
             accepted += 1
             rows_since_commit += 1

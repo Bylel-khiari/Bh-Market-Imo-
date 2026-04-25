@@ -429,25 +429,25 @@
   letter-spacing: 1px;
 }
 
-/* Register Link */
-.login-register {
+/* Account note */
+.login-account-note {
   text-align: center;
 }
 
-.login-register p {
+.login-account-note p {
   color: #7c8296;
   font-size: 14px;
   margin: 0;
 }
 
-.login-register a {
+.login-account-note a {
   color: #003366;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
-.login-register a:hover {
+.login-account-note a:hover {
   color: #ff0000;
 }
 

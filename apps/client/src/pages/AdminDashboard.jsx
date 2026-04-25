@@ -49,6 +49,7 @@ import {
   fetchAdminScrapeSitesApi,
   fetchAdminUsersApi,
   getApiBaseUrl,
+  isAuthError,
   requireAuthToken,
   startAdminScraperApi,
   stopAdminScraperApi,
@@ -94,14 +95,12 @@ const REPORT_STATUS_LABELS = {
 const ROLE_LABELS = {
   client: 'Client',
   agent_bancaire: 'Agent bancaire',
-  responsable_decisionnel: 'Responsable decisionnel',
   admin: 'Admin',
 };
 
 const ROLE_COLORS = {
   client: '#0a4d8c',
   agent_bancaire: '#ef7d00',
-  responsable_decisionnel: '#2c7a4b',
   admin: '#cc0000',
 };
 
@@ -114,7 +113,6 @@ function createEmptyUserForm() {
     address: '',
     phone: '',
     matricule: '',
-    department: '',
   };
 }
 
@@ -287,6 +285,20 @@ export default function AdminDashboard() {
     navigate('/login', { replace: true });
   };
 
+  const redirectToLogin = useCallback(() => {
+    clearAuthSession();
+    navigate('/login', { replace: true, state: { from: '/admin/dashboard' } });
+  }, [navigate]);
+
+  const handleAuthFailure = useCallback((requestError) => {
+    if (!isAuthError(requestError)) {
+      return false;
+    }
+
+    redirectToLogin();
+    return true;
+  }, [redirectToLogin]);
+
   const fetchUsers = useCallback(async () => {
     try {
       const token = requireAuthToken();
@@ -295,11 +307,15 @@ export default function AdminDashboard() {
       const payload = await fetchAdminUsersApi(token, 100);
       setUsers(Array.isArray(payload?.users) ? payload.users : []);
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setError(requestError.message || 'Erreur de chargement.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   const fetchScrapeSites = useCallback(async () => {
     try {
@@ -309,11 +325,15 @@ export default function AdminDashboard() {
       const payload = await fetchAdminScrapeSitesApi(token, 200);
       setScrapeSites(Array.isArray(payload?.sites) ? payload.sites : []);
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setSiteError(requestError.message || 'Erreur de chargement des sites.');
     } finally {
       setSiteLoading(false);
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   const fetchScraperControl = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -333,13 +353,17 @@ export default function AdminDashboard() {
         setScraperIntervalDays(String(nextControl.interval_days));
       }
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setScraperControlError(requestError.message || 'Erreur de chargement du controle du scraper.');
     } finally {
       if (!silent) {
         setScraperControlLoading(false);
       }
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   const fetchAdminProperties = useCallback(async () => {
     try {
@@ -349,11 +373,15 @@ export default function AdminDashboard() {
       const payload = await fetchAdminPropertiesApi(token, 5000);
       setAdminProperties(Array.isArray(payload?.properties) ? payload.properties : []);
     } catch (requestError) {
-      setPropertyError(requestError.message || 'Erreur de chargement des annonces.');
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setPropertyError(requestError.message || 'Erreur de chargement des biens.');
     } finally {
       setPropertyLoading(false);
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   const fetchAdminReports = useCallback(async ({ status = 'all', silent = false } = {}) => {
     try {
@@ -373,13 +401,17 @@ export default function AdminDashboard() {
       setAdminReports(Array.isArray(payload?.reports) ? payload.reports : []);
       setUnreadReportCount(Number(payload?.unreadCount || 0));
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setReportError(requestError.message || 'Erreur de chargement des reclamations.');
     } finally {
       if (!silent) {
         setReportLoading(false);
       }
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   const refreshDashboardData = useCallback(async () => {
     await Promise.all([
@@ -421,6 +453,10 @@ export default function AdminDashboard() {
 
       await fetchAdminReports({ status: reportStatusFilter, silent: true });
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setReportFormMessage('');
       setReportError(requestError.message || 'Erreur pendant la mise a jour de la reclamation.');
     } finally {
@@ -454,7 +490,6 @@ export default function AdminDashboard() {
       address: '',
       phone: '',
       matricule: '',
-      department: '',
     });
     setFormMessage('');
     setIsEditPanelOpen(true);
@@ -479,9 +514,6 @@ export default function AdminDashboard() {
     }
     if (formData.role === 'agent_bancaire') {
       payload.matricule = formData.matricule.trim() || null;
-    }
-    if (formData.role === 'responsable_decisionnel') {
-      payload.department = formData.department.trim() || null;
     }
 
     return payload;
@@ -515,6 +547,10 @@ export default function AdminDashboard() {
       resetForm();
       await fetchUsers();
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setFormMessage(requestError.message || 'Erreur pendant la sauvegarde.');
     } finally {
       setSubmitting(false);
@@ -547,6 +583,10 @@ export default function AdminDashboard() {
       closeDeleteConfirm();
       await fetchUsers();
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setFormMessage(requestError.message || 'Erreur pendant la suppression.');
     } finally {
       setSubmitting(false);
@@ -623,6 +663,10 @@ export default function AdminDashboard() {
       resetSiteForm();
       await fetchScrapeSites();
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setSiteFormMessage(requestError.message || 'Erreur pendant la sauvegarde du site.');
     } finally {
       setSiteSubmitting(false);
@@ -654,6 +698,10 @@ export default function AdminDashboard() {
       closeDeleteSiteConfirm();
       await fetchScrapeSites();
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setSiteFormMessage(requestError.message || 'Erreur pendant la suppression du site.');
     } finally {
       setSiteSubmitting(false);
@@ -687,6 +735,10 @@ export default function AdminDashboard() {
           : 'Site reactive pour les prochains lancements.',
       );
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setSiteFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
     } finally {
       setSiteSubmitting(false);
@@ -746,6 +798,10 @@ export default function AdminDashboard() {
         'Intervalle de rescrape mis a jour.',
       );
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setScraperControlError(requestError.message || 'Erreur pendant la mise a jour du scraper.');
     } finally {
       setScraperSubmitting(false);
@@ -774,6 +830,10 @@ export default function AdminDashboard() {
         'Cycle de scraping demarre. Les prochains rescrapes suivront cet intervalle.',
       );
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setScraperControlError(requestError.message || 'Erreur pendant le demarrage du scraper.');
     } finally {
       setScraperSubmitting(false);
@@ -794,6 +854,10 @@ export default function AdminDashboard() {
         'Le scraping automatique a ete arrete.',
       );
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setScraperControlError(requestError.message || 'Erreur pendant l arret du scraper.');
     } finally {
       setScraperSubmitting(false);
@@ -870,7 +934,7 @@ export default function AdminDashboard() {
     event.preventDefault();
 
     if (!propertyFormData.title.trim()) {
-      setPropertyFormMessage('Le titre de l annonce est obligatoire.');
+      setPropertyFormMessage('Le titre du bien est obligatoire.');
       return;
     }
 
@@ -892,12 +956,16 @@ export default function AdminDashboard() {
       }
 
       setPropertyFormMessage(
-        propertyFormMode === 'create' ? 'Annonce ajoutee.' : 'Annonce mise a jour.',
+        propertyFormMode === 'create' ? 'Bien ajoute.' : 'Bien mis a jour.',
       );
       resetPropertyForm();
       await fetchAdminProperties();
     } catch (requestError) {
-      setPropertyFormMessage(requestError.message || 'Erreur pendant la sauvegarde de l annonce.');
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la sauvegarde du bien.');
     } finally {
       setPropertySubmitting(false);
     }
@@ -924,11 +992,15 @@ export default function AdminDashboard() {
         resetPropertyForm();
       }
 
-      setPropertyFormMessage('Annonce supprimee.');
+      setPropertyFormMessage('Bien supprime.');
       closeDeletePropertyConfirm();
       await fetchAdminProperties();
     } catch (requestError) {
-      setPropertyFormMessage(requestError.message || 'Erreur pendant la suppression de l annonce.');
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la suppression du bien.');
     } finally {
       setPropertySubmitting(false);
     }
@@ -959,10 +1031,14 @@ export default function AdminDashboard() {
 
       setPropertyFormMessage(
         property.is_active
-          ? 'Annonce desactivee pour l espace client.'
-          : 'Annonce reactivee pour l espace client.',
+          ? 'Bien desactive pour l espace client.'
+          : 'Bien reactive pour l espace client.',
       );
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setPropertyFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
     } finally {
       setPropertySubmitting(false);
@@ -1017,7 +1093,7 @@ export default function AdminDashboard() {
         acc[role] = (acc[role] || 0) + 1;
         return acc;
       },
-      { client: 0, agent_bancaire: 0, responsable_decisionnel: 0, admin: 0 },
+      { client: 0, agent_bancaire: 0, admin: 0 },
     );
   }, [users]);
 
@@ -1080,11 +1156,6 @@ export default function AdminDashboard() {
       [
         { key: 'client', name: 'Clients', value: roleTotals.client || 0 },
         { key: 'agent_bancaire', name: 'Agents bancaires', value: roleTotals.agent_bancaire || 0 },
-        {
-          key: 'responsable_decisionnel',
-          name: 'Responsables decisionnels',
-          value: roleTotals.responsable_decisionnel || 0,
-        },
         { key: 'admin', name: 'Admins', value: roleTotals.admin || 0 },
       ].filter((item) => item.value > 0),
     [roleTotals],
@@ -1094,7 +1165,6 @@ export default function AdminDashboard() {
     () => [
       { role: 'Clients', total: roleTotals.client || 0 },
       { role: 'Agents', total: roleTotals.agent_bancaire || 0 },
-      { role: 'Decisionnels', total: roleTotals.responsable_decisionnel || 0 },
       { role: 'Admins', total: roleTotals.admin || 0 },
     ],
     [roleTotals],
@@ -1212,7 +1282,7 @@ export default function AdminDashboard() {
   const menuItems = [
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
-    { key: 'properties', label: 'Annonces', icon: FaBuilding },
+    { key: 'properties', label: 'Biens', icon: FaBuilding },
     { key: 'mail', label: 'Mail', icon: FaEnvelope },
     { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
     { key: 'activities', label: 'Activites', icon: FaListAlt },
@@ -1223,7 +1293,7 @@ export default function AdminDashboard() {
   const sectionTitles = {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
-    properties: 'Gestion des annonces',
+    properties: 'Gestion des biens immobiliers',
     mail: 'Boite mail reclamations',
     sites: 'Gestion des sites scrapes',
     activities: 'Activites recentes',
@@ -1289,7 +1359,7 @@ export default function AdminDashboard() {
             <div>
               <h1>{sectionTitles[activeSection]}</h1>
               <p className="admin-subtitle">
-                Pilotage des utilisateurs, des annonces et des sites de collecte
+                Pilotage des utilisateurs, des biens immobiliers et des sites de collecte
               </p>
             </div>
             <div className="admin-topbar-actions">
@@ -1369,7 +1439,7 @@ export default function AdminDashboard() {
                       <FaBuilding />
                     </div>
                     <div>
-                      <h3>Annonces actives</h3>
+                      <h3>Biens actifs</h3>
                       <p>{propertyTotals.active || 0}</p>
                     </div>
                   </div>
@@ -1378,7 +1448,7 @@ export default function AdminDashboard() {
                       <FaListAlt />
                     </div>
                     <div>
-                      <h3>Annonces admin</h3>
+                      <h3>Biens admin</h3>
                       <p>{propertyTotals.adminCreated || 0}</p>
                     </div>
                   </div>
@@ -1406,17 +1476,17 @@ export default function AdminDashboard() {
                   <div className="admin-card">
                     <h2>Bienvenue</h2>
                     <p className="admin-section-help">
-                      Utilisez le menu gauche pour gerer les comptes, les annonces et les sites
+                      Utilisez le menu gauche pour gerer les comptes, les biens et les sites
                       scrapes depuis un seul dashboard admin en francais.
                     </p>
                   </div>
                   <div className="admin-card">
-                    <h2>Etat des annonces</h2>
+                    <h2>Etat des biens immobiliers</h2>
                     <ul className="admin-settings-list">
-                      <li>Total des annonces visibles en admin: {propertyTotals.total}</li>
-                      <li>Annonces actives cote client: {propertyTotals.active}</li>
-                      <li>Annonces desactivees: {propertyTotals.inactive}</li>
-                      <li>Annonces ajoutees par admin: {propertyTotals.adminCreated}</li>
+                      <li>Total des biens visibles en admin: {propertyTotals.total}</li>
+                      <li>Biens actifs cote client: {propertyTotals.active}</li>
+                      <li>Biens desactives: {propertyTotals.inactive}</li>
+                      <li>Biens ajoutes par admin: {propertyTotals.adminCreated}</li>
                       <li>Sites de collecte actifs: {siteTotals.active}</li>
                     </ul>
                   </div>
@@ -1515,7 +1585,7 @@ export default function AdminDashboard() {
               <section className="admin-analytics-column">
                 <div className="admin-card admin-properties-card">
                   <div className="admin-users-header">
-                    <h2>Annonces immobilieres</h2>
+                    <h2>Biens immobiliers</h2>
                     <div className="admin-users-header-actions">
                       <span className="admin-users-count">{filteredAdminProperties.length}</span>
                       <button
@@ -1523,20 +1593,20 @@ export default function AdminDashboard() {
                         className="admin-refresh"
                         onClick={openCreatePropertyPanel}
                       >
-                        <FaPlus /> Nouvelle annonce
+                        <FaPlus /> Nouveau bien
                       </button>
                     </div>
                   </div>
 
                   <p className="admin-section-help">
-                    Ajoutez, modifiez, supprimez ou activez/desactivez les annonces.
-                    Les changements admin restent prioritaires sur les donnees scrapes.
+                    Ajoutez, modifiez, supprimez ou activez/desactivez les biens immobiliers.
+                    Les changements admin restent prioritaires sur les donnees importees.
                   </p>
 
                   {!propertyLoading && filteredAdminProperties.length > 0 && (
                     <p className="admin-section-help">
                       Affichage de {propertyVisibleRangeStart} a {propertyVisibleRangeEnd} sur{' '}
-                      {filteredAdminProperties.length} annonces.
+                      {filteredAdminProperties.length} biens.
                     </p>
                   )}
 
@@ -1547,7 +1617,7 @@ export default function AdminDashboard() {
                       value={propertySearch}
                       onChange={(event) => setPropertySearch(event.target.value)}
                     />
-                    <div className="admin-filter-chips" aria-label="Filtrer les annonces par statut">
+                    <div className="admin-filter-chips" aria-label="Filtrer les biens par statut">
                       {STATUS_FILTER_OPTIONS.map((option) => (
                         <button
                           key={option.value}
@@ -1575,10 +1645,10 @@ export default function AdminDashboard() {
                   {propertyLoading ? (
                     <div className="admin-state admin-state--inline">
                       <FaSyncAlt className="spin" />
-                      <p>Chargement des annonces...</p>
+                      <p>Chargement des biens...</p>
                     </div>
                   ) : filteredAdminProperties.length === 0 ? (
-                    <p className="empty">Aucune annonce trouvee.</p>
+                    <p className="empty">Aucun bien trouve.</p>
                   ) : (
                     <>
                       <div className="admin-properties-grid">
@@ -1591,7 +1661,7 @@ export default function AdminDashboard() {
                             {property.image ? (
                               <img
                                 src={property.image}
-                                alt={property.title || 'Annonce immobiliere'}
+                                alt={property.title || 'Bien immobilier'}
                                 className="admin-property-image"
                                 loading="lazy"
                               />
@@ -1628,7 +1698,7 @@ export default function AdminDashboard() {
                             </p>
                             <h3>{property.title || 'Titre non disponible'}</h3>
                             <p className="admin-property-description">
-                              {property.description || 'Aucune description renseignee pour cette annonce.'}
+                              {property.description || 'Aucune description renseignee pour ce bien.'}
                             </p>
                             <div className="admin-property-footer-row">
                               <p className="admin-property-price">{formatPropertyPrice(property)}</p>
@@ -1653,8 +1723,8 @@ export default function AdminDashboard() {
                                 aria-pressed={property.is_active}
                                 aria-label={
                                   property.is_active
-                                    ? 'Desactiver cette annonce'
-                                    : 'Activer cette annonce'
+                                    ? 'Desactiver ce bien'
+                                    : 'Activer ce bien'
                                 }
                               >
                                 <span className="admin-toggle-track">
@@ -1692,7 +1762,7 @@ export default function AdminDashboard() {
                       </div>
 
                       {propertyTotalPages > 1 && (
-                        <nav className="admin-pagination" aria-label="Pagination des annonces admin">
+                        <nav className="admin-pagination" aria-label="Pagination des biens admin">
                           <button
                             type="button"
                             className="admin-pagination-btn admin-pagination-btn--nav"
@@ -1746,7 +1816,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <p className="admin-section-help">
-                    Cette boite regroupe les reclamations envoyees par les clients depuis les annonces.
+                    Cette boite regroupe les reclamations envoyees par les clients depuis les biens.
                     Traitez chaque message pour suivre l incident et garder un historique clair.
                   </p>
 
@@ -1819,7 +1889,7 @@ export default function AdminDashboard() {
                                   target="_blank"
                                   rel="noreferrer"
                                 >
-                                  Ouvrir l annonce
+                                  Ouvrir le bien
                                 </a>
                               </div>
                             )}
@@ -2274,11 +2344,11 @@ export default function AdminDashboard() {
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs charges: {users.length}</li>
-                    <li>Annonces chargees: {adminProperties.length}</li>
+                    <li>Biens charges: {adminProperties.length}</li>
                     <li>Reclamations non lues: {unreadReportCount}</li>
                     <li>Sites de collecte charges: {scrapeSites.length}</li>
                     <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
-                    <li>Mode edition annonce: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Mode edition bien: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode edition site: {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                   </ul>
                 </div>
@@ -2342,7 +2412,6 @@ export default function AdminDashboard() {
               >
                 <option value="client">Client</option>
                 <option value="agent_bancaire">Agent bancaire</option>
-                <option value="responsable_decisionnel">Responsable decisionnel</option>
                 <option value="admin">Admin</option>
               </select>
               {formData.role === 'client' && (
@@ -2368,15 +2437,6 @@ export default function AdminDashboard() {
                   name="matricule"
                   placeholder="Matricule (optionnel)"
                   value={formData.matricule}
-                  onChange={handleFormChange}
-                  disabled={submitting}
-                />
-              )}
-              {formData.role === 'responsable_decisionnel' && (
-                <input
-                  name="department"
-                  placeholder="Departement (optionnel)"
-                  value={formData.department}
                   onChange={handleFormChange}
                   disabled={submitting}
                 />
@@ -2429,8 +2489,8 @@ export default function AdminDashboard() {
             <div className="admin-edit-panel-head">
               <h2>
                 {propertyFormMode === 'create'
-                  ? 'Nouvelle annonce'
-                  : `Modifier l annonce ${propertyFormData.title || `#${editingPropertyId}`}`}
+                  ? 'Nouveau bien'
+                  : `Modifier le bien ${propertyFormData.title || `#${editingPropertyId}`}`}
               </h2>
               <button
                 type="button"
@@ -2443,7 +2503,7 @@ export default function AdminDashboard() {
               </button>
             </div>
             <p className="admin-section-help">
-              Les champs ci-dessous correspondent aux colonnes principales de la table des annonces.
+              Les champs ci-dessous correspondent aux colonnes principales de la table canonique properties.
             </p>
             <form className="admin-user-form admin-user-form-compact" onSubmit={handlePropertySubmit}>
               <div className="admin-field-block">
@@ -2555,12 +2615,12 @@ export default function AdminDashboard() {
               </div>
               <div className="admin-field-block">
                 <label className="admin-field-label" htmlFor="property-url">
-                  Lien annonce (colonne url)
+                  Lien source (colonne url)
                 </label>
                 <input
                   id="property-url"
                   name="url"
-                  placeholder="Ex: https://site.com/annonce/123"
+                  placeholder="Ex: https://site.com/bien/123"
                   value={propertyFormData.url}
                   onChange={handlePropertyFormChange}
                   disabled={propertySubmitting}
@@ -2601,7 +2661,7 @@ export default function AdminDashboard() {
                   onChange={handlePropertyFormChange}
                   disabled={propertySubmitting}
                 />
-                <span>Annonce active pour l espace client</span>
+                <span>Bien actif pour l espace client</span>
               </label>
               <div className="admin-form-actions">
                 <button type="submit" className="admin-refresh" disabled={propertySubmitting}>
@@ -2636,7 +2696,7 @@ export default function AdminDashboard() {
           <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
             <h2>Confirmer la suppression</h2>
             <p className="admin-section-help">
-              Voulez-vous vraiment supprimer l annonce{' '}
+              Voulez-vous vraiment supprimer le bien{' '}
               <strong>{propertyDeleteCandidate?.title || `#${propertyDeleteCandidate?.id}`}</strong> ?
             </p>
             <div className="admin-form-actions">

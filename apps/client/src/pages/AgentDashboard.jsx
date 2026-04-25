@@ -2,9 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
+  FaBuilding,
   FaChartLine,
   FaCheckCircle,
+  FaClipboardList,
   FaClock,
+  FaDownload,
   FaEnvelope,
   FaExclamationTriangle,
   FaFileSignature,
@@ -18,6 +21,7 @@ import {
   FaSignOutAlt,
   FaSyncAlt,
   FaUniversity,
+  FaUsers,
 } from 'react-icons/fa';
 import {
   ResponsiveContainer,
@@ -28,66 +32,114 @@ import {
   Legend,
   BarChart,
   Bar,
+  Line,
+  LineChart,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
 import {
   clearAuthSession,
+  fetchAgentDashboardApi,
   fetchAgentCreditApplicationsApi,
   fetchAgentProfileApi,
+  isAuthError,
   requireAuthToken,
   updateAgentCreditApplicationApi,
 } from '../lib/auth';
 import '../styles/AdminDashboard.css';
 import '../styles/AgentDashboard.css';
 
+const POWER_BI_AGENT_DASHBOARD_URL = String(process.env.REACT_APP_POWERBI_AGENT_DASHBOARD_URL || '').trim();
+const POWER_BI_AGENT_DASHBOARD_TITLE = String(
+  process.env.REACT_APP_POWERBI_AGENT_DASHBOARD_TITLE || 'KPI agent bancaire Power BI',
+).trim();
+
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous' },
-  { value: 'submitted', label: 'Nouveaux' },
-  { value: 'under_review', label: 'En analyse' },
-  { value: 'documents_pending', label: 'Pieces manquantes' },
-  { value: 'approved', label: 'Acceptes' },
-  { value: 'rejected', label: 'Refuses' },
+  { value: 'SOUMIS', label: 'Soumis' },
+  { value: 'EN_VERIFICATION', label: 'En verification' },
+  { value: 'DOCUMENTS_MANQUANTS', label: 'Pieces manquantes' },
+  { value: 'EN_ETUDE', label: 'En etude' },
+  { value: 'ACCEPTE', label: 'Acceptes' },
+  { value: 'REFUSE', label: 'Refuses' },
 ];
 
 const STATUS_LABELS = {
-  submitted: 'Nouveau dossier',
-  under_review: 'En analyse',
-  documents_pending: 'Pieces manquantes',
-  approved: 'Accepte',
-  rejected: 'Refuse',
+  SOUMIS: 'Dossier soumis',
+  EN_VERIFICATION: 'En verification',
+  DOCUMENTS_MANQUANTS: 'Pieces manquantes',
+  EN_ETUDE: 'En etude',
+  ACCEPTE: 'Accepte',
+  REFUSE: 'Refuse',
 };
 
 const STATUS_COLORS = {
-  submitted: '#cc0000',
-  under_review: '#ef7d00',
-  documents_pending: '#0a4d8c',
-  approved: '#2c7a4b',
-  rejected: '#6b7280',
+  SOUMIS: '#cc0000',
+  EN_VERIFICATION: '#0a4d8c',
+  DOCUMENTS_MANQUANTS: '#ef7d00',
+  EN_ETUDE: '#6d5dfc',
+  ACCEPTE: '#2c7a4b',
+  REFUSE: '#6b7280',
 };
+
+const ACTIVITY_COLORS = {
+  users: '#0d355a',
+  properties: '#c21f3a',
+  requests: '#d59a27',
+};
+
+const PIE_COLORS = ['#0d355a', '#c21f3a', '#d59a27', '#4f7b72', '#7886a0'];
+
+const PERIOD_OPTIONS = [
+  { value: '3m', label: '3 derniers mois', months: 3 },
+  { value: '6m', label: '6 derniers mois', months: 6 },
+  { value: '12m', label: '12 derniers mois', months: 12 },
+];
 
 const SECTION_COPY = {
   overview: {
     title: 'Dashboard agent bancaire',
-    subtitle: 'Suivi prioritaire des dossiers de credit, controle de conformite et decisions client.',
+    subtitle: 'Suivi prioritaire des dossiers de credit, controle de conformite et retours client.',
   },
   applications: {
     title: 'Traitement des dossiers',
-    subtitle: 'Analyse detaillee, mise a jour de l etat du dossier et decision finale.',
+    subtitle: 'Analyse detaillee, verification des pieces et mise a jour du statut client.',
+  },
+  platform: {
+    title: 'KPI plateforme',
+    subtitle: 'Lecture des biens, clients, reclamations support et sources techniques utiles au traitement.',
   },
 };
 
 function createEmptySummary() {
   return {
     total: 0,
-    submitted: 0,
-    under_review: 0,
-    documents_pending: 0,
-    approved: 0,
-    rejected: 0,
+    SOUMIS: 0,
+    EN_VERIFICATION: 0,
+    DOCUMENTS_MANQUANTS: 0,
+    EN_ETUDE: 0,
+    ACCEPTE: 0,
+    REFUSE: 0,
     average_compliance_score: 0,
   };
+}
+
+function createEmptyPlatformDashboard() {
+  return {
+    summary: {},
+    role_distribution: [],
+    report_status_distribution: [],
+    monthly_activity: [],
+    top_cities: [],
+    top_sources: [],
+    latest_users: [],
+    latest_requests: [],
+  };
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat('fr-FR').format(Number(value || 0));
 }
 
 function formatCurrency(value) {
@@ -119,6 +171,53 @@ function formatStatus(status) {
   return STATUS_LABELS[status] || status || 'Inconnu';
 }
 
+function formatMonthLabel(monthKey) {
+  if (!monthKey) {
+    return '-';
+  }
+
+  const [year, month] = String(monthKey).split('-').map(Number);
+  const date = new Date(year, (month || 1) - 1, 1);
+
+  if (Number.isNaN(date.getTime())) {
+    return monthKey;
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    month: 'short',
+    year: '2-digit',
+  }).format(date);
+}
+
+function formatTextLabel(value) {
+  if (!value) {
+    return '-';
+  }
+
+  return String(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeStatusClass(status) {
+  return String(status || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function escapeCsvCell(value) {
+  const normalized = value == null ? '' : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function getComplianceLabel(level) {
   if (level === 'solid') return 'Conforme';
   if (level === 'watch') return 'A surveiller';
@@ -140,11 +239,13 @@ export default function AgentDashboard() {
   const [profile, setProfile] = useState(null);
   const [applications, setApplications] = useState([]);
   const [summary, setSummary] = useState(createEmptySummary());
+  const [platformDashboard, setPlatformDashboard] = useState(createEmptyPlatformDashboard());
+  const [selectedPeriod, setSelectedPeriod] = useState('6m');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState(null);
   const [draft, setDraft] = useState({
-    status: 'submitted',
+    status: 'SOUMIS',
     compliance_score: '',
     compliance_summary: '',
     agent_note: '',
@@ -153,6 +254,20 @@ export default function AgentDashboard() {
   const [error, setError] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const redirectToLogin = useCallback(() => {
+    clearAuthSession();
+    navigate('/login', { replace: true, state: { from: '/agent/dashboard' } });
+  }, [navigate]);
+
+  const handleAuthFailure = useCallback((requestError) => {
+    if (!isAuthError(requestError)) {
+      return false;
+    }
+
+    redirectToLogin();
+    return true;
+  }, [redirectToLogin]);
 
   const loadDashboard = useCallback(async ({ status = 'all', searchTerm = '', silent = false } = {}) => {
     try {
@@ -164,26 +279,32 @@ export default function AgentDashboard() {
 
       setError('');
 
-      const [profilePayload, queuePayload] = await Promise.all([
+      const [profilePayload, queuePayload, platformPayload] = await Promise.all([
         fetchAgentProfileApi(token),
         fetchAgentCreditApplicationsApi(token, {
           limit: 150,
           status,
           search: searchTerm,
         }),
+        fetchAgentDashboardApi(token),
       ]);
 
       setProfile(profilePayload?.profile || null);
       setApplications(Array.isArray(queuePayload?.applications) ? queuePayload.applications : []);
       setSummary(queuePayload?.summary || createEmptySummary());
+      setPlatformDashboard(platformPayload || createEmptyPlatformDashboard());
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setError(requestError.message || 'Erreur de chargement du dashboard agent.');
     } finally {
       if (!silent) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [handleAuthFailure]);
 
   useEffect(() => {
     loadDashboard({ status: 'all', searchTerm: '' });
@@ -216,7 +337,7 @@ export default function AgentDashboard() {
     }
 
     setDraft({
-      status: selectedApplication.status || 'submitted',
+      status: selectedApplication.status || 'SOUMIS',
       compliance_score:
         selectedApplication.compliance_score === null || selectedApplication.compliance_score === undefined
           ? ''
@@ -228,16 +349,64 @@ export default function AgentDashboard() {
   }, [selectedApplication]);
 
   const pageCopy = SECTION_COPY[activeSection] || SECTION_COPY.overview;
-  const approvalRate = summary.total > 0 ? Math.round((summary.approved / summary.total) * 100) : 0;
-  const pendingCount = summary.submitted + summary.under_review + summary.documents_pending;
+  const approvalRate = summary.total > 0 ? Math.round((summary.ACCEPTE / summary.total) * 100) : 0;
+  const pendingCount =
+    summary.SOUMIS + summary.EN_VERIFICATION + summary.DOCUMENTS_MANQUANTS + summary.EN_ETUDE;
+  const hasPowerBiEmbed = /^https?:\/\//i.test(POWER_BI_AGENT_DASHBOARD_URL);
+  const platformSummary = platformDashboard?.summary || {};
+  const periodMonths =
+    PERIOD_OPTIONS.find((option) => option.value === selectedPeriod)?.months || PERIOD_OPTIONS[1].months;
 
   const overviewApplications = useMemo(() => {
     const ranked = applications.filter((application) =>
-      ['submitted', 'documents_pending', 'under_review'].includes(application.status),
+      ['SOUMIS', 'DOCUMENTS_MANQUANTS', 'EN_VERIFICATION', 'EN_ETUDE'].includes(application.status),
     );
 
     return (ranked.length ? ranked : applications).slice(0, 4);
   }, [applications]);
+
+  const monthlyActivity = useMemo(() => {
+    const series = Array.isArray(platformDashboard?.monthly_activity)
+      ? platformDashboard.monthly_activity
+      : [];
+
+    return series.slice(-periodMonths).map((item) => ({
+      ...item,
+      label: formatMonthLabel(item.month),
+    }));
+  }, [platformDashboard, periodMonths]);
+
+  const roleDistribution = useMemo(() => {
+    return Array.isArray(platformDashboard?.role_distribution)
+      ? platformDashboard.role_distribution.filter((item) => Number(item.value || 0) > 0)
+      : [];
+  }, [platformDashboard]);
+
+  const reportStatusDistribution = useMemo(() => {
+    return Array.isArray(platformDashboard?.report_status_distribution)
+      ? platformDashboard.report_status_distribution.filter((item) => Number(item.value || 0) > 0)
+      : [];
+  }, [platformDashboard]);
+
+  const topCities = platformDashboard?.top_cities || [];
+  const topSources = platformDashboard?.top_sources || [];
+  const latestUsers = platformDashboard?.latest_users || [];
+  const latestRequests = platformDashboard?.latest_requests || [];
+  const latestActivityPoint = monthlyActivity[monthlyActivity.length - 1] || {
+    users: 0,
+    properties: 0,
+    requests: 0,
+  };
+  const previousActivityPoint = monthlyActivity[monthlyActivity.length - 2] || {
+    users: 0,
+    properties: 0,
+    requests: 0,
+  };
+  const activityDelta =
+    latestActivityPoint.users +
+    latestActivityPoint.properties +
+    latestActivityPoint.requests -
+    (previousActivityPoint.users + previousActivityPoint.properties + previousActivityPoint.requests);
 
   const pieData = useMemo(() => {
     return STATUS_OPTIONS.slice(1)
@@ -257,12 +426,39 @@ export default function AgentDashboard() {
   }, [applications]);
 
   const handleLogout = () => {
-    clearAuthSession();
-    navigate('/login', { replace: true });
+    redirectToLogin();
   };
 
   const handleRefresh = () => {
     loadDashboard({ status: statusFilter, searchTerm: search });
+  };
+
+  const handleExportPlatformReport = () => {
+    const rows = [
+      ['Section', 'Indicateur', 'Valeur'],
+      ['Synthese', 'Utilisateurs', platformSummary.total_users || 0],
+      ['Synthese', 'Clients', platformSummary.total_clients || 0],
+      ['Synthese', 'Agents bancaires', platformSummary.total_agents || 0],
+      ['Synthese', 'Admins', platformSummary.total_admins || 0],
+      ['Synthese', 'Biens immobiliers', platformSummary.total_properties || 0],
+      ['Synthese', 'Biens actifs', platformSummary.active_properties || 0],
+      ['Synthese', 'Reclamations support', platformSummary.total_reports || 0],
+      ['Synthese', 'Reclamations cloturees', platformSummary.closed_reports || 0],
+      ['Synthese', 'Taux de traitement support', `${platformSummary.resolution_rate || 0}%`],
+      ...monthlyActivity.map((item) => [
+        'Activite mensuelle',
+        item.label,
+        `${item.users}/${item.properties}/${item.requests}`,
+      ]),
+      ...topCities.map((item) => ['Top villes', item.city, item.total]),
+      ...topSources.map((item) => ['Sources', item.source, item.total]),
+      ...latestUsers.map((item) => ['Derniers utilisateurs', item.name || '-', `${item.role_label} - ${item.email || '-'}`]),
+      ...latestRequests.map((item) => ['Dernieres reclamations', `#${item.id}`, `${item.status_label} - ${item.client_name || '-'}`]),
+    ];
+
+    const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n');
+    const filename = `rapport-agent-plateforme-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadTextFile(filename, csv, 'text/csv;charset=utf-8;');
   };
 
   const handleSearchSubmit = (event) => {
@@ -305,6 +501,10 @@ export default function AgentDashboard() {
       setFormMessage('Dossier mis a jour avec succes.');
       await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
     } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
       setFormMessage('');
       setError(requestError.message || 'Impossible de mettre a jour ce dossier.');
     } finally {
@@ -352,12 +552,20 @@ export default function AgentDashboard() {
               <FaFolderOpen />
               <span>Dossiers</span>
             </button>
+            <button
+              type="button"
+              className={`menu-item ${activeSection === 'platform' ? 'is-active' : ''}`}
+              onClick={() => setActiveSection('platform')}
+            >
+              <FaChartLine />
+              <span>KPI plateforme</span>
+            </button>
           </div>
 
           <div className="agent-sidebar-note">
             <p className="agent-sidebar-kicker">File active</p>
             <strong>{pendingCount} dossiers a suivre</strong>
-            <span>{summary.approved} accordes et {summary.rejected} refuses a date.</span>
+            <span>{summary.ACCEPTE} accordes et {summary.REFUSE} refuses a date.</span>
           </div>
         </aside>
 
@@ -507,7 +715,7 @@ export default function AgentDashboard() {
                             <span>{application.full_name}</span>
                           </div>
                           <div className="agent-overview-meta">
-                            <span className={`admin-report-status-pill status-${application.status}`}>
+                            <span className={`admin-report-status-pill status-${normalizeStatusClass(application.status)}`}>
                               {formatStatus(application.status)}
                             </span>
                             <small>{formatDate(application.created_at)}</small>
@@ -635,7 +843,7 @@ export default function AgentDashboard() {
                               <h3>{application.property_title || `Dossier #${application.id}`}</h3>
                               <p>{application.full_name} - {application.email}</p>
                             </div>
-                            <span className={`admin-report-status-pill status-${application.status}`}>
+                            <span className={`admin-report-status-pill status-${normalizeStatusClass(application.status)}`}>
                               {formatStatus(application.status)}
                             </span>
                           </div>
@@ -682,7 +890,7 @@ export default function AgentDashboard() {
                           </p>
                         </div>
                         <div className="agent-review-statuses">
-                          <span className={`admin-report-status-pill status-${selectedApplication.status}`}>
+                          <span className={`admin-report-status-pill status-${normalizeStatusClass(selectedApplication.status)}`}>
                             {formatStatus(selectedApplication.status)}
                           </span>
                           <span className={`agent-score-pill level-${selectedApplication.compliance_level}`}>
@@ -791,23 +999,31 @@ export default function AgentDashboard() {
                         <button
                           type="button"
                           className="admin-secondary"
-                          onClick={() => handleReviewSubmit('under_review')}
+                          onClick={() => handleReviewSubmit('EN_VERIFICATION')}
                           disabled={submitting}
                         >
-                          Passer en analyse
+                          Verifier documents
                         </button>
                         <button
                           type="button"
                           className="admin-secondary"
-                          onClick={() => handleReviewSubmit('documents_pending')}
+                          onClick={() => handleReviewSubmit('DOCUMENTS_MANQUANTS')}
                           disabled={submitting}
                         >
                           Demander pieces
                         </button>
                         <button
                           type="button"
+                          className="admin-secondary"
+                          onClick={() => handleReviewSubmit('EN_ETUDE')}
+                          disabled={submitting}
+                        >
+                          Passer en etude
+                        </button>
+                        <button
+                          type="button"
                           className="admin-refresh"
-                          onClick={() => handleReviewSubmit('approved')}
+                          onClick={() => handleReviewSubmit('ACCEPTE')}
                           disabled={submitting}
                         >
                           <FaCheckCircle />
@@ -816,7 +1032,7 @@ export default function AgentDashboard() {
                         <button
                           type="button"
                           className="admin-danger"
-                          onClick={() => handleReviewSubmit('rejected')}
+                          onClick={() => handleReviewSubmit('REFUSE')}
                           disabled={submitting}
                         >
                           <FaBan />
@@ -841,6 +1057,297 @@ export default function AgentDashboard() {
                   )}
                 </section>
               </aside>
+            </div>
+          )}
+
+          {activeSection === 'platform' && (
+            <div className="admin-content-grid agent-platform-grid">
+              <section className="admin-card agent-platform-toolbar">
+                <div>
+                  <h2>Vue plateforme consolidee</h2>
+                  <p className="admin-section-help">
+                    KPI utiles a l agent bancaire pour croiser dossiers de credit, portefeuille de biens et reclamations support.
+                  </p>
+                </div>
+                <div className="agent-platform-actions">
+                  <label className="admin-field-block agent-period-field">
+                    <span className="admin-field-label">Periode observee</span>
+                    <select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>
+                      {PERIOD_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" className="admin-secondary" onClick={handleExportPlatformReport}>
+                    <FaDownload />
+                    <span>Exporter</span>
+                  </button>
+                </div>
+              </section>
+
+              <section className="admin-kpi-grid">
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaUsers /></div>
+                  <div>
+                    <h3>Utilisateurs</h3>
+                    <p>{formatNumber(platformSummary.total_users)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaBuilding /></div>
+                  <div>
+                    <h3>Biens actifs</h3>
+                    <p>{formatNumber(platformSummary.active_properties)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaClipboardList /></div>
+                  <div>
+                    <h3>Reclamations</h3>
+                    <p>{formatNumber(platformSummary.total_reports)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaCheckCircle /></div>
+                  <div>
+                    <h3>Support traite</h3>
+                    <p>{formatNumber(platformSummary.resolution_rate)}%</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaChartLine /></div>
+                  <div>
+                    <h3>Activite</h3>
+                    <p>{activityDelta >= 0 ? `+${formatNumber(activityDelta)}` : formatNumber(activityDelta)}</p>
+                  </div>
+                </article>
+              </section>
+
+              {hasPowerBiEmbed ? (
+                <section className="admin-card agent-platform-card--wide">
+                  <h2>KPI Power BI</h2>
+                  <p className="admin-section-help">Tableau Power BI integre a l espace agent bancaire.</p>
+                  <div className="agent-powerbi-frame-wrap">
+                    <iframe
+                      src={POWER_BI_AGENT_DASHBOARD_URL}
+                      title={POWER_BI_AGENT_DASHBOARD_TITLE}
+                      className="agent-powerbi-frame"
+                      loading="lazy"
+                      allowFullScreen
+                    />
+                  </div>
+                </section>
+              ) : null}
+
+              <div className="admin-row">
+                <section className="admin-card agent-platform-card--wide">
+                  <h2>Activite plateforme par mois</h2>
+                  <p className="admin-section-help">
+                    Inscriptions, biens valides et reclamations support sur la periode selectionnee.
+                  </p>
+                  {monthlyActivity.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={320}>
+                        <LineChart data={monthlyActivity}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="users" stroke={ACTIVITY_COLORS.users} strokeWidth={3} name="Utilisateurs" />
+                          <Line type="monotone" dataKey="properties" stroke={ACTIVITY_COLORS.properties} strokeWidth={3} name="Biens" />
+                          <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="Reclamations" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="admin-state admin-state--inline">
+                      <FaChartLine />
+                      <p>Aucune activite mensuelle disponible.</p>
+                    </div>
+                  )}
+                </section>
+
+                <section className="admin-card">
+                  <h2>Repartition des roles</h2>
+                  <p className="admin-section-help">Population active selon les trois roles autorises.</p>
+                  {roleDistribution.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={320}>
+                        <PieChart>
+                          <Pie data={roleDistribution} dataKey="value" nameKey="label" innerRadius={62} outerRadius={104} paddingAngle={4}>
+                            {roleDistribution.map((entry, index) => (
+                              <Cell key={entry.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="admin-state admin-state--inline">
+                      <FaUsers />
+                      <p>Aucune repartition disponible.</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <div className="admin-row">
+                <section className="admin-card">
+                  <h2>Villes les plus actives</h2>
+                  <p className="admin-section-help">Concentration des biens immobiliers valides par bassin geographique.</p>
+                  {topCities.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={topCities}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="city" tickFormatter={formatTextLabel} />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Bar dataKey="total" fill="#0d355a" radius={[10, 10, 0, 0]} name="Biens" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="empty">Aucune ville a afficher.</p>
+                  )}
+                </section>
+
+                <section className="admin-card">
+                  <h2>Statut des reclamations</h2>
+                  <p className="admin-section-help">Les reclamations restent un module support distinct du flux credit.</p>
+                  {reportStatusDistribution.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={reportStatusDistribution}
+                            dataKey="value"
+                            nameKey="label"
+                            outerRadius={104}
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {reportStatusDistribution.map((entry, index) => (
+                              <Cell key={entry.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="empty">Aucune reclamation a afficher.</p>
+                  )}
+                </section>
+
+                <section className="admin-card">
+                  <h2>Sources techniques</h2>
+                  <p className="admin-section-help">Origine des biens valides apres import depuis les sources de scraping.</p>
+                  <div className="agent-source-list">
+                    {topSources.length ? (
+                      topSources.map((item, index) => (
+                        <div key={`${item.source}-${index}`} className="agent-source-item">
+                          <div>
+                            <strong>{formatTextLabel(item.source)}</strong>
+                            <span>{formatNumber(item.total)} biens</span>
+                          </div>
+                          <div className="agent-source-bar">
+                            <span
+                              style={{
+                                width: `${Math.max(
+                                  12,
+                                  Math.round((Number(item.total || 0) / Number(topSources[0]?.total || 1)) * 100),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="empty">Aucune source a afficher.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <div className="admin-row">
+                <section className="admin-card">
+                  <h2>Derniers utilisateurs</h2>
+                  <p className="admin-section-help">Consultation rapide des profils clients, agents et admins.</p>
+                  <div className="agent-platform-table-wrap">
+                    <table className="agent-platform-table">
+                      <thead>
+                        <tr>
+                          <th>Utilisateur</th>
+                          <th>Role</th>
+                          <th>Creation</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {latestUsers.length ? (
+                          latestUsers.map((user) => (
+                            <tr key={user.id}>
+                              <td>
+                                <strong>{user.name || 'Utilisateur'}</strong>
+                                <span>{user.email || '-'}</span>
+                              </td>
+                              <td>{user.role_label || formatTextLabel(user.role)}</td>
+                              <td>{formatDate(user.created_at)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="3">Aucun utilisateur recent a afficher.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className="admin-card">
+                  <h2>Dernieres reclamations</h2>
+                  <p className="admin-section-help">Vue compacte du support, separee du traitement des dossiers de credit.</p>
+                  <div className="agent-platform-table-wrap">
+                    <table className="agent-platform-table">
+                      <thead>
+                        <tr>
+                          <th>Reclamation</th>
+                          <th>Client</th>
+                          <th>Statut</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {latestRequests.length ? (
+                          latestRequests.map((request) => (
+                            <tr key={request.id}>
+                              <td>
+                                <strong>#{request.id}</strong>
+                                <span>{formatTextLabel(request.type)}</span>
+                              </td>
+                              <td>
+                                <strong>{request.client_name || 'Client'}</strong>
+                                <span>{request.client_email || '-'}</span>
+                              </td>
+                              <td>{request.status_label || formatTextLabel(request.status)}</td>
+                              <td>{formatDate(request.created_at)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4">Aucune reclamation recente a afficher.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
             </div>
           )}
         </div>

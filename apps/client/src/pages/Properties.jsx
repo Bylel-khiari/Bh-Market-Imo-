@@ -671,7 +671,7 @@ const Properties = () => {
               Les favoris sont actuellement disponibles pour les comptes client.
             </div>
           )}
-          {loading && <div className="properties-loading">Chargement des biens nettoyes...</div>}
+          {loading && <div className="properties-loading">Chargement des biens disponibles...</div>}
 
           {!loading && filteredProperties.length > 0 && (
             <>

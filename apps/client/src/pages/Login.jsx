@@ -27,10 +27,6 @@ const Login = () => {
       return '/agent/dashboard';
     }
 
-    if (user?.role === 'responsable_decisionnel') {
-      return '/dashboard';
-    }
-
     return '/';
   };
 
@@ -151,14 +147,9 @@ const Login = () => {
 
             {errorMessage && <p className="login-error-message">{errorMessage}</p>}
 
-            <div className="login-divider">
-              <span>ou</span>
-            </div>
-
-            <div className="login-register">
+            <div className="login-account-note">
               <p>
-                Vous n'avez pas de compte ?{' '}
-                <Link to="/register" state={location.state}>Creer un compte</Link>
+                Votre compte est cree par l administrateur BH Bank. Contactez votre agence pour recevoir vos identifiants.
               </p>
             </div>
           </form>

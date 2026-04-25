@@ -2,12 +2,11 @@ import bcrypt from "bcrypt";
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
-const VALID_ROLES = ["client", "agent_bancaire", "responsable_decisionnel", "admin"];
+const VALID_ROLES = ["client", "agent_bancaire", "admin"];
 
 async function syncUserProfileByRole(connection, userId, role, payload = {}) {
   await connection.query("DELETE FROM client_profiles WHERE user_id = ?", [userId]);
   await connection.query("DELETE FROM agent_profiles WHERE user_id = ?", [userId]);
-  await connection.query("DELETE FROM decision_profiles WHERE user_id = ?", [userId]);
   await connection.query("DELETE FROM admin_profiles WHERE user_id = ?", [userId]);
 
   if (role === "client") {
@@ -22,14 +21,6 @@ async function syncUserProfileByRole(connection, userId, role, payload = {}) {
     await connection.query(
       "INSERT INTO agent_profiles (user_id, matricule) VALUES (?, ?)",
       [userId, payload.matricule ?? null]
-    );
-    return;
-  }
-
-  if (role === "responsable_decisionnel") {
-    await connection.query(
-      "INSERT INTO decision_profiles (user_id, department) VALUES (?, ?)",
-      [userId, payload.department ?? null]
     );
     return;
   }
@@ -59,7 +50,6 @@ export async function createUserByAdmin(payload = {}) {
     address = null,
     phone = null,
     matricule = null,
-    department = null,
   } = payload;
 
   if (!name || !email || !password) {
@@ -100,7 +90,6 @@ export async function createUserByAdmin(payload = {}) {
       address,
       phone,
       matricule,
-      department,
     });
 
     const [userRows] = await connection.query(
@@ -132,7 +121,6 @@ export async function updateUserByAdmin(userId, payload = {}) {
     address = null,
     phone = null,
     matricule = null,
-    department = null,
   } = payload;
 
   if (role && !VALID_ROLES.includes(role)) {
@@ -201,7 +189,6 @@ export async function updateUserByAdmin(userId, payload = {}) {
       address,
       phone,
       matricule,
-      department,
     });
 
     const [userRows] = await connection.query(

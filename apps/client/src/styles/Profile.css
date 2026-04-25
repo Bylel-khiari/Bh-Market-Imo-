@@ -123,27 +123,32 @@
   white-space: nowrap;
 }
 
-.profile-credit-status.status-submitted {
+.profile-credit-status.status-soumis {
   background: rgba(217, 22, 22, 0.1);
   color: #b00000;
 }
 
-.profile-credit-status.status-under_review {
-  background: rgba(239, 125, 0, 0.14);
-  color: #d57600;
-}
-
-.profile-credit-status.status-documents_pending {
+.profile-credit-status.status-en-verification {
   background: rgba(10, 77, 140, 0.12);
   color: #0a4d8c;
 }
 
-.profile-credit-status.status-approved {
+.profile-credit-status.status-documents-manquants {
+  background: rgba(239, 125, 0, 0.14);
+  color: #d57600;
+}
+
+.profile-credit-status.status-en-etude {
+  background: rgba(109, 93, 252, 0.12);
+  color: #4c42c9;
+}
+
+.profile-credit-status.status-accepte {
   background: rgba(44, 122, 75, 0.12);
   color: #226640;
 }
 
-.profile-credit-status.status-rejected {
+.profile-credit-status.status-refuse {
   background: rgba(10, 34, 64, 0.1);
   color: #0a2240;
 }

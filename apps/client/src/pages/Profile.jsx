@@ -107,13 +107,17 @@ const Profile = () => {
   };
 
   const formatCreditApplicationStatus = (status) => {
-    if (status === 'submitted') return 'Nouveau dossier';
-    if (status === 'under_review') return 'En analyse';
-    if (status === 'documents_pending') return 'Pieces manquantes';
-    if (status === 'approved') return 'Accepte';
-    if (status === 'rejected') return 'Refuse';
+    if (status === 'SOUMIS') return 'Dossier soumis';
+    if (status === 'EN_VERIFICATION') return 'En verification';
+    if (status === 'DOCUMENTS_MANQUANTS') return 'Pieces manquantes';
+    if (status === 'EN_ETUDE') return 'En etude';
+    if (status === 'ACCEPTE') return 'Accepte';
+    if (status === 'REFUSE') return 'Refuse';
     return status || 'Inconnu';
   };
+
+  const getCreditApplicationStatusClass = (status) =>
+    String(status || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
   return (
     <div className="profile-page">
@@ -162,7 +166,7 @@ const Profile = () => {
                                 Depose le {new Date(application.created_at).toLocaleDateString('fr-FR')}
                               </p>
                             </div>
-                            <span className={`profile-credit-status status-${application.status}`}>
+                            <span className={`profile-credit-status status-${getCreditApplicationStatusClass(application.status)}`}>
                               {formatCreditApplicationStatus(application.status)}
                             </span>
                           </div>

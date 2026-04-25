@@ -12,7 +12,6 @@ import creditApplicationRoutes from "./routes/creditApplicationRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
-import decisionRoutes from "./routes/decisionRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { httpError } from "./utils/httpError.js";
@@ -94,7 +93,6 @@ app.use(creditApplicationRoutes);
 app.use(authRoutes);
 app.use(clientRoutes);
 app.use(agentRoutes);
-app.use(decisionRoutes);
 app.use(adminRoutes);
 
 app.use(notFoundHandler);
