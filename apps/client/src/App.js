@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Contact from './pages/Contact';
 import CreditImmobilierBHPortal from './pages/CreditImmobilierBHPortal';
 import LaBanque from './pages/LaBanque';
+import MapPage from './features/map/pages/MapPage';
 import { getAuthSession } from './lib/auth';
 import './App.css';
 
@@ -45,6 +46,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/la-banque" element={<LaBanque />} />
           <Route path="/credit-immobilier-bh" element={<CreditImmobilierBHPortal />} />
+          <Route path="/map" element={<MapPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/manage" element={<ProfileManagement />} />
         </Routes>

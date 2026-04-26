@@ -9,10 +9,19 @@ export function normalizeText(value = '') {
 }
 
 export function normalizeGovernorateName(value = '') {
-  return normalizeText(value)
-    .replace(/gouvernorat|governorate|ولاية/g, '')
+  const normalized = normalizeText(value)
+    .replace(/gouvernorat|governorate|\u0648\u0644\u0627\u064a\u0629/g, '')
     .replace(/\bel\b/g, '')
     .trim();
+
+  const aliases = {
+    jandouba: 'jendouba',
+    mannouba: 'manouba',
+    mednine: 'medenine',
+    'sidi bou zid': 'sidi bouzid',
+  };
+
+  return aliases[normalized] || normalized;
 }
 
 export function adaptDatabaseListings(rows = []) {
@@ -24,19 +33,22 @@ export function adaptDatabaseListings(rows = []) {
       row.governorate ??
       row.region ??
       row.state ??
+      row.city ??
+      row.location_raw ??
       row.address?.governorate ??
       row.location?.governorate ??
       '',
     location:
       row.locationLabel ??
       row.location_name ??
+      row.location_raw ??
       row.city ??
       row.delegation ??
       row.address?.city ??
       row.location?.city ??
       row.governorate ??
       '',
-    price: row.price ?? row.amount ?? row.salePrice ?? null,
+    price: row.price ?? row.price_value ?? row.amount ?? row.salePrice ?? null,
     currency: row.currency ?? 'TND',
     rooms: row.rooms ?? row.bedrooms ?? row.roomCount ?? null,
     source: row.source ?? row.website ?? row.provider ?? 'database',

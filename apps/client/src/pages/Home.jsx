@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHome, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
-import TunisiaMapHome from '../components/TunisiaMapHome';
+import HomeMapSection from '../features/map/pages/HomeMapSection';
 import PropertyCarousel from '../components/PropertyCarousel';
 import '../styles/Home.css';
 
@@ -39,7 +39,7 @@ const Home = () => {
               <h2>Carte des gouvernorats</h2>
             </div>
           </div>
-          <TunisiaMapHome />
+          <HomeMapSection />
         </div>
 
         <PropertyCarousel />

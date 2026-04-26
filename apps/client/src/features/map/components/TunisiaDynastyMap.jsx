@@ -1,22 +1,107 @@
 import { useEffect, useMemo, useState } from 'react';
 import { geoCentroid, geoMercator, geoPath } from 'd3-geo';
-import { groupListingsByGovernorate, normalizeGovernorateName } from '../lib/mapDataAdapter';
+import {
+  groupListingsByGovernorate,
+  normalizeGovernorateName,
+} from '../lib/mapDataAdapter';
 
+const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
 const FALLBACK_GEOJSON_URL =
   'https://raw.githubusercontent.com/riatelab/tunisie/refs/heads/master/data/TN-gouvernorats.geojson';
 
+const GOVERNORATE_NAME_BY_CODE = {
+  'TN-11': 'Tunis',
+  'TN-12': 'Ariana',
+  'TN-13': 'Ben Arous',
+  'TN-14': 'Manouba',
+  'TN-21': 'Nabeul',
+  'TN-22': 'Zaghouan',
+  'TN-23': 'Bizerte',
+  'TN-31': 'Beja',
+  'TN-32': 'Jendouba',
+  'TN-33': 'El Kef',
+  'TN-34': 'Siliana',
+  'TN-41': 'Kairouan',
+  'TN-42': 'Kasserine',
+  'TN-43': 'Sidi Bouzid',
+  'TN-51': 'Sousse',
+  'TN-52': 'Monastir',
+  'TN-53': 'Mahdia',
+  'TN-61': 'Sfax',
+  'TN-71': 'Gafsa',
+  'TN-72': 'Tozeur',
+  'TN-73': 'Kebili',
+  'TN-81': 'Gabes',
+  'TN-82': 'Medenine',
+  'TN-83': 'Tataouine',
+};
+
+function cleanGovernorateLabel(value = '') {
+  const replacements = [
+    [new RegExp('B\\u00c3\\u00a9ja|B\\u00c3\\u0192\\u00c2\\u00a9ja', 'gi'), 'Beja'],
+    [new RegExp('Gab\\u00c3\\u00a8s|Gab\\u00c3\\u0192\\u00c2\\u00a8s', 'gi'), 'Gabes'],
+    [new RegExp('K\\u00c3\\u00a9bili|K\\u00c3\\u0192\\u00c2\\u00a9bili', 'gi'), 'Kebili'],
+    [new RegExp('M\\u00c3\\u00a9denine|M\\u00c3\\u0192\\u00c2\\u00a9denine', 'gi'), 'Medenine'],
+  ];
+
+  const label = replacements.reduce(
+    (current, [pattern, replacement]) => current.replace(pattern, replacement),
+    String(value)
+  );
+
+  return label.trim();
+}
+
 function getFeatureName(feature) {
   const props = feature?.properties ?? {};
-  return (
-    props.name ||
-    props.NAME_1 ||
-    props.nom ||
-    props.governorate ||
-    props.lib ||
+  const code = props.shapeISO || props.gouv_id;
+
+  if (code && GOVERNORATE_NAME_BY_CODE[code]) {
+    return GOVERNORATE_NAME_BY_CODE[code];
+  }
+
+  return cleanGovernorateLabel(
     props.shapeName ||
-    props.NAME ||
-    'Unknown'
+      props.gouv_fr ||
+      props.gouv_ar ||
+      props.name ||
+      props.NAME_1 ||
+      props.nom ||
+      props.governorate ||
+      props.lib ||
+      props.NAME ||
+      'Unknown'
   );
+}
+
+function rewindGeometry(geometry) {
+  if (!geometry || !geometry.type || !geometry.coordinates) return geometry;
+
+  if (geometry.type === 'Polygon') {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((ring) => [...ring].reverse()),
+    };
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((polygon) => polygon.map((ring) => [...ring].reverse())),
+    };
+  }
+
+  return geometry;
+}
+
+function normalizeFeatureCollection(data) {
+  return {
+    ...data,
+    features: data.features.map((feature) => ({
+      ...feature,
+      geometry: rewindGeometry(feature.geometry),
+    })),
+  };
 }
 
 function computeMarkerOffsets(items) {
@@ -31,8 +116,22 @@ function computeMarkerOffsets(items) {
   });
 }
 
+async function fetchGeoJson(url, signal) {
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`GeoJSON request failed with ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data?.features?.length) {
+    throw new Error('GeoJSON loaded but no features were found.');
+  }
+
+  return normalizeFeatureCollection(data);
+}
+
 export default function TunisiaDynastyMap({
-  geoJsonUrl = FALLBACK_GEOJSON_URL,
+  geoJsonUrl = LOCAL_GEOJSON_URL,
   listings = [],
   width = 980,
   height = 700,
@@ -58,18 +157,23 @@ export default function TunisiaDynastyMap({
         setStatus('loading');
         setErrorMessage('');
 
-        const response = await fetch(geoJsonUrl, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`GeoJSON request failed with ${response.status}`);
+        const candidateUrls =
+          geoJsonUrl === FALLBACK_GEOJSON_URL ? [geoJsonUrl] : [geoJsonUrl, FALLBACK_GEOJSON_URL];
+        let lastError = null;
+
+        for (const candidateUrl of candidateUrls) {
+          try {
+            const data = await fetchGeoJson(candidateUrl, controller.signal);
+            setGeoJson(data);
+            setStatus('ready');
+            return;
+          } catch (error) {
+            if (error.name === 'AbortError') return;
+            lastError = error;
+          }
         }
 
-        const data = await response.json();
-        if (!data?.features?.length) {
-          throw new Error('GeoJSON loaded but no features were found.');
-        }
-
-        setGeoJson(data);
-        setStatus('ready');
+        throw lastError || new Error('Unable to load Tunisia GeoJSON.');
       } catch (error) {
         if (error.name === 'AbortError') return;
         setStatus('error');
@@ -163,7 +267,7 @@ export default function TunisiaDynastyMap({
         </header>
 
         <div className="map-stage">
-          {status === 'loading' && <div className="state-panel">Loading Tunisia GeoJSON…</div>}
+          {status === 'loading' && <div className="state-panel">Loading Tunisia GeoJSON...</div>}
           {status === 'error' && (
             <div className="state-panel state-panel--error">
               <strong>Map failed to load.</strong>
@@ -247,8 +351,7 @@ export default function TunisiaDynastyMap({
           <p className="eyebrow">Selection</p>
           <h2>{selectedGovernorateData?.rawName || 'All Tunisia'}</h2>
           <p className="muted">
-            This component is UI-only now. Filtering, dedupe and business rules should happen in
-            your scraper agent, service layer or backend before the data reaches the map.
+            This component receives already-adapted listings and only handles map presentation.
           </p>
         </div>
 

@@ -1,12 +1,24 @@
 const AUTH_STORAGE_KEY = 'bh_market_auth';
+const DEV_FRONTEND_PORTS = new Set(['3000', '3001', '3002', '3003', '3004', '3005', '5173']);
 
 export function getApiBaseUrl() {
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
+  const configuredApiUrl = String(process.env.REACT_APP_API_URL || '').trim();
+
+  if (configuredApiUrl) {
+    return configuredApiUrl.replace(/\/$/, '');
   }
 
   if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:5000`;
+    const { protocol, hostname, port } = window.location;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isDevFrontendPort = DEV_FRONTEND_PORTS.has(port);
+
+    if (isLocalhost || isDevFrontendPort) {
+      return `${protocol}//${hostname}:5000`;
+    }
+
+    // In deployed environments, prefer same-origin requests unless explicitly configured.
+    return '';
   }
 
   return 'http://localhost:5000';

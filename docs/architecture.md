@@ -2,13 +2,13 @@
 
 ## Overview
 
-This repository uses a clean monorepo layout with clear separation between production apps, data services, tooling, and examples.
+This repository uses a clean monorepo layout with clear separation between production apps, data services, and tooling.
 
 - apps/client: React frontend used by end users.
 - apps/server: Express API serving authentication, admin, agent, client, credit, profile, and property endpoints with an MVC-style structure.
 - services/scraper: Scrapy project that ingests raw listing data into MySQL.
 - tools/listing_cleaner.py: Normalizes and deduplicates raw listings into clean datasets.
-- examples/map-integration: Standalone reference app for map-focused integration experiments.
+- apps/client/src/features/map: Production map feature, including map components, data adapters, pages, and scoped styles.
 
 ## Data Flow
 
@@ -32,7 +32,7 @@ Only `client`, `agent_bancaire`, and `admin` are valid application roles. Public
 
 - apps/client and apps/server are the production runtime surface.
 - services/scraper and tools/listing_cleaner.py are batch/data workflows.
-- examples/map-integration is intentionally non-production.
+- apps/client/src/features/map is the production map integration surface.
 
 ## Backend Pattern
 
@@ -44,4 +44,3 @@ Only `client`, `agent_bancaire`, and `admin` are valid application roles. Public
 ## Workspace Policy
 
 Root npm workspaces include only production Node apps under apps/*.
-Examples are excluded from workspaces to keep production dependency graphs focused.

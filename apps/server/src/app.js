@@ -27,12 +27,11 @@ dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 export const app = express();
 
 const isProduction = process.env.NODE_ENV === "production";
-const defaultDevOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-];
+const defaultDevPorts = ["3000", "3001", "3002", "3003", "3004", "3005", "5173"];
+const defaultDevOrigins = defaultDevPorts.flatMap((port) => [
+  `http://localhost:${port}`,
+  `http://127.0.0.1:${port}`,
+]);
 
 const allowedOrigins = String(process.env.CORS_ORIGINS || "")
   .split(",")

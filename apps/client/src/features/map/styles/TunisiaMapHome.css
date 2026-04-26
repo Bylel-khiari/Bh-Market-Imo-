@@ -1,3 +1,22 @@
+.home-map-section {
+  display: grid;
+  gap: 14px;
+}
+
+.tn-home-map-status {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(164, 182, 197, 0.42);
+  background: rgba(247, 250, 253, 0.98);
+  color: #4f667a;
+}
+
+.tn-home-map-status--error {
+  color: #a7354c;
+  border-color: rgba(167, 53, 76, 0.26);
+  background: rgba(255, 245, 247, 0.98);
+}
+
 .tn-full-layout {
   --map-water: #8fcde8;
   --map-water-soft: #bfe4f4;
@@ -93,10 +112,6 @@
   border-radius: 18px;
   overflow: hidden;
   background: rgba(143, 205, 232, 0.96);
-}
-
-.tn-full-map-stage::before {
-  content: none;
 }
 
 .tn-full-map {
@@ -213,6 +228,7 @@
   display: grid;
   gap: 5px;
   cursor: pointer;
+  font: inherit;
 }
 
 .tn-full-listing-card:hover {
@@ -256,7 +272,7 @@
 }
 
 .tn-full-state-panel--error {
-  color: #ffd4db;
+  color: #a7354c;
 }
 
 @media (max-width: 1120px) {
