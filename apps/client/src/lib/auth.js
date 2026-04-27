@@ -1,5 +1,18 @@
 const AUTH_STORAGE_KEY = 'bh_market_auth';
+export const AUTH_SESSION_CHANGED_EVENT = 'bh-market-auth-session-changed';
 const DEV_FRONTEND_PORTS = new Set(['3000', '3001', '3002', '3003', '3004', '3005', '5173']);
+
+function notifyAuthSessionChanged(session) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_SESSION_CHANGED_EVENT, {
+      detail: { session },
+    }),
+  );
+}
 
 export function getApiBaseUrl() {
   const configuredApiUrl = String(process.env.REACT_APP_API_URL || '').trim();
@@ -141,6 +154,7 @@ export async function submitCreditApplicationApi(input, token) {
 
 export function saveAuthSession(session) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  notifyAuthSessionChanged(session);
 }
 
 export function getAuthSession() {
@@ -337,4 +351,5 @@ export async function updateAgentCreditApplicationApi(applicationId, input, toke
 
 export function clearAuthSession() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  notifyAuthSessionChanged(null);
 }

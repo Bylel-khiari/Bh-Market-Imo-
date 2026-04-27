@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import BHAssistantWidget from './components/assistant/BHAssistantWidget';
 import Home from './pages/Home';
 import Properties from './pages/Properties';
 import CreditSimulation from './pages/CreditSimulation';
@@ -52,6 +53,7 @@ function App() {
         </Routes>
       </main>
       {!hideNavFooter && <Footer />}
+      <BHAssistantWidget />
     </div>
   );
 }
