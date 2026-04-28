@@ -10,6 +10,7 @@ import {
 	listPropertiesByAdmin,
 	listScrapeSites,
 	listUsers,
+	startListingCleanerByAdmin,
 	startScraperByAdmin,
 	stopScraperByAdmin,
 	updateProperty,
@@ -111,6 +112,12 @@ router.post(
 	requireRoles("admin"),
 	validateRequest({ body: adminStartScraperBodySchema }),
 	startScraperByAdmin
+);
+router.post(
+	"/api/admin/scraper-control/cleaner/start",
+	requireAuth,
+	requireRoles("admin"),
+	startListingCleanerByAdmin
 );
 router.post(
 	"/api/admin/scraper-control/stop",

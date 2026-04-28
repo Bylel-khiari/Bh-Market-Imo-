@@ -248,6 +248,12 @@ export async function startAdminScraperApi(input, token) {
   });
 }
 
+export async function startAdminListingCleanerApi(token) {
+  return authorizedJsonRequest('/api/admin/scraper-control/cleaner/start', token, {
+    method: 'POST',
+  });
+}
+
 export async function stopAdminScraperApi(token) {
   return authorizedJsonRequest('/api/admin/scraper-control/stop', token, {
     method: 'POST',

@@ -5,6 +5,7 @@ import {
   FaBuilding,
   FaChartLine,
   FaCheckCircle,
+  FaClock,
   FaCog,
   FaEnvelope,
   FaExclamationTriangle,
@@ -17,6 +18,7 @@ import {
   FaSignOutAlt,
   FaStop,
   FaSyncAlt,
+  FaTerminal,
   FaTimes,
   FaUser,
   FaUserTie,
@@ -51,6 +53,7 @@ import {
   getApiBaseUrl,
   isAuthError,
   requireAuthToken,
+  startAdminListingCleanerApi,
   startAdminScraperApi,
   stopAdminScraperApi,
   updateAdminPropertyReportStatusApi,
@@ -218,6 +221,46 @@ function formatScraperStatus(control) {
     default:
       return control.is_enabled ? 'Automatique active' : 'Arrete';
   }
+}
+
+function formatScraperRunType(runType) {
+  switch (runType) {
+    case 'scraper_cycle':
+      return 'Scraping + filtrage';
+    case 'listing_cleaner':
+      return 'Agent de filtrage';
+    default:
+      return 'Aucun run actif';
+  }
+}
+
+function formatDuration(secondsLike) {
+  if (secondsLike === null || secondsLike === undefined || secondsLike === '') {
+    return 'Calcul en cours';
+  }
+
+  const totalSeconds = Number(secondsLike);
+  if (!Number.isFinite(totalSeconds)) {
+    return 'Calcul en cours';
+  }
+
+  if (totalSeconds <= 0) {
+    return 'Termine';
+  }
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, '0')}min`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}min ${String(seconds).padStart(2, '0')}s`;
+  }
+
+  return `${seconds}s`;
 }
 
 export default function AdminDashboard() {
@@ -840,6 +883,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleStartListingCleaner = async () => {
+    try {
+      const token = requireAuthToken();
+      setScraperSubmitting(true);
+      setScraperControlError('');
+      setScraperControlMessage('');
+
+      const payload = await startAdminListingCleanerApi(token);
+
+      syncScraperControlState(
+        payload?.control || scraperControl,
+        'Agent de filtrage demarre. Les annonces nettoyees seront synchronisees apres le filtrage.',
+      );
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setScraperControlError(requestError.message || 'Erreur pendant le demarrage de l agent.');
+    } finally {
+      setScraperSubmitting(false);
+    }
+  };
+
   const handleStopScraper = async () => {
     try {
       const token = requireAuthToken();
@@ -1132,6 +1199,18 @@ export default function AdminDashboard() {
           : scraperIsEnabled
             ? 'is-scheduled'
             : 'is-idle';
+  const scraperProgressPercent = Math.min(100, Math.max(0, Number(scraperControl?.progress_percent || 0)));
+  const scraperProgressSteps =
+    Number(scraperControl?.progress_total || 0) > 0
+      ? `${Number(scraperControl?.progress_current || 0)} / ${Number(scraperControl?.progress_total || 0)} etapes`
+      : 'En attente';
+  const scraperEtaLabel = scraperIsRunning
+    ? formatDuration(scraperControl?.estimated_remaining_seconds)
+    : scraperControl?.last_finished_at
+      ? 'Termine'
+      : 'Aucun cycle';
+  const scraperRunTypeLabel = formatScraperRunType(scraperControl?.run_type);
+  const scraperRecentLog = String(scraperControl?.recent_log || '').trim();
 
   const propertyTotals = useMemo(() => {
     return adminProperties.reduce(
@@ -1945,9 +2024,9 @@ export default function AdminDashboard() {
                       <span className="admin-scraper-kicker">Mission controle</span>
                       <h2>Automatisation du scraping</h2>
                       <p className="admin-section-help">
-                        Demarrer lance un cycle de collecte tout de suite puis planifie les
-                        prochains rescrapes automatiquement. Arreter coupe la planification et
-                        tente d interrompre le process en cours.
+                        Demarrer lance un cycle de collecte complet. Agent de filtrage execute
+                        uniquement le nettoyage des annonces deja collectees puis synchronise les
+                        biens visibles.
                       </p>
                     </div>
                     <div className="admin-scraper-top-meta">
@@ -1998,6 +2077,31 @@ export default function AdminDashboard() {
                                       : 'Arrete'}
                                 </strong>
                               </div>
+                              <div className="admin-scraper-mini-card">
+                                <span>Run courant</span>
+                                <strong>{scraperRunTypeLabel}</strong>
+                              </div>
+                              <div className="admin-scraper-mini-card">
+                                <span>Temps restant</span>
+                                <strong>{scraperEtaLabel}</strong>
+                              </div>
+                            </div>
+
+                            <div className="admin-scraper-progress-panel">
+                              <div className="admin-scraper-progress-head">
+                                <span>Progression</span>
+                                <strong>{Math.round(scraperProgressPercent)}%</strong>
+                              </div>
+                              <div
+                                className="admin-scraper-progress-track"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow={Math.round(scraperProgressPercent)}
+                              >
+                                <span style={{ width: `${scraperProgressPercent}%` }} />
+                              </div>
+                              <small>{scraperProgressSteps}</small>
                             </div>
 
                             <div className="admin-scraper-form-shell">
@@ -2041,6 +2145,15 @@ export default function AdminDashboard() {
                                 >
                                   <FaPlay />
                                   {scraperIsEnabled ? 'Relancer maintenant' : 'Demarrer'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-secondary admin-scraper-btn admin-scraper-btn--agent"
+                                  onClick={handleStartListingCleaner}
+                                  disabled={scraperSubmitting || scraperIsRunning}
+                                >
+                                  <FaUserTie />
+                                  Agent de filtrage
                                 </button>
                                 <button
                                   type="button"
@@ -2089,6 +2202,18 @@ export default function AdminDashboard() {
                           <div className="admin-scraper-stat">
                             <div className="admin-scraper-stat-head">
                               <span className="admin-scraper-stat-icon">
+                                <FaClock />
+                              </span>
+                              <span>Temps estime</span>
+                            </div>
+                            <strong>{scraperEtaLabel}</strong>
+                            <small>
+                              Progression: {Math.round(scraperProgressPercent)}% ({scraperProgressSteps})
+                            </small>
+                          </div>
+                          <div className="admin-scraper-stat">
+                            <div className="admin-scraper-stat-head">
+                              <span className="admin-scraper-stat-icon">
                                 <FaCheckCircle />
                               </span>
                               <span>Dernier succes</span>
@@ -2128,6 +2253,20 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       )}
+
+                      <div className="admin-scraper-log-panel">
+                        <div className="admin-scraper-log-head">
+                          <h3>
+                            <FaTerminal /> Logs scraping et agent
+                          </h3>
+                          <span>{scraperIsRunning ? 'Suivi live' : 'Dernier run'}</span>
+                        </div>
+                        {scraperRecentLog ? (
+                          <pre>{scraperRecentLog}</pre>
+                        ) : (
+                          <p className="empty">Aucun log disponible pour le moment.</p>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>

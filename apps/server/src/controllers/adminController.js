@@ -14,6 +14,7 @@ import { createScrapeSite, deleteScrapeSite, fetchScrapeSites, updateScrapeSite 
 import {
   configureScraperAutomation,
   fetchScraperAutomationStatus,
+  startListingCleanerAgent,
   startScraperCycle,
   stopScraperCycle,
 } from "../services/scraperControlService.js";
@@ -105,6 +106,11 @@ export async function updateScraperControlByAdmin(req, res) {
 
 export async function startScraperByAdmin(req, res) {
   const control = await startScraperCycle(req.body || {});
+  return renderScraperControl(res, control);
+}
+
+export async function startListingCleanerByAdmin(req, res) {
+  const control = await startListingCleanerAgent(req.body || {});
   return renderScraperControl(res, control);
 }
 

@@ -1055,8 +1055,59 @@
 
 .admin-scraper-mini-card strong {
   color: #fff;
-  font-size: 24px;
+  font-size: clamp(18px, 1.5vw, 24px);
   line-height: 1.2;
+}
+
+.admin-scraper-progress-panel {
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  gap: 9px;
+}
+
+.admin-scraper-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-scraper-progress-head span {
+  color: rgba(214, 232, 250, 0.76);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-scraper-progress-head strong {
+  color: #fff;
+  font-size: 20px;
+}
+
+.admin-scraper-progress-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.admin-scraper-progress-track span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff4b4b 0%, #ffd36b 100%);
+  transition: width 0.25s ease;
+}
+
+.admin-scraper-progress-panel small {
+  color: rgba(214, 232, 250, 0.72);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .admin-scraper-form-shell {
@@ -1148,6 +1199,10 @@
   background: rgba(255, 255, 255, 0.98);
 }
 
+.admin-scraper-btn--agent {
+  min-width: 176px;
+}
+
 .admin-scraper-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1189,6 +1244,10 @@
   background: linear-gradient(90deg, rgba(204, 0, 0, 0.86), rgba(204, 0, 0, 0.1));
 }
 
+.admin-scraper-stat:nth-child(5)::before {
+  background: linear-gradient(90deg, rgba(239, 125, 0, 0.9), rgba(239, 125, 0, 0.1));
+}
+
 .admin-scraper-stat-head {
   display: flex;
   align-items: center;
@@ -1221,6 +1280,11 @@
 .admin-scraper-stat:nth-child(4) .admin-scraper-stat-icon {
   background: rgba(204, 0, 0, 0.1);
   color: #b00000;
+}
+
+.admin-scraper-stat:nth-child(5) .admin-scraper-stat-icon {
+  background: rgba(239, 125, 0, 0.12);
+  color: #d57600;
 }
 
 .admin-scraper-stat-head span:last-child {
@@ -1277,6 +1341,65 @@
 .admin-scraper-alert p {
   margin: 0;
   line-height: 1.7;
+}
+
+.admin-scraper-log-panel {
+  margin-top: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(10, 34, 64, 0.1);
+  background: #091a2c;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(7, 26, 48, 0.16);
+}
+
+.admin-scraper-log-head {
+  min-height: 48px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-scraper-log-head h3 {
+  margin: 0;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.admin-scraper-log-head span {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(214, 232, 250, 0.82);
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-scraper-log-panel pre {
+  margin: 0;
+  max-height: 340px;
+  overflow: auto;
+  padding: 16px;
+  color: #d6e8fa;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Consolas", "Courier New", monospace;
+}
+
+.admin-scraper-log-panel .empty {
+  margin: 0;
+  padding: 22px 16px;
+  color: rgba(214, 232, 250, 0.72);
 }
 
 .admin-sites-grid {

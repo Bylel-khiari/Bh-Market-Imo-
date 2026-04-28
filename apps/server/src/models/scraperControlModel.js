@@ -70,8 +70,18 @@ function toPublicScraperControl(row) {
     is_enabled: Boolean(row.is_enabled),
     interval_days: Number(row.interval_days) || DEFAULT_SCRAPER_INTERVAL_DAYS,
     status: row.status || "idle",
+    run_type: row.run_type,
+    current_stage: row.current_stage,
     current_step: row.current_step,
     current_spider_name: row.current_spider_name,
+    progress_current: Number(row.progress_current) || 0,
+    progress_total: Number(row.progress_total) || 0,
+    progress_percent: Number(row.progress_percent) || 0,
+    estimated_remaining_seconds:
+      row.estimated_remaining_seconds === null || row.estimated_remaining_seconds === undefined
+        ? null
+        : Number(row.estimated_remaining_seconds),
+    recent_log: row.recent_log,
     last_started_at: row.last_started_at,
     last_finished_at: row.last_finished_at,
     last_success_at: row.last_success_at,
@@ -80,6 +90,16 @@ function toPublicScraperControl(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+async function ensureColumn(columnName, definition) {
+  const [rows] = await dbPool.query("SHOW COLUMNS FROM scraper_control LIKE ?", [columnName]);
+
+  if (Array.isArray(rows) && rows.length > 0) {
+    return;
+  }
+
+  await dbPool.query(`ALTER TABLE scraper_control ADD COLUMN ${definition}`);
 }
 
 async function ensureScraperControlTable() {
@@ -91,8 +111,15 @@ async function ensureScraperControlTable() {
           is_enabled TINYINT(1) NOT NULL DEFAULT 0,
           interval_days SMALLINT UNSIGNED NOT NULL DEFAULT ${DEFAULT_SCRAPER_INTERVAL_DAYS},
           status VARCHAR(24) NOT NULL DEFAULT 'idle',
+          run_type VARCHAR(32) NULL,
+          current_stage VARCHAR(32) NULL,
           current_step VARCHAR(255) NULL,
           current_spider_name VARCHAR(120) NULL,
+          progress_current SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+          progress_total SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+          progress_percent DECIMAL(5, 2) NOT NULL DEFAULT 0,
+          estimated_remaining_seconds INT UNSIGNED NULL,
+          recent_log LONGTEXT NULL,
           last_started_at DATETIME NULL,
           last_finished_at DATETIME NULL,
           last_success_at DATETIME NULL,
@@ -112,6 +139,14 @@ async function ensureScraperControlTable() {
         `,
         [SCRAPER_CONTROL_ID, DEFAULT_SCRAPER_INTERVAL_DAYS]
       );
+
+      await ensureColumn("run_type", "run_type VARCHAR(32) NULL AFTER status");
+      await ensureColumn("current_stage", "current_stage VARCHAR(32) NULL AFTER run_type");
+      await ensureColumn("progress_current", "progress_current SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER current_spider_name");
+      await ensureColumn("progress_total", "progress_total SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER progress_current");
+      await ensureColumn("progress_percent", "progress_percent DECIMAL(5, 2) NOT NULL DEFAULT 0 AFTER progress_total");
+      await ensureColumn("estimated_remaining_seconds", "estimated_remaining_seconds INT UNSIGNED NULL AFTER progress_percent");
+      await ensureColumn("recent_log", "recent_log LONGTEXT NULL AFTER estimated_remaining_seconds");
     })().catch((error) => {
       ensureScraperControlTablePromise = null;
       throw error;
@@ -142,8 +177,15 @@ async function findScraperControlRow() {
       is_enabled,
       interval_days,
       status,
+      run_type,
+      current_stage,
       current_step,
       current_spider_name,
+      progress_current,
+      progress_total,
+      progress_percent,
+      estimated_remaining_seconds,
+      recent_log,
       last_started_at,
       last_finished_at,
       last_success_at,
@@ -198,12 +240,54 @@ export async function patchScraperControl(payload = {}) {
     pushUpdate("status", status);
   }
 
+  if ("run_type" in payload) {
+    pushUpdate("run_type", normalizeOptionalString(payload.run_type));
+  }
+
+  if ("current_stage" in payload) {
+    pushUpdate("current_stage", normalizeOptionalString(payload.current_stage));
+  }
+
   if ("current_step" in payload) {
     pushUpdate("current_step", normalizeOptionalString(payload.current_step));
   }
 
   if ("current_spider_name" in payload) {
     pushUpdate("current_spider_name", normalizeOptionalString(payload.current_spider_name));
+  }
+
+  if ("progress_current" in payload && payload.progress_current !== undefined) {
+    const progressCurrent = Number(payload.progress_current);
+    pushUpdate("progress_current", Number.isFinite(progressCurrent) ? Math.max(0, Math.floor(progressCurrent)) : 0);
+  }
+
+  if ("progress_total" in payload && payload.progress_total !== undefined) {
+    const progressTotal = Number(payload.progress_total);
+    pushUpdate("progress_total", Number.isFinite(progressTotal) ? Math.max(0, Math.floor(progressTotal)) : 0);
+  }
+
+  if ("progress_percent" in payload && payload.progress_percent !== undefined) {
+    const progressPercent = Number(payload.progress_percent);
+    pushUpdate(
+      "progress_percent",
+      Number.isFinite(progressPercent) ? Math.min(100, Math.max(0, progressPercent)) : 0
+    );
+  }
+
+  if ("estimated_remaining_seconds" in payload) {
+    if (payload.estimated_remaining_seconds === null || payload.estimated_remaining_seconds === undefined) {
+      pushUpdate("estimated_remaining_seconds", null);
+    } else {
+      const remainingSeconds = Number(payload.estimated_remaining_seconds);
+      pushUpdate(
+        "estimated_remaining_seconds",
+        Number.isFinite(remainingSeconds) ? Math.max(0, Math.ceil(remainingSeconds)) : null
+      );
+    }
+  }
+
+  if ("recent_log" in payload) {
+    pushUpdate("recent_log", normalizeOptionalString(payload.recent_log));
   }
 
   if ("last_started_at" in payload) {

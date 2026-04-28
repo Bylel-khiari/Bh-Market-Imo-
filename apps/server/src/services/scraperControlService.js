@@ -17,9 +17,12 @@ const SYNC_PROPERTIES_SCRIPT = fileURLToPath(
   new URL("../../../../apps/server/scripts/syncCleanListingsToProperties.mjs", import.meta.url)
 );
 const NODE_BIN = process.env.SCRAPER_NODE_BIN || process.execPath || "node";
-const LOG_SNIPPET_MAX_LENGTH = 2500;
+const LOG_SNIPPET_MAX_LENGTH = 12000;
 const RUNNING_STATUSES = new Set(["running", "stopping"]);
 const SCRAPER_RUNTIME_MODULES = ["scrapy", "mysql.connector", "rapidfuzz"];
+const CLEANER_PROGRESS_EVERY = process.env.CLEANER_PROGRESS_EVERY || "250";
+const RUN_TYPE_SCRAPER_CYCLE = "scraper_cycle";
+const RUN_TYPE_LISTING_CLEANER = "listing_cleaner";
 
 const runtimeState = {
   initializePromise: null,
@@ -27,6 +30,14 @@ const runtimeState = {
   currentRunPromise: null,
   currentChild: null,
   currentChildLabel: null,
+  runType: null,
+  runStartedAt: null,
+  totalSteps: 0,
+  completedSteps: 0,
+  recentLog: "",
+  progressPercent: 0,
+  estimatedRemainingSeconds: null,
+  lastLogPersistedAt: 0,
   stopRequested: false,
 };
 
@@ -44,6 +55,131 @@ function truncateLog(value) {
 function appendLog(currentValue, nextChunk) {
   const nextValue = `${currentValue}${String(nextChunk || "")}`;
   return truncateLog(nextValue);
+}
+
+function clampProgressPercent(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Number(numericValue.toFixed(2))));
+}
+
+function buildRunLogLine(message) {
+  return `[${new Date().toISOString()}] ${message}\n`;
+}
+
+function estimateRemainingSeconds({ completedUnits, totalUnits, startedAt = runtimeState.runStartedAt } = {}) {
+  const normalizedCompleted = Number(completedUnits);
+  const normalizedTotal = Number(totalUnits);
+
+  if (
+    !startedAt ||
+    !Number.isFinite(normalizedCompleted) ||
+    !Number.isFinite(normalizedTotal) ||
+    normalizedCompleted <= 0 ||
+    normalizedTotal <= normalizedCompleted
+  ) {
+    return null;
+  }
+
+  const elapsedSeconds = Math.max(1, (Date.now() - startedAt.getTime()) / 1000);
+  const secondsPerUnit = elapsedSeconds / normalizedCompleted;
+  return Math.max(0, Math.ceil((normalizedTotal - normalizedCompleted) * secondsPerUnit));
+}
+
+function buildProgressSnapshot({ completedSteps = runtimeState.completedSteps, stageFraction = 0 } = {}) {
+  const totalSteps = Math.max(0, Number(runtimeState.totalSteps) || 0);
+  const safeStageFraction = Math.min(1, Math.max(0, Number(stageFraction) || 0));
+  const completedUnits = Math.min(totalSteps, Math.max(0, Number(completedSteps) + safeStageFraction));
+  const progressPercent = totalSteps > 0
+    ? clampProgressPercent((completedUnits / totalSteps) * 100)
+    : 0;
+
+  return {
+    progress_current: Math.floor(completedUnits),
+    progress_total: totalSteps,
+    progress_percent: progressPercent,
+    estimated_remaining_seconds: progressPercent >= 100
+      ? 0
+      : estimateRemainingSeconds({ completedUnits, totalUnits: totalSteps }),
+  };
+}
+
+function resetRuntimeProgress({ runType, totalSteps }) {
+  runtimeState.runType = runType;
+  runtimeState.runStartedAt = new Date();
+  runtimeState.totalSteps = Math.max(0, Number(totalSteps) || 0);
+  runtimeState.completedSteps = 0;
+  runtimeState.progressPercent = 0;
+  runtimeState.estimatedRemainingSeconds = null;
+  runtimeState.recentLog = "";
+  runtimeState.lastLogPersistedAt = 0;
+}
+
+function appendRuntimeLog(message) {
+  runtimeState.recentLog = appendLog(runtimeState.recentLog, buildRunLogLine(message));
+}
+
+function appendRuntimeOutput(chunk, { stream = "stdout", persist = true } = {}) {
+  const text = String(chunk || "");
+
+  if (!text) {
+    return;
+  }
+
+  runtimeState.recentLog = appendLog(runtimeState.recentLog, text);
+
+  if (!persist) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - runtimeState.lastLogPersistedAt < 1200) {
+    return;
+  }
+
+  runtimeState.lastLogPersistedAt = now;
+  patchScraperControl({ recent_log: runtimeState.recentLog }).catch((error) => {
+    console.error(`Failed to persist ${stream} log:`, error);
+  });
+}
+
+async function patchRunProgress(payload = {}, progressOptions = {}) {
+  const snapshot = buildProgressSnapshot(progressOptions);
+
+  runtimeState.progressPercent = snapshot.progress_percent;
+  runtimeState.estimatedRemainingSeconds = snapshot.estimated_remaining_seconds;
+
+  return patchScraperControl({
+    ...payload,
+    ...snapshot,
+    recent_log: runtimeState.recentLog || payload.recent_log,
+  });
+}
+
+function parseCleanerProgress(text) {
+  const matches = [...String(text || "").matchAll(/Progress:\s*(\d+)\s*\/\s*(\d+)/gi)];
+  const lastMatch = matches[matches.length - 1];
+
+  if (!lastMatch) {
+    return null;
+  }
+
+  const current = Number(lastMatch[1]);
+  const total = Number(lastMatch[2]);
+
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 0) {
+    return null;
+  }
+
+  return {
+    current: Math.min(current, total),
+    total,
+    fraction: Math.min(1, Math.max(0, current / total)),
+  };
 }
 
 function addDays(date, days) {
@@ -268,14 +404,14 @@ async function terminateCurrentChildProcess() {
   }
 }
 
-async function runCommand({ command, args, cwd, label }) {
+async function runCommand({ command, args, cwd, label, envOverrides = {}, onOutput = null }) {
   return new Promise((resolve, reject) => {
     let stdoutLog = "";
     let stderrLog = "";
 
     const child = spawn(command, args, {
       cwd,
-      env: { ...process.env },
+      env: { ...process.env, ...envOverrides },
       shell: false,
       windowsHide: true,
     });
@@ -285,10 +421,14 @@ async function runCommand({ command, args, cwd, label }) {
 
     child.stdout?.on("data", (chunk) => {
       stdoutLog = appendLog(stdoutLog, chunk);
+      appendRuntimeOutput(chunk, { stream: "stdout" });
+      onOutput?.(String(chunk || ""), "stdout");
     });
 
     child.stderr?.on("data", (chunk) => {
       stderrLog = appendLog(stderrLog, chunk);
+      appendRuntimeOutput(chunk, { stream: "stderr" });
+      onOutput?.(String(chunk || ""), "stderr");
     });
 
     child.on("error", (error) => {
@@ -302,7 +442,13 @@ async function runCommand({ command, args, cwd, label }) {
       runtimeState.currentChildLabel = null;
 
       if (runtimeState.stopRequested) {
-        reject(new Error("Le scraping a ete arrete manuellement."));
+        reject(
+          new Error(
+            runtimeState.runType === RUN_TYPE_LISTING_CLEANER
+              ? "L agent de filtrage a ete arrete manuellement."
+              : "Le scraping a ete arrete manuellement."
+          )
+        );
         return;
       }
 
@@ -348,6 +494,14 @@ export function buildInitialScraperRunState(activeSites = []) {
   };
 }
 
+export function buildInitialCleanerAgentRunState() {
+  return {
+    current_step: "Agent de filtrage des annonces collectees",
+    current_spider_name: null,
+    current_command: "l agent de filtrage des annonces",
+  };
+}
+
 function toStatusLabel(status, isEnabled) {
   if (status === "running") return "running";
   if (status === "stopping") return "stopping";
@@ -374,8 +528,14 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
 
   const updates = {
     status: nextStatus,
+    current_stage: null,
     current_step: null,
     current_spider_name: null,
+    progress_current: succeeded ? runtimeState.totalSteps : runtimeState.completedSteps,
+    progress_total: runtimeState.totalSteps,
+    progress_percent: succeeded ? 100 : runtimeState.progressPercent,
+    estimated_remaining_seconds: succeeded ? 0 : null,
+    recent_log: runtimeState.recentLog,
     last_finished_at: finishedAt,
     next_run_at: nextRunAt,
     last_error: succeeded ? null : errorMessage,
@@ -383,6 +543,8 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
 
   if (succeeded) {
     updates.last_success_at = finishedAt;
+    appendRuntimeLog("Execution terminee avec succes.");
+    updates.recent_log = runtimeState.recentLog;
   }
 
   const updatedControl = await patchScraperControl(updates);
@@ -396,6 +558,106 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
   return updatedControl;
 }
 
+function assertRunNotStopped(message) {
+  if (runtimeState.stopRequested) {
+    throw new Error(message);
+  }
+}
+
+async function runListingCleanerStage({ pythonBin, completedSteps }) {
+  runtimeState.completedSteps = completedSteps;
+  appendRuntimeLog("Demarrage de l agent de filtrage des annonces.");
+
+  await patchRunProgress(
+    {
+      status: "running",
+      current_stage: "cleaning",
+      current_step: "Agent de filtrage des annonces collectees",
+      current_spider_name: null,
+    },
+    { completedSteps }
+  );
+
+  await runCommand({
+    command: pythonBin,
+    args: [LISTING_CLEANER_SCRIPT],
+    cwd: REPO_ROOT,
+    label: "l agent de filtrage des annonces",
+    envOverrides: {
+      CLEANER_PROGRESS_EVERY,
+      PYTHONUNBUFFERED: "1",
+    },
+    onOutput: () => {
+      const progress = parseCleanerProgress(runtimeState.recentLog);
+
+      if (!progress) {
+        return;
+      }
+
+      patchRunProgress(
+        {
+          status: "running",
+          current_stage: "cleaning",
+          current_step: `Agent de filtrage des annonces (${progress.current}/${progress.total})`,
+          current_spider_name: null,
+        },
+        {
+          completedSteps,
+          stageFraction: progress.fraction,
+        }
+      ).catch((error) => {
+        console.error("Failed to persist cleaner progress:", error);
+      });
+    },
+  });
+
+  runtimeState.completedSteps = completedSteps + 1;
+  appendRuntimeLog("Agent de filtrage termine.");
+  await patchRunProgress(
+    {
+      status: "running",
+      current_stage: "cleaning",
+      current_step: "Agent de filtrage termine",
+      current_spider_name: null,
+    },
+    { completedSteps: runtimeState.completedSteps }
+  );
+}
+
+async function runPropertiesSyncStage({ completedSteps }) {
+  runtimeState.completedSteps = completedSteps;
+  appendRuntimeLog("Demarrage de la synchronisation des annonces nettoyees.");
+
+  await patchRunProgress(
+    {
+      status: "running",
+      current_stage: "syncing",
+      current_step: "Synchronisation des annonces nettoyees",
+      current_spider_name: null,
+    },
+    { completedSteps }
+  );
+
+  await runCommand({
+    command: NODE_BIN,
+    args: [SYNC_PROPERTIES_SCRIPT],
+    cwd: REPO_ROOT,
+    label: "la synchronisation des annonces",
+  });
+
+  runtimeState.completedSteps = completedSteps + 1;
+  appendRuntimeLog("Synchronisation terminee.");
+  await patchRunProgress(
+    {
+      status: "running",
+      current_stage: "syncing",
+      current_step: "Synchronisation terminee",
+      current_spider_name: null,
+    },
+    { completedSteps: runtimeState.completedSteps }
+  );
+}
+
 async function executeScraperCycle(trigger, preloadedActiveSites = null) {
   try {
     const activeSites = preloadedActiveSites || await fetchActiveSites();
@@ -407,16 +669,21 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
 
     verifyPythonRuntime(pythonBin);
 
-    for (const site of activeSites) {
-      if (runtimeState.stopRequested) {
-        throw new Error("Le scraping a ete arrete manuellement.");
-      }
+    for (const [index, site] of activeSites.entries()) {
+      assertRunNotStopped("Le scraping a ete arrete manuellement.");
 
-      await patchScraperControl({
-        status: "running",
-        current_step: `Collecte du site ${site.name}`,
-        current_spider_name: site.spider_name,
-      });
+      runtimeState.completedSteps = index;
+      appendRuntimeLog(`Collecte du site ${site.name || site.spider_name} (${index + 1}/${activeSites.length}).`);
+
+      await patchRunProgress(
+        {
+          status: "running",
+          current_stage: "scraping",
+          current_step: `Collecte du site ${site.name || site.spider_name}`,
+          current_spider_name: site.spider_name,
+        },
+        { completedSteps: index }
+      );
 
       await runCommand({
         command: pythonBin,
@@ -424,45 +691,34 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
         cwd: SCRAPER_PROJECT_DIR,
         label: `le spider ${site.spider_name}`,
       });
+
+      runtimeState.completedSteps = index + 1;
+      appendRuntimeLog(`Collecte terminee pour ${site.name || site.spider_name}.`);
+      await patchRunProgress(
+        {
+          status: "running",
+          current_stage: "scraping",
+          current_step: `Collecte terminee pour ${site.name || site.spider_name}`,
+          current_spider_name: site.spider_name,
+        },
+        { completedSteps: runtimeState.completedSteps }
+      );
     }
 
-    if (runtimeState.stopRequested) {
-      throw new Error("Le scraping a ete arrete manuellement.");
-    }
+    assertRunNotStopped("Le scraping a ete arrete manuellement.");
+    await runListingCleanerStage({ pythonBin, completedSteps: activeSites.length });
 
-    await patchScraperControl({
-      status: "running",
-      current_step: "Nettoyage des annonces collectees",
-      current_spider_name: null,
-    });
-
-    await runCommand({
-      command: pythonBin,
-      args: [LISTING_CLEANER_SCRIPT],
-      cwd: REPO_ROOT,
-      label: "le nettoyage des annonces",
-    });
-
-    if (runtimeState.stopRequested) {
-      throw new Error("Le scraping a ete arrete manuellement.");
-    }
-
-    await patchScraperControl({
-      status: "running",
-      current_step: "Synchronisation des annonces nettoyees",
-      current_spider_name: null,
-    });
-
-    await runCommand({
-      command: NODE_BIN,
-      args: [SYNC_PROPERTIES_SCRIPT],
-      cwd: REPO_ROOT,
-      label: "la synchronisation des annonces",
-    });
+    assertRunNotStopped("Le scraping a ete arrete manuellement.");
+    await runPropertiesSyncStage({ completedSteps: activeSites.length + 1 });
 
     await finalizeScraperCycle({ succeeded: true });
   } catch (error) {
     const message = truncateLog(error?.message || "Erreur inconnue pendant le scraping.");
+    appendRuntimeLog(
+      runtimeState.stopRequested
+        ? "Execution arretee manuellement par un administrateur."
+        : `Erreur: ${message}`
+    );
     await finalizeScraperCycle({
       succeeded: false,
       errorMessage: runtimeState.stopRequested
@@ -477,6 +733,45 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
     runtimeState.currentChild = null;
     runtimeState.currentChildLabel = null;
     runtimeState.currentRunPromise = null;
+    runtimeState.runType = null;
+    runtimeState.stopRequested = false;
+  }
+}
+
+async function executeListingCleanerAgent(trigger) {
+  try {
+    const pythonBin = resolveScraperPythonBin();
+    verifyPythonRuntime(pythonBin);
+
+    assertRunNotStopped("L agent de filtrage a ete arrete manuellement.");
+    await runListingCleanerStage({ pythonBin, completedSteps: 0 });
+
+    assertRunNotStopped("L agent de filtrage a ete arrete manuellement.");
+    await runPropertiesSyncStage({ completedSteps: 1 });
+
+    await finalizeScraperCycle({ succeeded: true });
+  } catch (error) {
+    const message = truncateLog(error?.message || "Erreur inconnue pendant l agent de filtrage.");
+    appendRuntimeLog(
+      runtimeState.stopRequested
+        ? "Agent de filtrage arrete manuellement par un administrateur."
+        : `Erreur: ${message}`
+    );
+    await finalizeScraperCycle({
+      succeeded: false,
+      errorMessage: runtimeState.stopRequested
+        ? "Agent de filtrage arrete manuellement par un administrateur."
+        : message,
+    });
+
+    if (!runtimeState.stopRequested) {
+      console.error(`Listing cleaner agent failed (${trigger}):`, error);
+    }
+  } finally {
+    runtimeState.currentChild = null;
+    runtimeState.currentChildLabel = null;
+    runtimeState.currentRunPromise = null;
+    runtimeState.runType = null;
     runtimeState.stopRequested = false;
   }
 }
@@ -490,6 +785,7 @@ async function syncSchedulerWithStoredState({ runOverdue = false } = {}) {
     if (control?.status !== "idle" && !runtimeState.currentRunPromise) {
       return patchScraperControl({
         status: "idle",
+        current_stage: null,
         current_step: null,
         current_spider_name: null,
         next_run_at: null,
@@ -507,6 +803,7 @@ async function syncSchedulerWithStoredState({ runOverdue = false } = {}) {
   if (RUNNING_STATUSES.has(control.status)) {
     await patchScraperControl({
       status: "scheduled",
+      current_stage: null,
       current_step: null,
       current_spider_name: null,
     });
@@ -566,6 +863,14 @@ export async function fetchScraperAutomationStatus() {
     is_running: Boolean(runtimeState.currentRunPromise),
     stop_requested: Boolean(runtimeState.stopRequested),
     current_command: runtimeState.currentChildLabel,
+    run_type: runtimeState.runType || control?.run_type || null,
+    recent_log: runtimeState.recentLog || control?.recent_log || null,
+    progress_percent: runtimeState.currentRunPromise
+      ? runtimeState.progressPercent
+      : Number(control?.progress_percent || 0),
+    estimated_remaining_seconds: runtimeState.currentRunPromise
+      ? runtimeState.estimatedRemainingSeconds
+      : control?.estimated_remaining_seconds ?? null,
   };
 }
 
@@ -579,6 +884,7 @@ export async function configureScraperAutomation(payload = {}) {
     if (!runtimeState.currentRunPromise) {
       await patchScraperControl({
         status: "idle",
+        current_stage: null,
         current_step: null,
         current_spider_name: null,
         next_run_at: null,
@@ -615,17 +921,27 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
   }
 
   const initialRunState = buildInitialScraperRunState(activeSites);
+  resetRuntimeProgress({
+    runType: RUN_TYPE_SCRAPER_CYCLE,
+    totalSteps: activeSites.length + 2,
+  });
+  appendRuntimeLog(`Demarrage du cycle de scraping avec ${activeSites.length} site(s) actif(s).`);
+  const initialProgress = buildProgressSnapshot({ completedSteps: 0 });
 
   const startedAt = new Date();
   const updates = {
     is_enabled: true,
     status: "running",
+    run_type: RUN_TYPE_SCRAPER_CYCLE,
+    current_stage: "scraping",
     current_step:
       initialRunState.current_step ||
       (trigger === "manual"
         ? "Demarrage manuel du cycle de scraping"
         : "Demarrage automatique du cycle de scraping"),
     current_spider_name: initialRunState.current_spider_name,
+    ...initialProgress,
+    recent_log: runtimeState.recentLog,
     last_started_at: startedAt,
     last_finished_at: null,
     next_run_at: null,
@@ -647,6 +963,44 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
   return fetchScraperAutomationStatus();
 }
 
+export async function startListingCleanerAgent({ trigger = "manual" } = {}) {
+  if (runtimeState.currentRunPromise) {
+    throw httpError(409, "Une execution du scraper ou de l agent est deja en cours.");
+  }
+
+  clearScheduledRun();
+  const initialRunState = buildInitialCleanerAgentRunState();
+  resetRuntimeProgress({
+    runType: RUN_TYPE_LISTING_CLEANER,
+    totalSteps: 2,
+  });
+  appendRuntimeLog("Demarrage manuel de l agent de filtrage.");
+  const initialProgress = buildProgressSnapshot({ completedSteps: 0 });
+  const startedAt = new Date();
+
+  await patchScraperControl({
+    status: "running",
+    run_type: RUN_TYPE_LISTING_CLEANER,
+    current_stage: "cleaning",
+    current_step: initialRunState.current_step,
+    current_spider_name: null,
+    ...initialProgress,
+    recent_log: runtimeState.recentLog,
+    last_started_at: startedAt,
+    last_finished_at: null,
+    next_run_at: null,
+    last_error: null,
+  });
+
+  runtimeState.stopRequested = false;
+  runtimeState.currentChildLabel = initialRunState.current_command;
+  runtimeState.currentRunPromise = executeListingCleanerAgent(trigger).catch((error) => {
+    console.error("Unexpected listing cleaner agent failure:", error);
+  });
+
+  return fetchScraperAutomationStatus();
+}
+
 export async function stopScraperCycle() {
   clearScheduledRun();
 
@@ -654,13 +1008,17 @@ export async function stopScraperCycle() {
     is_enabled: false,
     next_run_at: null,
     status: runtimeState.currentRunPromise ? "stopping" : "idle",
+    current_stage: runtimeState.currentRunPromise ? "stopping" : null,
     current_step: runtimeState.currentRunPromise
-      ? "Arret du cycle de scraping en cours"
+      ? runtimeState.runType === RUN_TYPE_LISTING_CLEANER
+        ? "Arret de l agent de filtrage en cours"
+        : "Arret du cycle de scraping en cours"
       : null,
   };
 
   if (!runtimeState.currentRunPromise) {
     updates.current_spider_name = null;
+    updates.current_stage = null;
   }
 
   const currentControl = await patchScraperControl(updates);
@@ -677,5 +1035,9 @@ export async function stopScraperCycle() {
     is_running: true,
     stop_requested: true,
     current_command: runtimeState.currentChildLabel,
+    run_type: runtimeState.runType,
+    recent_log: runtimeState.recentLog || currentControl?.recent_log || null,
+    progress_percent: runtimeState.progressPercent,
+    estimated_remaining_seconds: runtimeState.estimatedRemainingSeconds,
   };
 }
