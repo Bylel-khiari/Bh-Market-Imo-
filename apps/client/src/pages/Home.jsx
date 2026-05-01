@@ -5,6 +5,8 @@ import HomeMapSection from '../features/map/pages/HomeMapSection';
 import PropertyCarousel from '../components/PropertyCarousel';
 import '../styles/Home.css';
 
+const OPEN_ASSISTANT_EVENT = 'bh-assistant:open';
+
 const Home = () => {
   return (
     <div className="home">
@@ -67,7 +69,14 @@ const Home = () => {
                 <h3>Assistant virtuel</h3>
                 <p>Un assistant intelligent disponible 24/7 pour vous accompagner dans toutes vos démarches</p>
               </div>
-              <button className="service-action"><FaArrowRight /></button>
+              <button
+                type="button"
+                className="service-action"
+                onClick={() => window.dispatchEvent(new CustomEvent(OPEN_ASSISTANT_EVENT))}
+                aria-label="Ouvrir l’assistant virtuel"
+              >
+                <FaArrowRight />
+              </button>
             </div>
             <div className="service-card">
               <div className="service-icon"><FaFileAlt /></div>

@@ -11,6 +11,8 @@ const INITIAL_MESSAGE = {
   content: 'Bonjour 👋 Je suis l’assistant BH Market Imo. Comment puis-je vous aider aujourd’hui ?',
 };
 
+const OPEN_ASSISTANT_EVENT = 'bh-assistant:open';
+
 const QUICK_SUGGESTIONS = [
   'Biens près de moi',
   'Simulation crédit',
@@ -200,13 +202,19 @@ function BHAssistantWidget() {
 
     window.addEventListener(AUTH_SESSION_CHANGED_EVENT, syncAuthSession);
     window.addEventListener('storage', syncAuthSession);
+    window.addEventListener(OPEN_ASSISTANT_EVENT, openAssistant);
 
     return () => {
       window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, syncAuthSession);
       window.removeEventListener('storage', syncAuthSession);
+      window.removeEventListener(OPEN_ASSISTANT_EVENT, openAssistant);
       abortRef.current?.abort();
     };
   }, [resetChat]);
+
+  function openAssistant() {
+    setIsOpen(true);
+  }
 
   function handleNavigate(path) {
     if (!path) return;
