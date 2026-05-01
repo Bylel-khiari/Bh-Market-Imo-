@@ -18,12 +18,12 @@ const ForgotPassword = () => {
           <div className="login-brand">
             <img src={logo} alt="BH Bank" className="login-logo" />
             <div className="login-brand-line"></div>
-            <h2 className="login-subtitle">MARKETPLACE IMMOBILIER</h2>
+            <h2 className="login-subtitle">MARKETPLACE IMMOBILIÈRE</h2>
           </div>
 
           <p className="login-tagline">
-            Recuperez l'acces a votre espace en toute securite et recevez un lien
-            de reinitialisation directement par email.
+            Récupérez l'accès à votre espace en toute sécurité et recevez un lien
+            de réinitialisation directement par e-mail.
           </p>
 
           <div className="login-features">
@@ -31,20 +31,20 @@ const ForgotPassword = () => {
               <div className="login-feature-icon"><FaHome /></div>
               <div className="login-feature-text">
                 <strong>Immobilier</strong>
-                <span>Decouvrez les meilleures opportunites</span>
+                <span>Découvrez les meilleures opportunités</span>
               </div>
             </div>
             <div className="login-feature-item">
               <div className="login-feature-icon"><FaCalculator /></div>
               <div className="login-feature-text">
-                <strong>Simulation de Credit</strong>
+                <strong>Simulation de crédit</strong>
                 <span>Pilotez votre projet en quelques clics</span>
               </div>
             </div>
             <div className="login-feature-item">
               <div className="login-feature-icon"><FaChartLine /></div>
               <div className="login-feature-text">
-                <strong>Suivi en Temps Reel</strong>
+                <strong>Suivi en temps réel</strong>
                 <span>Retrouvez vos demandes dans votre espace</span>
               </div>
             </div>
@@ -56,8 +56,8 @@ const ForgotPassword = () => {
       <div className="login-right">
         <div className="login-form-wrapper">
           <div className="login-form-header">
-            <h2>Mot de passe oublie</h2>
-            <p>Recevez un lien de reinitialisation par email</p>
+            <h2>Mot de passe oublié</h2>
+            <p>Recevez un lien de réinitialisation par e-mail</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
@@ -89,7 +89,7 @@ const ForgotPassword = () => {
           </form>
 
           <div className="login-back-home">
-            <Link to="/">← Retour a l'accueil</Link>
+            <Link to="/">← Retour à l'accueil</Link>
           </div>
         </div>
       </div>

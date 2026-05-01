@@ -70,7 +70,7 @@ function getFeatureName(feature) {
       props.governorate ||
       props.lib ||
       props.NAME ||
-      'Unknown'
+      'Inconnu'
   );
 }
 
@@ -119,12 +119,12 @@ function computeMarkerOffsets(items) {
 async function fetchGeoJson(url, signal) {
   const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new Error(`GeoJSON request failed with ${response.status}`);
+    throw new Error(`La requête GeoJSON a échoué avec le statut ${response.status}`);
   }
 
   const data = await response.json();
   if (!data?.features?.length) {
-    throw new Error('GeoJSON loaded but no features were found.');
+    throw new Error('Le GeoJSON est chargé, mais aucune zone n’a été trouvée.');
   }
 
   return normalizeFeatureCollection(data);
@@ -135,8 +135,8 @@ export default function TunisiaDynastyMap({
   listings = [],
   width = 980,
   height = 700,
-  title = 'Tunisia Prime Residences',
-  subtitle = 'Dynasty-inspired real estate atlas',
+  title = 'Résidences de référence en Tunisie',
+  subtitle = 'Atlas immobilier inspiré de Dynasty',
   selectedGovernorate: selectedGovernorateProp,
   onGovernorateSelect,
   onListingSelect,
@@ -173,11 +173,11 @@ export default function TunisiaDynastyMap({
           }
         }
 
-        throw lastError || new Error('Unable to load Tunisia GeoJSON.');
+        throw lastError || new Error('Impossible de charger le GeoJSON de la Tunisie.');
       } catch (error) {
         if (error.name === 'AbortError') return;
         setStatus('error');
-        setErrorMessage(error.message || 'Unable to load Tunisia GeoJSON.');
+        setErrorMessage(error.message || 'Impossible de charger le GeoJSON de la Tunisie.');
       }
     }
 
@@ -256,21 +256,21 @@ export default function TunisiaDynastyMap({
           </div>
           <div className="stats-row">
             <div className="stat-card">
-              <span>Governorates</span>
+              <span>Gouvernorats</span>
               <strong>{totalGovernorates}</strong>
             </div>
             <div className="stat-card">
-              <span>Listings loaded</span>
+              <span>Annonces chargées</span>
               <strong>{listings.length}</strong>
             </div>
           </div>
         </header>
 
         <div className="map-stage">
-          {status === 'loading' && <div className="state-panel">Loading Tunisia GeoJSON...</div>}
+          {status === 'loading' && <div className="state-panel">Chargement du GeoJSON de la Tunisie...</div>}
           {status === 'error' && (
             <div className="state-panel state-panel--error">
-              <strong>Map failed to load.</strong>
+              <strong>La carte n’a pas pu être chargée.</strong>
               <p>{errorMessage}</p>
               <code>{geoJsonUrl}</code>
             </div>
@@ -281,7 +281,7 @@ export default function TunisiaDynastyMap({
               viewBox={`0 0 ${width} ${height}`}
               className="tunisia-map"
               role="img"
-              aria-label="Interactive static Tunisia real estate map"
+              aria-label="Carte immobilière interactive de la Tunisie"
             >
               <defs>
                 <filter id="cyanGlow">
@@ -348,17 +348,17 @@ export default function TunisiaDynastyMap({
 
       <aside className="side-panel">
         <div className="side-card">
-          <p className="eyebrow">Selection</p>
-          <h2>{selectedGovernorateData?.rawName || 'All Tunisia'}</h2>
+          <p className="eyebrow">Sélection</p>
+          <h2>{selectedGovernorateData?.rawName || 'Toute la Tunisie'}</h2>
           <p className="muted">
-            This component receives already-adapted listings and only handles map presentation.
+            Ce composant reçoit des annonces déjà adaptées et gère uniquement l’affichage de la carte.
           </p>
         </div>
 
         <div className="side-card">
           <div className="feed-header">
-            <p className="eyebrow">Live inventory</p>
-            <span>{visibleListings.length} shown</span>
+            <p className="eyebrow">Inventaire en direct</p>
+            <span>{visibleListings.length} affichée(s)</span>
           </div>
 
           <div className="listing-feed">
@@ -370,16 +370,16 @@ export default function TunisiaDynastyMap({
                 type="button"
               >
                 <span className="listing-card__source">{listing.source || 'source'}</span>
-                <strong>{listing.title || listing.reference || `Listing #${listing.id}`}</strong>
+                <strong>{listing.title || listing.reference || `Annonce #${listing.id}`}</strong>
                 <span>{listing.location || listing.city || listing.governorate}</span>
                 <div className="listing-card__meta">
-                  <span>{listing.rooms ?? '-'} rooms</span>
+                  <span>{listing.rooms ?? '-'} pièces</span>
                   <span>{formatPrice(listing.price, listing.currency)}</span>
                 </div>
               </button>
             ))}
 
-            {!visibleListings.length && <div className="empty-feed">No listings in this governorate.</div>}
+            {!visibleListings.length && <div className="empty-feed">Aucune annonce dans ce gouvernorat.</div>}
           </div>
         </div>
       </aside>
@@ -388,6 +388,6 @@ export default function TunisiaDynastyMap({
 }
 
 function formatPrice(price, currency = 'TND') {
-  if (price == null || Number.isNaN(Number(price))) return 'Price N/A';
+  if (price == null || Number.isNaN(Number(price))) return 'Prix non renseigné';
   return `${Number(price).toLocaleString()} ${currency}`;
 }

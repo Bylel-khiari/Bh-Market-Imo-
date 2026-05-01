@@ -1,6 +1,6 @@
 # BH Assistant
 
-Microservice FastAPI isolé pour l'assistant client BH Market Imo.
+Microservice FastAPI isole pour l'assistant client BH Market Imo.
 
 ## Lancer en local
 
@@ -26,6 +26,45 @@ uvicorn app.main:app --reload --port 8001
 
 - `GET /health`
 - `POST /chat`
+- `POST /credit-scoring`
 
-Le moteur par défaut est rule-based et fonctionne sans clé LLM. Un provider LLM pourra être branché plus tard via variables d'environnement, sans changer le frontend.
+## Agent de scoring credit
 
+Le endpoint `POST /credit-scoring` calcule une decision explicable a partir des criteres donnes :
+
+- revenu annuel
+- charges annuelles a payer ou impayees
+- situation familiale
+- situation contractuelle
+
+Regle principale :
+
+```text
+charges_impayees <= revenu_annuel * 0.40
+```
+
+Exemple :
+
+```bash
+curl -X POST http://localhost:8001/credit-scoring \
+  -H "Content-Type: application/json" \
+  -d '{
+    "revenu_annuel": 60000,
+    "charges_impayees": 18000,
+    "situation_familiale": "marie",
+    "situation_contractuelle": "CDI"
+  }'
+```
+
+Reponse simplifiee :
+
+```json
+{
+  "decision": "ACCEPTE",
+  "score": 83,
+  "niveau_risque": "faible",
+  "formule": "charges_impayees <= revenu_annuel * 0.40"
+}
+```
+
+Le moteur par defaut est rule-based et fonctionne sans cle LLM. Un provider LLM pourra etre branche plus tard via variables d'environnement, sans changer le frontend.

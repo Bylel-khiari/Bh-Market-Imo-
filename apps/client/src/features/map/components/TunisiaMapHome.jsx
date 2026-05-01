@@ -68,7 +68,7 @@ function getFeatureName(feature) {
       props.governorate ||
       props.lib ||
       props.NAME ||
-      'Unknown'
+      'Inconnu'
   );
 }
 
@@ -105,19 +105,19 @@ function normalizeFeatureCollection(data) {
 async function fetchGeoJson(url, signal) {
   const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new Error(`GeoJSON request failed with ${response.status}`);
+    throw new Error(`La requête GeoJSON a échoué avec le statut ${response.status}`);
   }
 
   const data = await response.json();
   if (!data?.features?.length) {
-    throw new Error('GeoJSON loaded but no features were found.');
+    throw new Error('Le GeoJSON est chargé, mais aucune zone n’a été trouvée.');
   }
 
   return normalizeFeatureCollection(data);
 }
 
 function formatPrice(price, currency = 'TND') {
-  if (price == null || Number.isNaN(Number(price))) return 'Price N/A';
+  if (price == null || Number.isNaN(Number(price))) return 'Prix non renseigné';
   return `${Number(price).toLocaleString()} ${currency}`;
 }
 
@@ -158,11 +158,11 @@ export default function TunisiaMapHome({
           }
         }
 
-        throw lastError || new Error('Unable to load Tunisia GeoJSON.');
+        throw lastError || new Error('Impossible de charger le GeoJSON de la Tunisie.');
       } catch (error) {
         if (error.name === 'AbortError') return;
         setStatus('error');
-        setErrorMessage(error.message || 'Unable to load Tunisia GeoJSON.');
+        setErrorMessage(error.message || 'Impossible de charger le GeoJSON de la Tunisie.');
       }
     }
 
@@ -246,32 +246,32 @@ export default function TunisiaMapHome({
       <section className="tn-full-map-panel">
         <header className="tn-full-header">
           <div>
-            <p className="tn-full-eyebrow">Interactive view</p>
-            <h3>Tunisia Real Estate Map</h3>
+            <p className="tn-full-eyebrow">Vue interactive</p>
+            <h3>Carte immobilière de la Tunisie</h3>
           </div>
           <div className="tn-full-stats-row">
             <div className="tn-full-stat-card">
-              <span>Governorates</span>
+              <span>Gouvernorats</span>
               <strong>{totalGovernorates}</strong>
             </div>
             <div className="tn-full-stat-card">
-              <span>Listings loaded</span>
+              <span>Annonces chargées</span>
               <strong>{listings.length}</strong>
             </div>
           </div>
         </header>
 
         <div className="tn-full-map-stage">
-          {status === 'loading' && <div className="tn-full-state-panel">Loading Tunisia GeoJSON...</div>}
+          {status === 'loading' && <div className="tn-full-state-panel">Chargement du GeoJSON de la Tunisie...</div>}
           {status === 'error' && (
             <div className="tn-full-state-panel tn-full-state-panel--error">
-              <strong>Map failed to load.</strong>
+              <strong>La carte n’a pas pu être chargée.</strong>
               <p>{errorMessage}</p>
             </div>
           )}
 
           {status === 'ready' && mapFeatures && (
-            <svg viewBox={`0 0 ${width} ${height}`} className="tn-full-map" role="img" aria-label="Interactive Tunisia real estate map">
+            <svg viewBox={`0 0 ${width} ${height}`} className="tn-full-map" role="img" aria-label="Carte immobilière interactive de la Tunisie">
               <rect x="0" y="0" width={width} height={height} rx="24" className="tn-full-map-bg" />
 
               {mapFeatures.map((item, index) => {
@@ -331,15 +331,15 @@ export default function TunisiaMapHome({
 
       <aside className="tn-full-side-panel">
         <div className="tn-full-side-card">
-          <p className="tn-full-eyebrow">Selection</p>
-          <h3>{selectedGovernorateData?.rawName || 'All Tunisia'}</h3>
-          <p className="tn-full-muted">Select a governorate on the map to filter listings.</p>
+          <p className="tn-full-eyebrow">Sélection</p>
+          <h3>{selectedGovernorateData?.rawName || 'Toute la Tunisie'}</h3>
+          <p className="tn-full-muted">Sélectionnez un gouvernorat sur la carte pour filtrer les annonces.</p>
         </div>
 
         <div className="tn-full-side-card">
           <div className="tn-full-feed-header">
-            <p className="tn-full-eyebrow">Live inventory</p>
-            <span>{visibleListings.length} shown</span>
+            <p className="tn-full-eyebrow">Inventaire en direct</p>
+            <span>{visibleListings.length} affichée(s)</span>
           </div>
 
           <div className="tn-full-listing-feed">
@@ -351,16 +351,16 @@ export default function TunisiaMapHome({
                 onClick={() => handleListingClick(listing)}
               >
                 <span className="tn-full-listing-source">{listing.source || 'source'}</span>
-                <strong>{listing.title || listing.reference || `Listing #${listing.id}`}</strong>
+                <strong>{listing.title || listing.reference || `Annonce #${listing.id}`}</strong>
                 <span>{listing.location || listing.city || listing.governorate}</span>
                 <div className="tn-full-listing-meta">
-                  <span>{listing.rooms ?? '-'} rooms</span>
+                  <span>{listing.rooms ?? '-'} pièces</span>
                   <span>{formatPrice(listing.price, listing.currency)}</span>
                 </div>
               </button>
             ))}
 
-            {!visibleListings.length && <div className="tn-full-empty-feed">No listings in this governorate.</div>}
+            {!visibleListings.length && <div className="tn-full-empty-feed">Aucune annonce dans ce gouvernorat.</div>}
           </div>
         </div>
       </aside>

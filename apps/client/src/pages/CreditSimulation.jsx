@@ -127,7 +127,7 @@ const CreditSimulation = () => {
       {
         key: 'maturity_age',
         ok: maturityAge <= MAX_MATURITY_AGE,
-        label: `Age en fin de credit <= ${MAX_MATURITY_AGE} ans`,
+        label: `Âge en fin de crédit <= ${MAX_MATURITY_AGE} ans`,
       },
       {
         key: 'contribution',
@@ -208,26 +208,26 @@ const CreditSimulation = () => {
     <div className="credit-simulation">
       <div className="container">
         <div className="simulation-header">
-          <h1>Simulateur Credit Habitat</h1>
-          <p>Simulez votre credit avec les donnees necessaires BH Bank et reliez directement le bien choisi.</p>
+          <h1>Simulateur crédit habitat</h1>
+          <p>Simulez votre crédit avec les données nécessaires BH Bank et reliez directement le bien choisi.</p>
         </div>
 
         <div className="simulation-container">
           <div className="simulation-top-grid">
             <div className="simulation-card">
-              <h2><FaHome /> Bien immobilier selectionne</h2>
+              <h2><FaHome /> Bien immobilier sélectionné</h2>
               {formData.propertyTitle || formData.propertyPrice > 0 ? (
                 <div className="selected-property-box">
-                  <p><strong>Bien:</strong> {formData.propertyTitle || 'Bien selectionne'}</p>
-                  <p><strong>Localisation:</strong> {formData.propertyLocation || 'Non specifiee'}</p>
-                  <p><strong>Prix:</strong> {formData.propertyPrice > 0 ? formatCurrency(formData.propertyPrice) : 'Non specifie'}</p>
+                  <p><strong>Bien :</strong> {formData.propertyTitle || 'Bien sélectionné'}</p>
+                  <p><strong>Localisation :</strong> {formData.propertyLocation || 'Non spécifiée'}</p>
+                  <p><strong>Prix :</strong> {formData.propertyPrice > 0 ? formatCurrency(formData.propertyPrice) : 'Non spécifié'}</p>
                   <button type="button" className="btn btn-secondary" onClick={syncCreditWithPropertyPrice}>
                     Utiliser ce prix dans la simulation
                   </button>
                 </div>
               ) : (
                 <p className="placeholder-note">
-                  Aucun bien preselectionne. Vous pouvez choisir un bien depuis la page Biens immobiliers.
+                  Aucun bien présélectionné. Vous pouvez choisir un bien depuis la page Biens immobiliers.
                 </p>
               )}
             </div>
@@ -240,7 +240,7 @@ const CreditSimulation = () => {
                   <input type="number" step="0.01" name="tmm" value={formData.tmm} onChange={handleInputChange} />
                 </div>
                 <div className="form-group">
-                  <label>Taux credit direct (%)</label>
+                  <label>Taux crédit direct (%)</label>
                   <input type="number" step="0.01" name="directRate" value={formData.directRate} onChange={handleInputChange} />
                 </div>
               </div>
@@ -260,10 +260,10 @@ const CreditSimulation = () => {
               </div>
 
               <div className="form-group">
-                <label>Categorie socioprofessionnelle</label>
+                <label>Catégorie socioprofessionnelle</label>
                 <select name="socioCategory" value={formData.socioCategory} onChange={handleInputChange}>
-                  <option value="salarie">Salarie</option>
-                  <option value="profession_libre">Profession liberale</option>
+                  <option value="salarie">Salarié</option>
+                  <option value="profession_libre">Profession libérale</option>
                   <option value="fonctionnaire">Fonctionnaire</option>
                   <option value="retraite">Retraite</option>
                 </select>
@@ -286,12 +286,12 @@ const CreditSimulation = () => {
               </div>
 
               <div className="form-group">
-                <label>Montant credit (DT)</label>
+                <label>Montant crédit (DT)</label>
                 <input type="number" min="10000" name="creditAmount" value={formData.creditAmount} onChange={handleInputChange} />
               </div>
 
               <div className="form-group">
-                <label>Mensualite autres financements (DT)</label>
+                <label>Mensualité autres financements (DT)</label>
                 <input type="number" min="0" name="otherLoansMonthly" value={formData.otherLoansMonthly} onChange={handleInputChange} />
               </div>
 
@@ -301,17 +301,17 @@ const CreditSimulation = () => {
               </div>
 
               <div className="form-group">
-                <label>Duree (mois)</label>
+                <label>Durée (mois)</label>
                 <input type="number" min="12" max={durationMaxMonths} name="durationMonths" value={formData.durationMonths} onChange={handleInputChange} />
-                <small className="field-hint">Maximum autorise pour cet age: {durationMaxMonths} mois</small>
+                <small className="field-hint">Maximum autorisé pour cet âge : {durationMaxMonths} mois</small>
               </div>
             </div>
 
             <div className="credit-options-grid">
-              <label><input type="checkbox" name="normalLinkedSavings" checked={formData.normalLinkedSavings} onChange={handleInputChange} /> Credit Normal lie a l'epargne logement</label>
-              <label><input type="checkbox" name="complementaryLinkedSavings" checked={formData.complementaryLinkedSavings} onChange={handleInputChange} /> Credit Complementaire lie a l'epargne logement</label>
-              <label><input type="checkbox" name="jedidLinkedSavings" checked={formData.jedidLinkedSavings} onChange={handleInputChange} /> Credit Jedid lie a l'epargne Jedid</label>
-              <label><input type="checkbox" name="directCredit" checked={formData.directCredit} onChange={handleInputChange} /> Credit direct sans epargne prealable</label>
+              <label><input type="checkbox" name="normalLinkedSavings" checked={formData.normalLinkedSavings} onChange={handleInputChange} /> Crédit normal lié à l'épargne logement</label>
+              <label><input type="checkbox" name="complementaryLinkedSavings" checked={formData.complementaryLinkedSavings} onChange={handleInputChange} /> Crédit complémentaire lié à l'épargne logement</label>
+              <label><input type="checkbox" name="jedidLinkedSavings" checked={formData.jedidLinkedSavings} onChange={handleInputChange} /> Crédit Jedid lié à l'épargne Jedid</label>
+              <label><input type="checkbox" name="directCredit" checked={formData.directCredit} onChange={handleInputChange} /> Crédit direct sans épargne préalable</label>
             </div>
 
             <div className="simulation-actions">
@@ -321,19 +321,19 @@ const CreditSimulation = () => {
 
           {simulationResult && (
             <div className="simulation-result">
-              <h2><FaPercent /> Resultat de simulation</h2>
+              <h2><FaPercent /> Résultat de simulation</h2>
               <div className="result-grid">
                 <div className="result-card">
-                  <h3>Montant emprunte</h3>
+                  <h3>Montant emprunté</h3>
                   <p className="result-value">{formatCurrency(simulationResult.amount)}</p>
                 </div>
                 <div className="result-card">
-                  <h3>Mensualite estimee</h3>
+                  <h3>Mensualité estimée</h3>
                   <p className="result-value">{formatCurrency(simulationResult.monthlyPayment)}</p>
                   <small>Sur {formData.durationMonths} mois</small>
                 </div>
                 <div className="result-card">
-                  <h3>Taux applique</h3>
+                  <h3>Taux appliqué</h3>
                   <p className="result-value">{simulationResult.appliedRate.toFixed(2)}%</p>
                 </div>
                 <div className="result-card">
@@ -342,11 +342,11 @@ const CreditSimulation = () => {
                   <small>Seuil profil: {simulationResult.policyDebtLimit}%</small>
                 </div>
                 <div className="result-card">
-                  <h3>Interets totaux</h3>
+                  <h3>Intérêts totaux</h3>
                   <p className="result-value">{formatCurrency(simulationResult.totalInterest)}</p>
                 </div>
                 <div className="result-card">
-                  <h3>Cout total credit</h3>
+                  <h3>Coût total du crédit</h3>
                   <p className="result-value">{formatCurrency(simulationResult.totalAmount)}</p>
                 </div>
               </div>
@@ -362,13 +362,13 @@ const CreditSimulation = () => {
 
               <div className={`eligibility-banner ${simulationResult.eligible ? 'good' : 'warn'}`}>
                 {simulationResult.eligible
-                  ? 'Resultat indicatif: dossier potentiellement eligible selon ces criteres.'
-                  : 'Resultat indicatif: dossier a revoir avec un conseiller (regles non respectees).'}
+                  ? 'Résultat indicatif : dossier potentiellement éligible selon ces critères.'
+                  : 'Résultat indicatif : dossier à revoir avec un conseiller (règles non respectées).'}
               </div>
 
               <div className="result-actions">
                 <button className="btn btn-primary" type="button" onClick={openCreditPortal}>
-                  Demander ce credit
+                  Demander ce crédit
                 </button>
                 <button className="btn btn-secondary">Exporter ma simulation</button>
               </div>
@@ -377,7 +377,7 @@ const CreditSimulation = () => {
 
           {!simulationResult && (
             <div className="simulation-empty">
-              Lancez le calcul pour afficher le resultat de votre simulation.
+              Lancez le calcul pour afficher le résultat de votre simulation.
             </div>
           )}
           </div>

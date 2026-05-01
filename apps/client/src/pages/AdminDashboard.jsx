@@ -72,11 +72,11 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 const REPORT_STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'Toutes les reclamations' },
+  { value: 'all', label: 'Toutes les réclamations' },
   { value: 'unread', label: 'Non lus' },
   { value: 'in_review', label: 'En revue' },
   { value: 'resolved', label: 'Resolus' },
-  { value: 'rejected', label: 'Rejetes' },
+  { value: 'rejected', label: 'Rejetées' },
 ];
 
 const REPORT_CATEGORY_LABELS = {
@@ -586,7 +586,7 @@ export default function AdminDashboard() {
         await updateAdminUserApi(editingUserId, buildPayload(), token);
       }
 
-      setFormMessage(formMode === 'create' ? 'Utilisateur cree.' : 'Utilisateur mis a jour.');
+      setFormMessage(formMode === 'create' ? 'Utilisateur créé.' : 'Utilisateur mis à jour.');
       resetForm();
       await fetchUsers();
     } catch (requestError) {
@@ -1363,21 +1363,21 @@ export default function AdminDashboard() {
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
     { key: 'properties', label: 'Biens', icon: FaBuilding },
     { key: 'mail', label: 'Mail', icon: FaEnvelope },
-    { key: 'sites', label: 'Sites scrapes', icon: FaGlobe },
-    { key: 'activities', label: 'Activites', icon: FaListAlt },
+    { key: 'sites', label: 'Sites scrapés', icon: FaGlobe },
+    { key: 'activities', label: 'Activités', icon: FaListAlt },
     { key: 'stats', label: 'Statistiques', icon: FaChartLine },
-    { key: 'settings', label: 'Parametres', icon: FaCog },
+    { key: 'settings', label: 'Paramètres', icon: FaCog },
   ];
 
   const sectionTitles = {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
     properties: 'Gestion des biens immobiliers',
-    mail: 'Boite mail reclamations',
-    sites: 'Gestion des sites scrapes',
-    activities: 'Activites recentes',
+    mail: 'Boîte mail réclamations',
+    sites: 'Gestion des sites scrapés',
+    activities: 'Activités récentes',
     stats: 'Statistiques',
-    settings: 'Parametres',
+    settings: 'Paramètres',
   };
 
   if (loading) {
@@ -1385,7 +1385,7 @@ export default function AdminDashboard() {
       <div className="admin-dashboard admin-dashboard--state">
         <div className="admin-state admin-state--page">
           <FaSyncAlt className="spin" />
-          <p>Chargement du dashboard admin...</p>
+          <p>Chargement du tableau de bord admin...</p>
         </div>
       </div>
     );
@@ -1398,7 +1398,7 @@ export default function AdminDashboard() {
           <FaExclamationTriangle />
           <p>{error}</p>
           <button type="button" className="admin-refresh" onClick={refreshDashboardData}>
-            Reessayer
+            Réessayer
           </button>
         </div>
       </div>
@@ -1445,7 +1445,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-icon-btn admin-icon-btn--notification"
-                aria-label="Mail reclamations"
+                aria-label="Mail réclamations"
                 onClick={() => setActiveSection('mail')}
               >
                 <FaEnvelope />
@@ -1477,7 +1477,7 @@ export default function AdminDashboard() {
                 onClick={handleLogout}
               >
                 <FaSignOutAlt />
-                <span>Deconnexion</span>
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>
@@ -1545,7 +1545,7 @@ export default function AdminDashboard() {
                       <FaEnvelope />
                     </div>
                     <div>
-                      <h3>Reclamations non lues</h3>
+                      <h3>Réclamations non lues</h3>
                       <p>{unreadReportCount}</p>
                     </div>
                   </div>
@@ -1555,18 +1555,18 @@ export default function AdminDashboard() {
                   <div className="admin-card">
                     <h2>Bienvenue</h2>
                     <p className="admin-section-help">
-                      Utilisez le menu gauche pour gerer les comptes, les biens et les sites
-                      scrapes depuis un seul dashboard admin en francais.
+                      Utilisez le menu gauche pour gérer les comptes, les biens et les sites
+                      scrapés depuis un seul tableau de bord admin en français.
                     </p>
                   </div>
                   <div className="admin-card">
                     <h2>Etat des biens immobiliers</h2>
                     <ul className="admin-settings-list">
-                      <li>Total des biens visibles en admin: {propertyTotals.total}</li>
-                      <li>Biens actifs cote client: {propertyTotals.active}</li>
-                      <li>Biens desactives: {propertyTotals.inactive}</li>
-                      <li>Biens ajoutes par admin: {propertyTotals.adminCreated}</li>
-                      <li>Sites de collecte actifs: {siteTotals.active}</li>
+                      <li>Total des biens visibles en admin : {propertyTotals.total}</li>
+                      <li>Biens actifs côté client : {propertyTotals.active}</li>
+                      <li>Biens désactivés : {propertyTotals.inactive}</li>
+                      <li>Biens ajoutés par admin : {propertyTotals.adminCreated}</li>
+                      <li>Sites de collecte actifs : {siteTotals.active}</li>
                     </ul>
                   </div>
                 </div>
@@ -1591,7 +1591,7 @@ export default function AdminDashboard() {
                   <div className="admin-users-toolbar">
                     <input
                       className="admin-search-input"
-                      placeholder="Rechercher par nom, email ou role"
+                      placeholder="Rechercher par nom, e-mail ou rôle"
                       value={userSearch}
                       onChange={(event) => setUserSearch(event.target.value)}
                     />
@@ -1678,13 +1678,13 @@ export default function AdminDashboard() {
                   </div>
 
                   <p className="admin-section-help">
-                    Ajoutez, modifiez, supprimez ou activez/desactivez les biens immobiliers.
-                    Les changements admin restent prioritaires sur les donnees importees.
+                    Ajoutez, modifiez, supprimez ou activez/désactivez les biens immobiliers.
+                    Les changements admin restent prioritaires sur les données importées.
                   </p>
 
                   {!propertyLoading && filteredAdminProperties.length > 0 && (
                     <p className="admin-section-help">
-                      Affichage de {propertyVisibleRangeStart} a {propertyVisibleRangeEnd} sur{' '}
+                      Affichage de {propertyVisibleRangeStart} à {propertyVisibleRangeEnd} sur{' '}
                       {filteredAdminProperties.length} biens.
                     </p>
                   )}
@@ -1788,7 +1788,7 @@ export default function AdminDashboard() {
                                 <strong>Ville:</strong> {property.city || '-'}
                               </span>
                               <span>
-                                <strong>Mise a jour:</strong>{' '}
+                      <strong>Mise à jour :</strong>{' '}
                                 {formatDate(property.admin_updated_at || property.scraped_at)}
                               </span>
                             </div>
@@ -1888,7 +1888,7 @@ export default function AdminDashboard() {
               <section className="admin-analytics-column">
                 <div className="admin-card admin-reports-card">
                   <div className="admin-users-header">
-                    <h2>Mail reclamations</h2>
+                    <h2>Mail réclamations</h2>
                     <div className="admin-users-header-actions">
                       <span className="admin-users-count">{adminReports.length}</span>
                     </div>
@@ -1900,7 +1900,7 @@ export default function AdminDashboard() {
                   </p>
 
                   <div className="admin-users-toolbar admin-toolbar-row">
-                    <div className="admin-filter-chips" aria-label="Filtrer les reclamations par statut">
+                  <div className="admin-filter-chips" aria-label="Filtrer les réclamations par statut">
                       {REPORT_STATUS_FILTER_OPTIONS.map((option) => (
                         <button
                           key={option.value}
@@ -1920,10 +1920,10 @@ export default function AdminDashboard() {
                   {reportLoading ? (
                     <div className="admin-state admin-state--inline">
                       <FaSyncAlt className="spin" />
-                      <p>Chargement des reclamations...</p>
+                    <p>Chargement des réclamations...</p>
                     </div>
                   ) : adminReports.length === 0 ? (
-                    <p className="empty">Aucune reclamation trouvee.</p>
+                    <p className="empty">Aucune réclamation trouvée.</p>
                   ) : (
                     <div className="admin-reports-list">
                       {adminReports.map((report) => {
@@ -2021,7 +2021,7 @@ export default function AdminDashboard() {
                 <div className="admin-card admin-scraper-control-card">
                   <div className="admin-scraper-control-head">
                     <div className="admin-scraper-title-block">
-                      <span className="admin-scraper-kicker">Mission controle</span>
+                    <span className="admin-scraper-kicker">Mission contrôle</span>
                       <h2>Automatisation du scraping</h2>
                       <p className="admin-section-help">
                         Demarrer lance un cycle de collecte complet. Agent de filtrage execute
@@ -2053,7 +2053,7 @@ export default function AdminDashboard() {
                   {scraperControlLoading ? (
                     <div className="admin-state admin-state--inline">
                       <FaSyncAlt className="spin" />
-                      <p>Chargement du controle du scraper...</p>
+                    <p>Chargement du contrôle du scraper...</p>
                     </div>
                   ) : (
                     <>
@@ -2248,7 +2248,7 @@ export default function AdminDashboard() {
                             <FaExclamationTriangle />
                           </div>
                           <div>
-                            <strong>Derniere erreur detectee</strong>
+                    <strong>Dernière erreur détectée</strong>
                             <p>{scraperControl.last_error}</p>
                           </div>
                         </div>
@@ -2351,7 +2351,7 @@ export default function AdminDashboard() {
                               <strong>Depart:</strong> {site.start_url || '-'}
                             </span>
                             <span>
-                              <strong>Mise a jour:</strong>{' '}
+                        <strong>Mise à jour :</strong>{' '}
                               {formatDate(site.updated_at || site.created_at)}
                             </span>
                           </div>
@@ -2434,7 +2434,7 @@ export default function AdminDashboard() {
               <section className="admin-analytics-column">
                 <div className="admin-row">
                   <div className="admin-card">
-                    <h2>Repartition des roles</h2>
+                    <h2>Répartition des rôles</h2>
                     <ResponsiveContainer width="100%" height={320}>
                       <PieChart>
                         <Pie
@@ -2476,19 +2476,19 @@ export default function AdminDashboard() {
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
                 <div className="admin-card">
-                  <h2>Parametres du module admin</h2>
+                  <h2>Paramètres du module admin</h2>
                   <p className="admin-section-help">
                     Configuration actuelle du tableau de bord admin.
                   </p>
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
-                    <li>Utilisateurs charges: {users.length}</li>
-                    <li>Biens charges: {adminProperties.length}</li>
-                    <li>Reclamations non lues: {unreadReportCount}</li>
-                    <li>Sites de collecte charges: {scrapeSites.length}</li>
-                    <li>Mode edition utilisateur: {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
-                    <li>Mode edition bien: {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
-                    <li>Mode edition site: {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Utilisateurs chargés : {users.length}</li>
+                    <li>Biens chargés : {adminProperties.length}</li>
+                    <li>Réclamations non lues : {unreadReportCount}</li>
+                    <li>Sites de collecte chargés : {scrapeSites.length}</li>
+                    <li>Mode édition utilisateur : {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Mode édition bien : {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+                    <li>Mode édition site : {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                   </ul>
                 </div>
               </section>
@@ -2501,7 +2501,7 @@ export default function AdminDashboard() {
         <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={resetForm}>
           <aside className="admin-card admin-edit-modal" onClick={(event) => event.stopPropagation()}>
             <div className="admin-edit-panel-head">
-              <h2>{formMode === 'create' ? 'Nouveau utilisateur' : `Modifier utilisateur #${editingUserId}`}</h2>
+              <h2>{formMode === 'create' ? 'Nouvel utilisateur' : `Modifier utilisateur #${editingUserId}`}</h2>
               <button
                 type="button"
                 className="admin-close-btn"
@@ -2513,7 +2513,7 @@ export default function AdminDashboard() {
               </button>
             </div>
             <p className="admin-section-help">
-              Remplissez le formulaire puis validez pour creer ou mettre a jour un compte.
+              Remplissez le formulaire puis validez pour créer ou mettre à jour un compte.
             </p>
             <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
               <input
@@ -2526,7 +2526,7 @@ export default function AdminDashboard() {
               <input
                 name="email"
                 type="email"
-                placeholder="Email"
+                placeholder="E-mail"
                 value={formData.email}
                 onChange={handleFormChange}
                 disabled={submitting}
@@ -2536,7 +2536,7 @@ export default function AdminDashboard() {
                 type="password"
                 placeholder={
                   formMode === 'create'
-                    ? 'Mot de passe (min 6)'
+                    ? 'Mot de passe (min. 6)'
                     : 'Nouveau mot de passe (optionnel)'
                 }
                 value={formData.password}
@@ -2564,7 +2564,7 @@ export default function AdminDashboard() {
                   />
                   <input
                     name="phone"
-                    placeholder="Telephone (optionnel)"
+                    placeholder="Téléphone (optionnel)"
                     value={formData.phone}
                     onChange={handleFormChange}
                     disabled={submitting}
@@ -2582,7 +2582,7 @@ export default function AdminDashboard() {
               )}
               <div className="admin-form-actions">
                 <button type="submit" className="admin-refresh" disabled={submitting}>
-                  {submitting ? 'Traitement...' : formMode === 'create' ? 'Creer' : 'Enregistrer'}
+                  {submitting ? 'Traitement...' : formMode === 'create' ? 'Créer' : 'Enregistrer'}
                 </button>
                 <button
                   type="button"
@@ -2652,7 +2652,7 @@ export default function AdminDashboard() {
                 <input
                   id="property-title"
                   name="title"
-                  placeholder="Ex: Appartement S+2 a Tunis"
+                  placeholder="Ex. : Appartement S+2 à Tunis"
                   value={propertyFormData.title}
                   onChange={handlePropertyFormChange}
                   disabled={propertySubmitting}
@@ -2673,7 +2673,7 @@ export default function AdminDashboard() {
               </div>
               <div className="admin-field-block">
                 <label className="admin-field-label" htmlFor="property-price-value">
-                  Prix numerique (colonne price_value)
+                  Prix numérique (colonne price_value)
                 </label>
                 <input
                   id="property-price-value"
@@ -2785,7 +2785,7 @@ export default function AdminDashboard() {
                 <textarea
                   id="property-description"
                   name="description"
-                  placeholder="Description complete du bien immobilier."
+                  placeholder="Description complète du bien immobilier."
                   value={propertyFormData.description}
                   onChange={handlePropertyFormChange}
                   disabled={propertySubmitting}
@@ -2800,7 +2800,7 @@ export default function AdminDashboard() {
                   onChange={handlePropertyFormChange}
                   disabled={propertySubmitting}
                 />
-                <span>Bien actif pour l espace client</span>
+                <span>Bien actif pour l’espace client</span>
               </label>
               <div className="admin-form-actions">
                 <button type="submit" className="admin-refresh" disabled={propertySubmitting}>
@@ -2926,7 +2926,7 @@ export default function AdminDashboard() {
               </div>
               <div className="admin-field-block">
                 <label className="admin-field-label" htmlFor="site-start-url">
-                  URL de depart (colonne start_url)
+                  URL de départ (colonne start_url)
                 </label>
                 <input
                   id="site-start-url"
@@ -2945,7 +2945,7 @@ export default function AdminDashboard() {
                 <textarea
                   id="site-description"
                   name="description"
-                  placeholder="Ex: Portail de petites annonces immobilieres en Tunisie."
+                  placeholder="Ex. : Portail de petites annonces immobilières en Tunisie."
                   value={siteFormData.description}
                   onChange={handleSiteFormChange}
                   disabled={siteSubmitting}

@@ -58,7 +58,7 @@ const Navbar = () => {
 
   if (currentRole === 'agent_bancaire') {
     accountMenuLinks.push({
-      label: 'Dashboard agent',
+      label: 'Tableau de bord agent',
       to: '/agent/dashboard',
       icon: FaUserTie,
     });
@@ -66,7 +66,7 @@ const Navbar = () => {
 
   if (currentRole === 'admin') {
     accountMenuLinks.push({
-      label: 'Admin dashboard',
+      label: 'Tableau de bord admin',
       to: '/admin/dashboard',
       icon: FaUserShield,
     });
@@ -76,7 +76,7 @@ const Navbar = () => {
     { label: 'Appartement', icon: <FaBuilding /> },
     { label: 'Villa', icon: <FaHome /> },
     { label: 'Terrain', icon: <FaWarehouse /> },
-    { label: 'Commercial', icon: <FaStore /> },
+    { label: 'Commerce', icon: <FaStore /> },
   ];
 
   const popularSearches = [
@@ -208,7 +208,7 @@ const Navbar = () => {
                 </span>
                 <span className="brand-copy">
                   <span className="brand-kicker">BH Bank Tunisie</span>
-                  <span className="marketplace-tag">Marketplace</span>
+                  <span className="marketplace-tag">Marketplace immobilière</span>
                 </span>
               </Link>
             </div>

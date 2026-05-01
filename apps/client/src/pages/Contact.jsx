@@ -16,13 +16,13 @@ const quickContacts = [
   {
     label: 'Standard',
     value: '(+216) 71 126 000',
-    detail: 'Telephone general',
+    detail: 'Téléphone général',
     Icon: FaPhoneAlt,
   },
   {
-    label: 'Email',
+    label: 'E-mail',
     value: 'Contact@bhbank.tn',
-    detail: 'Demande generale',
+    detail: 'Demande générale',
     Icon: FaEnvelope,
   },
   {
@@ -41,27 +41,27 @@ const quickContacts = [
 
 const requestRoutes = [
   {
-    title: 'Question generale',
+    title: 'Question générale',
     text: 'Pour une information, une orientation ou une demande de contact classique.',
     detail: 'Canal conseille : Contactez-nous',
     Icon: FaEnvelope,
   },
   {
     title: 'Rendez-vous en agence',
-    text: 'Pour organiser un echange avec une agence ou preparer un entretien sur place.',
+    text: 'Pour organiser un échange avec une agence ou préparer un entretien sur place.',
     detail: 'Canal conseille : prise de rendez-vous',
     Icon: FaCalendarCheck,
   },
   {
-    title: 'Reclamation',
-    text: 'Pour signaler une reclamation et suivre son traitement dans le parcours dedie.',
-    detail: 'Canal conseille : portail de reclamations',
+    title: 'Réclamation',
+    text: 'Pour signaler une réclamation et suivre son traitement dans le parcours dédié.',
+    detail: 'Canal conseillé : portail de réclamations',
     Icon: FaShieldAlt,
   },
   {
     title: 'Orientation rapide',
-    text: 'Pour joindre rapidement les canaux les plus directs sans formulaire detaille.',
-    detail: 'Telephone, email et centre relation client',
+    text: 'Pour joindre rapidement les canaux les plus directs sans formulaire détaillé.',
+    detail: 'Téléphone, e-mail et centre relation client',
     Icon: FaHeadset,
   },
 ];
@@ -69,14 +69,14 @@ const requestRoutes = [
 const officialEntries = [
   {
     title: 'Contactez-nous',
-    text: 'Le point d entree general pour envoyer une demande d information ou etre oriente.',
+    text: 'Le point d’entrée général pour envoyer une demande d’information ou être orienté.',
     href: 'https://www.bhbank.tn/contactez-nous',
     action: 'Ouvrir la page de contact',
     Icon: FaEnvelope,
   },
   {
     title: 'Prise de rendez-vous',
-    text: 'Le bon acces pour fixer un echange en agence avec un motif de visite clair.',
+    text: 'Le bon accès pour fixer un échange en agence avec un motif de visite clair.',
     href: 'https://www.bhbank.tn/prise-de-rendez-vous',
     action: 'Prendre un rendez-vous',
     Icon: FaCalendarCheck,
@@ -92,15 +92,15 @@ const officialEntries = [
 
 const directory = [
   {
-    label: 'Telephone',
+    label: 'Téléphone',
     value: '(+216) 71 126 000',
     detail: 'Standard BH Bank',
     Icon: FaPhoneAlt,
   },
   {
-    label: 'Email',
+    label: 'E-mail',
     value: 'Contact@bhbank.tn',
-    detail: 'Demande generale et orientation',
+    detail: 'Demande générale et orientation',
     Icon: FaEnvelope,
   },
   {
@@ -110,17 +110,17 @@ const directory = [
     Icon: FaHeadset,
   },
   {
-    label: 'Siege social',
+    label: 'Siège social',
     value: '18 Avenue Mohamed V, Tunis 1023',
-    detail: 'Adresse publiee sur la page officielle',
+    detail: 'Adresse publiée sur la page officielle',
     Icon: FaMapMarkerAlt,
   },
 ];
 
 const mediatorRows = [
   { label: 'Nom', value: 'Meftah Ziadi', Icon: FaUserShield },
-  { label: 'Telephone', value: '(+216) 50428037 / 94371576', Icon: FaPhoneAlt },
-  { label: 'Email', value: 'ziadi.meftah@cbf.org.tn', Icon: FaEnvelope },
+  { label: 'Téléphone', value: '(+216) 50428037 / 94371576', Icon: FaPhoneAlt },
+  { label: 'E-mail', value: 'ziadi.meftah@cbf.org.tn', Icon: FaEnvelope },
   { label: 'Adresse', value: '20, rue Mohamed Triki - 2037 - Ennasr 2', Icon: FaMapMarkerAlt },
 ];
 
@@ -135,13 +135,13 @@ export default function Contact() {
               <h1>Contact</h1>
               <p className="contact-info-lead">
                 Retrouvez ici les informations essentielles pour joindre BH Bank, choisir le bon
-                canal selon votre besoin et consulter les coordonnees utiles.
+                canal selon votre besoin et consulter les coordonnées utiles.
               </p>
 
               <div className="contact-info-summary">
-                <span>Contact general</span>
+                <span>Contact général</span>
                 <span>Rendez-vous</span>
-                <span>Mediation</span>
+                <span>Médiation</span>
               </div>
             </div>
 
@@ -169,8 +169,8 @@ export default function Contact() {
                 <span className="contact-info-section-tag">Orientation</span>
                 <h2>Choisir le bon canal</h2>
                 <p>
-                  BH Bank distingue plusieurs points d entree. L objectif est de montrer clairement
-                  a quoi sert chaque canal sans charger la page inutilement.
+                  BH Bank distingue plusieurs points d’entrée. L’objectif est de montrer clairement
+                  à quoi sert chaque canal sans charger la page inutilement.
                 </p>
               </div>
 
@@ -190,11 +190,11 @@ export default function Contact() {
 
             <section className="contact-info-panel">
               <div className="contact-info-section-head">
-                <span className="contact-info-section-tag">Entrees officielles</span>
+                <span className="contact-info-section-tag">Entrées officielles</span>
                 <h2>Pages utiles</h2>
                 <p>
-                  Les principales demarches a distance reposent sur ces pages officielles de
-                  reference.
+                  Les principales démarches à distance reposent sur ces pages officielles de
+                  référence.
                 </p>
               </div>
 
@@ -217,8 +217,8 @@ export default function Contact() {
 
           <aside className="contact-info-sidebar">
             <div className="contact-info-directory-card">
-              <span className="contact-info-card-label">Coordonnees</span>
-              <h3>Informations generales de contact</h3>
+              <span className="contact-info-card-label">Coordonnées</span>
+              <h3>Informations générales de contact</h3>
 
               <div className="contact-info-directory-list">
                 {directory.map(({ label, value, detail, Icon }) => (
@@ -237,11 +237,11 @@ export default function Contact() {
             </div>
 
             <div className="contact-info-mediator-card">
-              <span className="contact-info-card-label">Mediation</span>
-              <h3>Coordonnees du mediateur</h3>
+              <span className="contact-info-card-label">Médiation</span>
+              <h3>Coordonnées du médiateur</h3>
               <p>
-                Ces coordonnees sont publiees pour les situations qui necessitent un niveau
-                d escalade supplementaire.
+                Ces coordonnées sont publiées pour les situations qui nécessitent un niveau
+                d’escalade supplémentaire.
               </p>
 
               <div className="contact-info-mediator-list">
@@ -261,7 +261,7 @@ export default function Contact() {
 
             <div className="contact-info-source-card">
               <span className="contact-info-card-label">Source</span>
-              <h3>Reference officielle</h3>
+              <h3>Référence officielle</h3>
               <p>Les informations de cette page s appuient sur les pages publiques BH Bank.</p>
               <a href="https://www.bhbank.tn/" target="_blank" rel="noreferrer">
                 Visiter le site BH Bank

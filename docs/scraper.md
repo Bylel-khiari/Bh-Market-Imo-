@@ -30,6 +30,21 @@ From repository root:
 python tools/listing_cleaner.py
 ```
 
+## Repair Parsed Prices
+
+If `price_raw` is correct but `price_value` was parsed without thousand separators
+for example `260 000 DT` stored as `260`, run a dry-run first:
+
+```bash
+python tools/repair_price_values.py
+```
+
+Then apply the correction:
+
+```bash
+python tools/repair_price_values.py --apply
+```
+
 ## Data Responsibilities
 
 - Scraper writes raw rows to raw_properties.

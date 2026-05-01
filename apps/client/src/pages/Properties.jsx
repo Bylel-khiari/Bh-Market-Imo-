@@ -9,7 +9,6 @@ import {
   FaMapMarkerAlt,
   FaRegHeart,
   FaRulerCombined,
-  FaSearch,
   FaStar,
   FaSyncAlt,
 } from 'react-icons/fa';
@@ -23,8 +22,6 @@ import {
 import { fetchPropertyRows } from '../lib/properties';
 import '../styles/Properties.css';
 
-const TYPE_LABELS = ['Appartement', 'Villa', 'Maison', 'Terrain', 'Studio', 'Bureau'];
-const DEFAULT_AMENITIES = ['Garden', 'Gym', 'Garage', 'Pool'];
 const PROPERTIES_PER_PAGE = 25;
 const REPORT_CATEGORY_OPTIONS = [
   { value: 'cannot_open_site', label: 'Impossible d ouvrir le site source' },
@@ -32,7 +29,7 @@ const REPORT_CATEGORY_OPTIONS = [
   { value: 'bad_agency_experience', label: 'Mauvaise experience avec l agence' },
   { value: 'scam_suspicion', label: 'Suspicion d arnaque' },
   { value: 'incorrect_information', label: 'Informations incorrectes' },
-  { value: 'other', label: 'Autre probleme' },
+  { value: 'other', label: 'Autre problème' },
 ];
 const inferTypeFromTitle = (title) => {
   const lower = (title || '').toLowerCase();
@@ -66,12 +63,6 @@ const Properties = () => {
   const [error, setError] = useState('');
   const [focusedId, setFocusedId] = useState(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
-  const [locationKeyword, setLocationKeyword] = useState('');
-  const [selectedCities, setSelectedCities] = useState([]);
-  const [selectedTypes, setSelectedTypes] = useState([]);
-  const [activeAmenities, setActiveAmenities] = useState(['Garden']);
-  const [priceMin, setPriceMin] = useState(0);
-  const [priceMax, setPriceMax] = useState(1000000);
   const [currentPage, setCurrentPage] = useState(1);
   const [authSession, setAuthSession] = useState(() => getAuthSession());
   const [favoriteIds, setFavoriteIds] = useState([]);
@@ -99,10 +90,10 @@ const Properties = () => {
       const rows = await fetchPropertyRows({ limit: 5000, signal: controller.signal });
       setProperties(rows);
     } catch (err) {
-      console.error('Failed to load properties:', err);
+      console.error('Impossible de charger les biens :', err);
       if (err.name !== 'AbortError') {
         setProperties([]);
-        setError('Impossible de charger les biens nettoyes depuis le backend.');
+        setError('Impossible de charger les biens nettoyés depuis le serveur.');
       }
     } finally {
       clearTimeout(timeoutId);
@@ -132,7 +123,7 @@ const Properties = () => {
       setFavoriteIds(nextIds.map((id) => String(id)));
       setFavoriteError('');
     } catch (err) {
-      console.error('Failed to load favorites:', err);
+      console.error('Impossible de charger les favoris :', err);
       setFavoriteError(err.message || 'Impossible de charger vos favoris.');
       setFavoriteIds([]);
     } finally {
@@ -189,19 +180,6 @@ const Properties = () => {
         rawLocation.includes(searchLocation);
 
       const matchesType = !searchType || title.includes(searchType);
-      const matchesSidebarLocation =
-        !locationKeyword ||
-        city.includes(locationKeyword.toLowerCase()) ||
-        rawLocation.includes(locationKeyword.toLowerCase());
-
-      const matchesSidebarCity =
-        selectedCities.length === 0 ||
-        selectedCities.some((selectedCity) => city === selectedCity.toLowerCase());
-
-      const matchesSidebarType = selectedTypes.length === 0 || selectedTypes.includes(type);
-
-      const matchesPrice =
-        !normalizedPrice || (normalizedPrice >= priceMin && normalizedPrice <= priceMax);
 
       const matchesFavorites = !favoritesOnly || favoriteIdSet.has(String(property.id));
 
@@ -209,10 +187,6 @@ const Properties = () => {
         matchesQuery &&
         matchesLocation &&
         matchesType &&
-        matchesSidebarLocation &&
-        matchesSidebarCity &&
-        matchesSidebarType &&
-        matchesPrice &&
         matchesFavorites
       );
     });
@@ -221,11 +195,6 @@ const Properties = () => {
     searchQuery,
     searchLocation,
     searchType,
-    locationKeyword,
-    selectedCities,
-    selectedTypes,
-    priceMin,
-    priceMax,
     favoritesOnly,
     favoriteIdSet,
   ]);
@@ -261,28 +230,6 @@ const Properties = () => {
   const visibleRangeStart = filteredProperties.length === 0 ? 0 : (currentPage - 1) * PROPERTIES_PER_PAGE + 1;
   const visibleRangeEnd = Math.min(currentPage * PROPERTIES_PER_PAGE, filteredProperties.length);
 
-  const allPriceValues = useMemo(() => {
-    return properties
-      .map((item) => Number(item.price_value))
-      .filter((value) => Number.isFinite(value) && value > 0);
-  }, [properties]);
-
-  const maxDetectedPrice = useMemo(() => {
-    if (allPriceValues.length === 0) return 1000000;
-    return Math.max(...allPriceValues, 1000000);
-  }, [allPriceValues]);
-
-  const cityOptions = useMemo(() => {
-    const map = new Map();
-    filteredProperties.forEach((property) => {
-      const city = (property.city || property.location_raw || '').trim();
-      if (!city) return;
-      const key = city.toLowerCase();
-      if (!map.has(key)) map.set(key, city);
-    });
-    return Array.from(map.values()).slice(0, 8);
-  }, [filteredProperties]);
-
   const selectedProperty = useMemo(() => {
     if (!paginatedProperties.length) return null;
     const found = paginatedProperties.find((property) => String(property.id) === String(selectedPropertyId));
@@ -297,12 +244,7 @@ const Properties = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [location.search, locationKeyword, selectedCities, selectedTypes, priceMin, priceMax]);
-
-  useEffect(() => {
-    setPriceMin(0);
-    setPriceMax(maxDetectedPrice);
-  }, [maxDetectedPrice]);
+  }, [location.search]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -342,16 +284,12 @@ const Properties = () => {
     if (Number.isFinite(numeric) && numeric > 0) {
       return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
     }
-    return property.price_raw || 'Prix non communique';
+    return property.price_raw || 'Prix non communiqué';
   };
 
   const formatDate = (value) => {
     if (!value) return 'Date non disponible';
     return new Date(value).toLocaleDateString('fr-TN');
-  };
-
-  const formatBudget = (value) => {
-    return `${new Intl.NumberFormat('fr-TN').format(Math.round(value || 0))} DT`;
   };
 
   const openSimulationForProperty = (property) => {
@@ -361,28 +299,6 @@ const Properties = () => {
     if (property.location_raw || property.city) params.set('location', property.location_raw || property.city);
     if (property.price_value) params.set('price', String(property.price_value));
     navigate(`/credit-simulation?${params.toString()}`);
-  };
-
-  const toggleCity = (city) => {
-    setSelectedCities((prev) => {
-      const exists = prev.some((item) => item.toLowerCase() === city.toLowerCase());
-      if (exists) return prev.filter((item) => item.toLowerCase() !== city.toLowerCase());
-      return [...prev, city];
-    });
-  };
-
-  const toggleType = (type) => {
-    setSelectedTypes((prev) => {
-      if (prev.includes(type)) return prev.filter((item) => item !== type);
-      return [...prev, type];
-    });
-  };
-
-  const toggleAmenity = (amenity) => {
-    setActiveAmenities((prev) => {
-      if (prev.includes(amenity)) return prev.filter((item) => item !== amenity);
-      return [...prev, amenity];
-    });
   };
 
   const updateFavoritesFilter = (nextValue) => {
@@ -433,11 +349,11 @@ const Properties = () => {
 
       setFavoriteNotice(
         isFavorite
-          ? 'Le bien a ete retire de vos favoris.'
-          : 'Le bien a ete ajoute a vos favoris.',
+          ? 'Le bien a été retiré de vos favoris.'
+          : 'Le bien a été ajouté à vos favoris.',
       );
     } catch (err) {
-      console.error('Failed to toggle favorite:', err);
+      console.error('Impossible de mettre à jour le favori :', err);
 
       setFavoriteIds((prev) => {
         if (isFavorite) {
@@ -447,7 +363,7 @@ const Properties = () => {
         return prev.filter((id) => String(id) !== propertyId);
       });
 
-      setFavoriteError(err.message || 'Impossible de mettre a jour ce favori.');
+      setFavoriteError(err.message || 'Impossible de mettre à jour ce favori.');
     } finally {
       setFavoritePendingId(null);
     }
@@ -487,7 +403,7 @@ const Properties = () => {
 
     const trimmedMessage = reportMessage.trim();
     if (trimmedMessage.length < 6) {
-      setReportError('Veuillez decrire le probleme avec au moins 6 caracteres.');
+      setReportError('Veuillez décrire le problème avec au moins 6 caractères.');
       return;
     }
 
@@ -504,13 +420,13 @@ const Properties = () => {
         authSession.token,
       );
 
-      setReportNotice('Votre signalement a ete envoye a l equipe admin.');
+      setReportNotice('Votre signalement a été envoyé à l’équipe admin.');
       setReportModalProperty(null);
       setReportMessage('');
       setReportCategory('cannot_open_site');
     } catch (err) {
-      console.error('Failed to submit property report:', err);
-      setReportError(err.message || 'Impossible d envoyer le signalement.');
+      console.error('Impossible d’envoyer le signalement :', err);
+      setReportError(err.message || 'Impossible d’envoyer le signalement.');
     } finally {
       setReportSubmitting(false);
     }
@@ -519,123 +435,15 @@ const Properties = () => {
   return (
     <div className="properties-page marketplace-mode">
       <div className="marketplace-shell">
-        <aside className="filters-panel">
-          <div className="panel-title-row">
-            <h2>Custom Filter</h2>
-            <button
-              type="button"
-              className="clear-btn"
-              onClick={() => {
-                setSelectedCities([]);
-                setSelectedTypes([]);
-                setActiveAmenities(['Garden']);
-                setLocationKeyword('');
-                setPriceMin(0);
-                setPriceMax(maxDetectedPrice);
-              }}
-            >
-              Clear all
-            </button>
-          </div>
-
-          <div className="filter-card">
-            <h3>Location</h3>
-            <div className="location-search-input">
-              <FaSearch />
-              <input
-                type="text"
-                value={locationKeyword}
-                onChange={(event) => setLocationKeyword(event.target.value)}
-                placeholder="Type city or area"
-              />
-            </div>
-            <div className="checkbox-list">
-              {cityOptions.length === 0 && <span className="muted">No city detected</span>}
-              {cityOptions.map((city) => (
-                <label key={city} className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={selectedCities.some((item) => item.toLowerCase() === city.toLowerCase())}
-                    onChange={() => toggleCity(city)}
-                  />
-                  <span>{city}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="filter-card">
-            <h3>Price Range</h3>
-            <div className="budget-values">
-              <span>{formatBudget(priceMin)}</span>
-              <span>{formatBudget(priceMax)}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max={maxDetectedPrice}
-              value={priceMin}
-              className="range-input"
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setPriceMin(next <= priceMax ? next : priceMax);
-              }}
-            />
-            <input
-              type="range"
-              min="0"
-              max={maxDetectedPrice}
-              value={priceMax}
-              className="range-input"
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setPriceMax(next >= priceMin ? next : priceMin);
-              }}
-            />
-          </div>
-
-          <div className="filter-card">
-            <h3>Type Of Places</h3>
-            <div className="checkbox-list">
-              {TYPE_LABELS.map((type) => (
-                <label key={type} className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={selectedTypes.includes(type)}
-                    onChange={() => toggleType(type)}
-                  />
-                  <span>{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="filter-card">
-            <h3>Amenities</h3>
-            <div className="chip-row">
-              {DEFAULT_AMENITIES.map((amenity) => (
-                <button
-                  key={amenity}
-                  type="button"
-                  className={`amenity-chip ${activeAmenities.includes(amenity) ? 'is-active' : ''}`}
-                  onClick={() => toggleAmenity(amenity)}
-                >
-                  {amenity}
-                </button>
-              ))}
-            </div>
-          </div>
-        </aside>
-
         <section className="cards-panel">
           <header className="cards-header">
             <div>
               <p className="cards-title-label">Bien immobilier</p>
-              <h1>{favoritesOnly ? 'Vos biens favoris' : 'Explore the best properties'}</h1>
+              <h1>{favoritesOnly ? 'Vos biens favoris' : 'Explorez les meilleurs biens'}</h1>
               <p>
                 {loading
-                  ? 'Loading data...'
-                  : `${visibleRangeStart}-${visibleRangeEnd} of ${filteredProperties.length} property card(s)`}
+                  ? 'Chargement des données...'
+                  : `${visibleRangeStart}-${visibleRangeEnd} sur ${filteredProperties.length} bien(s)`}
               </p>
             </div>
 
@@ -651,7 +459,7 @@ const Properties = () => {
                 </button>
               )}
               <button type="button" onClick={fetchProperties} className="refresh-btn">
-                <FaSyncAlt /> Refresh
+                <FaSyncAlt /> Actualiser
               </button>
             </div>
           </header>
@@ -733,14 +541,14 @@ const Properties = () => {
               </div>
 
               {totalPages > 1 && (
-                <nav className="properties-pagination" aria-label="Property pagination">
+                <nav className="properties-pagination" aria-label="Pagination des biens">
                   <button
                     type="button"
                     className="pagination-btn pagination-btn--nav"
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
                   >
-                    Previous
+                    Précédent
                   </button>
 
                   <div className="pagination-pages">
@@ -762,7 +570,7 @@ const Properties = () => {
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
                   >
-                    Next
+                    Suivant
                   </button>
                 </nav>
               )}
@@ -776,8 +584,8 @@ const Properties = () => {
           {!loading && filteredProperties.length === 0 && (
             <div className="properties-empty">
               {favoritesOnly
-                ? 'Aucun bien favori trouve pour le moment.'
-                : 'Aucun bien ne correspond a votre recherche.'}
+                ? 'Aucun bien favori trouvé pour le moment.'
+                : 'Aucun bien ne correspond à votre recherche.'}
             </div>
           )}
         </section>
@@ -805,8 +613,8 @@ const Properties = () => {
               </div>
 
               <div className="details-headline">
-                <h2>{selectedProperty.title || 'Property title'}</h2>
-                <p>{selectedProperty.location_raw || selectedProperty.city || 'Location not available'}</p>
+                <h2>{selectedProperty.title || 'Titre du bien'}</h2>
+                <p>{selectedProperty.location_raw || selectedProperty.city || 'Localisation non disponible'}</p>
                 <div className="details-price">{formatPrice(selectedProperty)}</div>
                 <div className="details-favorite-row">
                   <button
@@ -818,7 +626,7 @@ const Properties = () => {
                     {favoriteIdSet.has(String(selectedProperty.id)) ? <FaHeart /> : <FaRegHeart />}
                     <span>
                       {favoriteIdSet.has(String(selectedProperty.id))
-                        ? 'Enregistre dans vos favoris'
+                        ? 'Enregistré dans vos favoris'
                         : 'Ajouter aux favoris'}
                     </span>
                   </button>
@@ -828,15 +636,15 @@ const Properties = () => {
                     onClick={(event) => openReportModal(selectedProperty, event)}
                   >
                     <FaFlag />
-                    <span>Signaler un probleme</span>
+                    <span>Signaler un problème</span>
                   </button>
                 </div>
               </div>
 
               <div className="details-tabs">
-                <span className="is-active">Overview</span>
-                <span>Reviews</span>
-                <span>About</span>
+                <span className="is-active">Aperçu</span>
+                <span>Avis</span>
+                <span>À propos</span>
               </div>
 
               <div className="details-description">
@@ -845,25 +653,25 @@ const Properties = () => {
               </div>
 
               <div className="details-stats">
-                <span><FaBed /> {inferRoomsFromTitle(selectedProperty.title, 2, 4)} Beds</span>
-                <span><FaBath /> {inferRoomsFromTitle(selectedProperty.title, 1, 3)} Baths</span>
+                <span><FaBed /> {inferRoomsFromTitle(selectedProperty.title, 2, 4)} chambres</span>
+                <span><FaBath /> {inferRoomsFromTitle(selectedProperty.title, 1, 3)} salles de bain</span>
                 <span><FaRulerCombined /> {inferRoomsFromTitle(selectedProperty.title, 90, 150)} m2</span>
               </div>
 
               <div className="details-actions">
                 {selectedProperty.url ? (
                   <a href={selectedProperty.url} target="_blank" rel="noreferrer" className="btn-light">
-                    View Source <FaExternalLinkAlt />
+                    Voir la source <FaExternalLinkAlt />
                   </a>
                 ) : (
-                  <span className="btn-light is-disabled">Source not available</span>
+                  <span className="btn-light is-disabled">Source non disponible</span>
                 )}
                 <button
                   type="button"
                   className="btn-primary"
                   onClick={() => openSimulationForProperty(selectedProperty)}
                 >
-                  Simulate
+                  Simuler
                 </button>
               </div>
 
@@ -873,10 +681,10 @@ const Properties = () => {
                 <span className="pin pin-c" />
                 <span className="map-label">{selectedProperty.city || 'Tunisie'}</span>
               </div>
-              <p className="details-date">Updated: {formatDate(selectedProperty.scraped_at)}</p>
+              <p className="details-date">Mis à jour : {formatDate(selectedProperty.scraped_at)}</p>
             </>
           ) : (
-            <div className="properties-empty">No property selected yet.</div>
+            <div className="properties-empty">Aucun bien sélectionné pour le moment.</div>
           )}
         </aside>
       </div>
@@ -885,7 +693,7 @@ const Properties = () => {
         <div className="properties-modal-backdrop" role="dialog" aria-modal="true" onClick={closeReportModal}>
           <div className="properties-report-modal" onClick={(event) => event.stopPropagation()}>
             <div className="properties-report-head">
-              <h3>Signaler un probleme</h3>
+              <h3>Signaler un problème</h3>
               <button
                 type="button"
                 className="properties-report-close"
@@ -898,11 +706,11 @@ const Properties = () => {
             </div>
 
             <p className="properties-report-context">
-              Bien concerne: <strong>{reportModalProperty.title || `#${reportModalProperty.id}`}</strong>
+              Bien concerné : <strong>{reportModalProperty.title || `#${reportModalProperty.id}`}</strong>
             </p>
 
             <form className="properties-report-form" onSubmit={submitReport}>
-              <label htmlFor="report-category">Categorie du probleme</label>
+              <label htmlFor="report-category">Catégorie du problème</label>
               <select
                 id="report-category"
                 value={reportCategory}
@@ -916,7 +724,7 @@ const Properties = () => {
                 ))}
               </select>
 
-              <label htmlFor="report-message">Details</label>
+              <label htmlFor="report-message">Détails</label>
               <textarea
                 id="report-message"
                 rows={5}

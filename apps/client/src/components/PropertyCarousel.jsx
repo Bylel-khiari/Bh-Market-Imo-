@@ -22,8 +22,8 @@ const PropertyCarousel = () => {
         setProperties(rows.filter((row) => row.image || row.title));
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.error('Failed to load featured properties:', err);
-          setError('Impossible de charger les biens a la une pour le moment.');
+          console.error('Impossible de charger les biens à la une :', err);
+          setError('Impossible de charger les biens à la une pour le moment.');
         }
       } finally {
         setLoading(false);
@@ -41,7 +41,7 @@ const PropertyCarousel = () => {
     if (Number.isFinite(numeric) && numeric > 0) {
       return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
     }
-    return property.price_raw || 'Prix non communique';
+    return property.price_raw || 'Prix non communiqué';
   };
 
   const formatDate = (dateValue) => {
@@ -80,9 +80,9 @@ const PropertyCarousel = () => {
       <section className="properties-section">
         <div className="container">
           <div className="section-header">
-            <span className="section-tag">A la une</span>
-            <h2 className="section-title">Biens immobiliers selectionnes</h2>
-            <p className="section-desc">Chargement des biens depuis la base de donnees...</p>
+            <span className="section-tag">À la une</span>
+            <h2 className="section-title">Biens immobiliers sélectionnés</h2>
+            <p className="section-desc">Chargement des biens depuis la base de données...</p>
           </div>
         </div>
       </section>
@@ -94,8 +94,8 @@ const PropertyCarousel = () => {
       <section className="properties-section">
         <div className="container">
           <div className="section-header">
-            <span className="section-tag">A la une</span>
-            <h2 className="section-title">Biens immobiliers selectionnes</h2>
+            <span className="section-tag">À la une</span>
+            <h2 className="section-title">Biens immobiliers sélectionnés</h2>
             <p className="section-desc">{error || 'Aucun bien n est disponible pour le moment.'}</p>
             <Link to="/properties" className="btn btn-primary">Voir le catalogue complet</Link>
           </div>
@@ -108,9 +108,9 @@ const PropertyCarousel = () => {
     <section className="properties-section">
       <div className="container">
         <div className="section-header">
-          <span className="section-tag">A la une</span>
-          <h2 className="section-title">Biens immobiliers selectionnes</h2>
-          <p className="section-desc">Decouvrez les dernieres annonces nettoyees et publiees par le backend</p>
+          <span className="section-tag">À la une</span>
+          <h2 className="section-title">Biens immobiliers sélectionnés</h2>
+          <p className="section-desc">Découvrez les dernières annonces nettoyées et publiées par le serveur</p>
         </div>
         <Slider {...settings}>
           {properties.map(property => (
@@ -131,15 +131,15 @@ const PropertyCarousel = () => {
                   </p>
                   <div className="property-features">
                     <span><FaCalendarAlt /> {formatDate(property.scraped_at)}</span>
-                    <span>{property.city || 'Ville N/A'}</span>
-                    <span>{property.source || 'Source N/A'}</span>
+                    <span>{property.city || 'Ville non renseignée'}</span>
+                    <span>{property.source || 'Source non renseignée'}</span>
                   </div>
                   {property.url ? (
                     <a href={property.url} target="_blank" rel="noreferrer" className="btn btn-primary">
-                      Voir details <FaExternalLinkAlt />
+                      Voir les détails <FaExternalLinkAlt />
                     </a>
                   ) : (
-                    <Link to="/properties" className="btn btn-primary">Voir details</Link>
+                    <Link to="/properties" className="btn btn-primary">Voir les détails</Link>
                   )}
                 </div>
               </div>

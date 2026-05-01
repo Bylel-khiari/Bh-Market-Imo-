@@ -5,7 +5,7 @@ import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
 function formatCurrency(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return 'Non renseigne';
+    return 'Non renseigné';
   }
 
   return `${new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(Math.round(amount))} DT`;
@@ -136,7 +136,7 @@ export default function CreditImmobilierBHPortal() {
     }
 
     if (authSession?.user?.role !== 'client') {
-      setErrorMessage('Le depot de dossier est reserve aux comptes client.');
+      setErrorMessage('Le dépôt de dossier est réservé aux comptes client.');
       return;
     }
 
@@ -172,12 +172,12 @@ export default function CreditImmobilierBHPortal() {
         authSession.token,
       );
 
-      setSuccessMessage('Votre dossier a ete transmis a l equipe bancaire avec succes.');
+      setSuccessMessage('Votre dossier a été transmis à l’équipe bancaire avec succès.');
       setUploadedFiles({});
       setFormData(createEmptyFormData(authSession));
       setFormResetKey((prev) => prev + 1);
     } catch (requestError) {
-      setErrorMessage(requestError.message || 'Impossible de deposer votre dossier.');
+      setErrorMessage(requestError.message || 'Impossible de déposer votre dossier.');
     } finally {
       setSubmitting(false);
     }
@@ -216,7 +216,7 @@ export default function CreditImmobilierBHPortal() {
   const steps = [
     'Simulation de la capacite de remboursement',
     'Signature de la promesse de vente',
-    'Montage et depot du dossier',
+    'Montage et dépôt du dossier',
     'Expertise immobiliere par la banque',
     'Accord de principe et assurances',
     'Signature des contrats et hypotheque',
@@ -401,21 +401,21 @@ export default function CreditImmobilierBHPortal() {
 
       <div className="container">
         <header className="bh-hero p-4 p-md-5 mb-4">
-          <h1 className="display-6 fw-bold mb-2">Demande de credit immobilier BH Bank</h1>
-          <p className="lead mb-0">Preparez votre dossier et deposez votre demande en quelques clics.</p>
+          <h1 className="display-6 fw-bold mb-2">Demande de crédit immobilier BH Bank</h1>
+          <p className="lead mb-0">Préparez votre dossier et déposez votre demande en quelques clics.</p>
         </header>
 
         {!!propertyContext.requestedAmount && (
           <section className="bh-summary-card mb-4">
             <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
               <div>
-                <h2 className="h4 fw-bold text-primary-emphasis mb-1">Resume du projet a financer</h2>
+                <h2 className="h4 fw-bold text-primary-emphasis mb-1">Résumé du projet à financer</h2>
                 <p className="text-secondary mb-0">
-                  Les donnees issues de la simulation sont reprises pour aider l agent bancaire a analyser votre dossier.
+                  Les données issues de la simulation sont reprises pour aider l’agent bancaire à analyser votre dossier.
                 </p>
               </div>
               <button type="button" className="btn btn-primary" onClick={openSubmissionModal}>
-                Deposer ce dossier
+                Déposer ce dossier
               </button>
             </div>
 
@@ -433,16 +433,16 @@ export default function CreditImmobilierBHPortal() {
                 <small>{formatCurrency(propertyContext.contribution)}</small>
               </span>
               <span>
-                <strong>Mensualite estimee</strong>
+                <strong>Mensualité estimée</strong>
                 <small>{formatCurrency(propertyContext.monthlyPayment)}</small>
               </span>
               <span>
                 <strong>Taux d endettement</strong>
-                <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseigne'}</small>
+                <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseigné'}</small>
               </span>
               <span>
-                <strong>Duree</strong>
-                <small>{propertyContext.duration ? `${propertyContext.duration} mois` : 'Non renseignee'}</small>
+                <strong>Durée</strong>
+                <small>{propertyContext.duration ? `${propertyContext.duration} mois` : 'Non renseignée'}</small>
               </span>
             </div>
           </section>
@@ -463,14 +463,14 @@ export default function CreditImmobilierBHPortal() {
         </section>
 
         <section className="bh-section-card bg-white p-4 mb-4 bh-docs">
-          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les documents necessaires</h2>
+          <h2 className="h4 fw-bold text-primary-emphasis mb-3">Les documents nécessaires</h2>
 
           <details open>
             <summary>Administratifs</summary>
             <ul className="mt-2 mb-0">
               <li>CIN</li>
               <li>Extrait de naissance</li>
-              <li>Justificatif d adresse</li>
+              <li>Justificatif d'adresse</li>
             </ul>
           </details>
 
@@ -480,15 +480,15 @@ export default function CreditImmobilierBHPortal() {
               <li>Attestation de travail</li>
               <li>Fiches de paie (3 a 6 mois)</li>
               <li>Releves bancaires (6 mois)</li>
-              <li>Declaration d impots ou patente</li>
+              <li>Déclaration d'impôts ou patente</li>
             </ul>
           </details>
 
           <details>
             <summary>Immobiliers</summary>
             <ul className="mt-2 mb-0">
-              <li>Promesse de vente legalisee</li>
-              <li>Certificat de propriete</li>
+              <li>Promesse de vente légalisée</li>
+              <li>Certificat de propriété</li>
               <li>Plan architectural</li>
               <li>Quittance de taxe fonciere</li>
             </ul>
@@ -496,21 +496,21 @@ export default function CreditImmobilierBHPortal() {
         </section>
 
         <section className="alert alert-primary border-0 shadow-sm mb-4" role="alert">
-          <h2 className="h5 fw-bold mb-2">Instructions pour le depot en ligne</h2>
+          <h2 className="h5 fw-bold mb-2">Instructions pour le dépôt en ligne</h2>
           <p className="mb-0">
-            Numerisez vos documents clairement, privilegiez les formats PDF ou JPG, et nommez les fichiers de facon explicite.
+            Numérisez vos documents clairement, privilégiez les formats PDF ou JPG, et nommez les fichiers de façon explicite.
           </p>
         </section>
 
         <section className="bh-submit-launch p-4 p-md-5">
           <h2 className="h4 fw-bold text-primary-emphasis mb-2">Soumission de votre dossier</h2>
           <p className="text-secondary mb-3">
-            Ouvrez le mini portail pour transmettre vos informations et documents. Les demandes deposees apparaissent ensuite
-            dans le dashboard de l agent bancaire.
+            Ouvrez le mini portail pour transmettre vos informations et documents. Les demandes déposées apparaissent ensuite
+            dans le tableau de bord de l’agent bancaire.
           </p>
           <div className="d-flex flex-wrap gap-2 align-items-center">
             <button type="button" className="btn btn-primary btn-lg" onClick={openSubmissionModal}>
-              Acceder au formulaire
+              Accéder au formulaire
             </button>
             {!authSession?.token && (
               <button
@@ -518,7 +518,7 @@ export default function CreditImmobilierBHPortal() {
                 className="btn btn-outline-primary btn-lg"
                 onClick={() => navigate('/login', { state: { from: `/credit-immobilier-bh${location.search}` } })}
               >
-                Se connecter avant le depot
+                Se connecter avant le dépôt
               </button>
             )}
           </div>
@@ -533,7 +533,7 @@ export default function CreditImmobilierBHPortal() {
                 <div>
                   <h2 className="h4 fw-bold text-primary-emphasis mb-0">Formulaire de soumission</h2>
                   <p className="text-secondary mb-0">
-                    Completez les informations ci-dessous pour envoyer votre dossier a un agent bancaire.
+                    Complétez les informations ci-dessous pour envoyer votre dossier à un agent bancaire.
                   </p>
                 </div>
                 <button
@@ -553,8 +553,8 @@ export default function CreditImmobilierBHPortal() {
                       <small>{formatCurrency(propertyContext.requestedAmount)}</small>
                     </span>
                     <span>
-                      <strong>Taux estime</strong>
-                      <small>{propertyContext.rate ? `${propertyContext.rate.toFixed(2)}%` : 'Non renseigne'}</small>
+                      <strong>Taux estimé</strong>
+                      <small>{propertyContext.rate ? `${propertyContext.rate.toFixed(2)}%` : 'Non renseigné'}</small>
                     </span>
                     <span>
                       <strong>Dette</strong>
@@ -599,7 +599,7 @@ export default function CreditImmobilierBHPortal() {
                   </div>
 
                   <div className="col-12 col-md-6">
-                    <label htmlFor="phone" className="form-label fw-semibold">Numero de telephone</label>
+                    <label htmlFor="phone" className="form-label fw-semibold">Numéro de téléphone</label>
                     <input
                       id="phone"
                       name="phone"
@@ -639,7 +639,7 @@ export default function CreditImmobilierBHPortal() {
                       onChange={handleInputChange}
                       disabled={submitting}
                     />
-                    <div className="small text-secondary mt-1">Veuillez renseigner le compte a debiter.</div>
+                    <div className="small text-secondary mt-1">Veuillez renseigner le compte à débiter.</div>
                   </div>
 
                   <div className="col-12">
@@ -668,8 +668,8 @@ export default function CreditImmobilierBHPortal() {
                                       />
                                       <div className="small mt-1">
                                         {uploadedFiles[doc.id]
-                                          ? <span className="text-success">Fichier ajoute: {uploadedFiles[doc.id]}</span>
-                                          : <span className="text-secondary">Formats acceptes: PDF, JPG, PNG, JPEG</span>}
+                                          ? <span className="text-success">Fichier ajouté : {uploadedFiles[doc.id]}</span>
+                                          : <span className="text-secondary">Formats acceptés : PDF, JPG, PNG, JPEG</span>}
                                       </div>
                                     </div>
                                   </div>
@@ -688,7 +688,7 @@ export default function CreditImmobilierBHPortal() {
 
                 <div className="mt-4 d-flex flex-wrap gap-2 align-items-center">
                   <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
-                    {submitting ? 'Envoi...' : 'Deposer ma demande'}
+                    {submitting ? 'Envoi...' : 'Déposer ma demande'}
                   </button>
                   <button type="button" className="btn btn-outline-secondary btn-lg" onClick={closeSubmissionModal} disabled={submitting}>
                     Fermer

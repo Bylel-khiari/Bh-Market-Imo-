@@ -46,7 +46,7 @@ const Login = () => {
       saveAuthSession({ token: payload.token, user: payload.user });
       navigate(resolveDestination(payload.user), { replace: true });
     } catch (error) {
-      setErrorMessage(error.message || 'Echec de connexion.');
+      setErrorMessage(error.message || 'Échec de connexion.');
     } finally {
       setIsSubmitting(false);
     }
@@ -59,11 +59,11 @@ const Login = () => {
           <div className="login-brand">
             <img src={logo} alt="BH Bank" className="login-logo" />
             <div className="login-brand-line"></div>
-            <h2 className="login-subtitle">MARKETPLACE IMMOBILIER</h2>
+            <h2 className="login-subtitle">MARKETPLACE IMMOBILIÈRE</h2>
           </div>
 
           <p className="login-tagline">
-            La plateforme digitale de reference pour vos investissements immobiliers en Tunisie
+            La marketplace digitale de référence pour vos investissements immobiliers en Tunisie
           </p>
 
           <div className="login-features">
@@ -77,15 +77,15 @@ const Login = () => {
             <div className="login-feature-item">
               <div className="login-feature-icon"><FaCalculator /></div>
               <div className="login-feature-text">
-                <strong>Simulation de Credit</strong>
-                <span>Calculez vos mensualites en ligne</span>
+                <strong>Simulation de crédit</strong>
+                <span>Calculez vos mensualités en ligne</span>
               </div>
             </div>
             <div className="login-feature-item">
               <div className="login-feature-icon"><FaChartLine /></div>
               <div className="login-feature-text">
-                <strong>Tableau de Bord</strong>
-                <span>Suivi en temps reel de vos projets</span>
+                <strong>Tableau de bord</strong>
+                <span>Suivi en temps réel de vos projets</span>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ const Login = () => {
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Connexion</h2>
-            <p>Accedez a votre espace client</p>
+            <p>Accédez à votre espace client</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
@@ -137,7 +137,7 @@ const Login = () => {
                 <span>Se souvenir de moi</span>
               </label>
               <Link to="/forgot-password" className="login-forgot">
-                Mot de passe oublie ?
+                Mot de passe oublié ?
               </Link>
             </div>
 
@@ -149,13 +149,13 @@ const Login = () => {
 
             <div className="login-account-note">
               <p>
-                Votre compte est cree par l administrateur BH Bank. Contactez votre agence pour recevoir vos identifiants.
+                Votre compte est créé par l’administrateur BH Bank. Contactez votre agence pour recevoir vos identifiants.
               </p>
             </div>
           </form>
 
           <div className="login-back-home">
-            <Link to="/">Retour a l'accueil</Link>
+            <Link to="/">Retour à l'accueil</Link>
           </div>
         </div>
       </div>

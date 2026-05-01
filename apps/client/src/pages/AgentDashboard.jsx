@@ -59,8 +59,8 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous' },
   { value: 'SOUMIS', label: 'Soumis' },
   { value: 'EN_VERIFICATION', label: 'En verification' },
-  { value: 'DOCUMENTS_MANQUANTS', label: 'Pieces manquantes' },
-  { value: 'EN_ETUDE', label: 'En etude' },
+  { value: 'DOCUMENTS_MANQUANTS', label: 'Pièces manquantes' },
+  { value: 'EN_ETUDE', label: 'En étude' },
   { value: 'ACCEPTE', label: 'Acceptes' },
   { value: 'REFUSE', label: 'Refuses' },
 ];
@@ -99,16 +99,16 @@ const PERIOD_OPTIONS = [
 
 const SECTION_COPY = {
   overview: {
-    title: 'Dashboard agent bancaire',
-    subtitle: 'Suivi prioritaire des dossiers de credit, controle de conformite et retours client.',
+    title: 'Tableau de bord agent bancaire',
+    subtitle: 'Suivi prioritaire des dossiers de crédit, contrôle de conformité et retours client.',
   },
   applications: {
     title: 'Traitement des dossiers',
-    subtitle: 'Analyse detaillee, verification des pieces et mise a jour du statut client.',
+    subtitle: 'Analyse détaillée, vérification des pièces et mise à jour du statut client.',
   },
   platform: {
     title: 'KPI plateforme',
-    subtitle: 'Lecture des biens, clients, reclamations support et sources techniques utiles au traitement.',
+    subtitle: 'Lecture des biens, clients, réclamations d’assistance et sources techniques utiles au traitement.',
   },
 };
 
@@ -298,7 +298,7 @@ export default function AgentDashboard() {
         return;
       }
 
-      setError(requestError.message || 'Erreur de chargement du dashboard agent.');
+      setError(requestError.message || 'Erreur de chargement du tableau de bord agent.');
     } finally {
       if (!silent) {
         setLoading(false);
@@ -436,15 +436,15 @@ export default function AgentDashboard() {
   const handleExportPlatformReport = () => {
     const rows = [
       ['Section', 'Indicateur', 'Valeur'],
-      ['Synthese', 'Utilisateurs', platformSummary.total_users || 0],
-      ['Synthese', 'Clients', platformSummary.total_clients || 0],
-      ['Synthese', 'Agents bancaires', platformSummary.total_agents || 0],
-      ['Synthese', 'Admins', platformSummary.total_admins || 0],
-      ['Synthese', 'Biens immobiliers', platformSummary.total_properties || 0],
-      ['Synthese', 'Biens actifs', platformSummary.active_properties || 0],
-      ['Synthese', 'Reclamations support', platformSummary.total_reports || 0],
-      ['Synthese', 'Reclamations cloturees', platformSummary.closed_reports || 0],
-      ['Synthese', 'Taux de traitement support', `${platformSummary.resolution_rate || 0}%`],
+    ['Synthèse', 'Utilisateurs', platformSummary.total_users || 0],
+    ['Synthèse', 'Clients', platformSummary.total_clients || 0],
+    ['Synthèse', 'Agents bancaires', platformSummary.total_agents || 0],
+    ['Synthèse', 'Admins', platformSummary.total_admins || 0],
+    ['Synthèse', 'Biens immobiliers', platformSummary.total_properties || 0],
+    ['Synthèse', 'Biens actifs', platformSummary.active_properties || 0],
+      ['Synthèse', 'Réclamations assistance', platformSummary.total_reports || 0],
+      ['Synthèse', 'Réclamations clôturées', platformSummary.closed_reports || 0],
+      ['Synthèse', 'Taux de traitement assistance', `${platformSummary.resolution_rate || 0}%`],
       ...monthlyActivity.map((item) => [
         'Activite mensuelle',
         item.label,
@@ -453,7 +453,7 @@ export default function AgentDashboard() {
       ...topCities.map((item) => ['Top villes', item.city, item.total]),
       ...topSources.map((item) => ['Sources', item.source, item.total]),
       ...latestUsers.map((item) => ['Derniers utilisateurs', item.name || '-', `${item.role_label} - ${item.email || '-'}`]),
-      ...latestRequests.map((item) => ['Dernieres reclamations', `#${item.id}`, `${item.status_label} - ${item.client_name || '-'}`]),
+      ...latestRequests.map((item) => ['Dernières réclamations', `#${item.id}`, `${item.status_label} - ${item.client_name || '-'}`]),
     ];
 
     const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n');
@@ -498,7 +498,7 @@ export default function AgentDashboard() {
         token,
       );
 
-      setFormMessage('Dossier mis a jour avec succes.');
+      setFormMessage('Dossier mis à jour avec succès.');
       await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -506,7 +506,7 @@ export default function AgentDashboard() {
       }
 
       setFormMessage('');
-      setError(requestError.message || 'Impossible de mettre a jour ce dossier.');
+      setError(requestError.message || 'Impossible de mettre à jour ce dossier.');
     } finally {
       setSubmitting(false);
     }
@@ -517,7 +517,7 @@ export default function AgentDashboard() {
       <div className="admin-dashboard admin-dashboard--state agent-dashboard">
         <div className="admin-state admin-state--page">
           <FaSyncAlt className="spin" />
-          <p>Chargement du dashboard agent...</p>
+          <p>Chargement du tableau de bord agent...</p>
         </div>
       </div>
     );
@@ -542,7 +542,7 @@ export default function AgentDashboard() {
               onClick={() => setActiveSection('overview')}
             >
               <FaChartLine />
-              <span>Apercu</span>
+              <span>Aperçu</span>
             </button>
             <button
               type="button"
@@ -564,8 +564,8 @@ export default function AgentDashboard() {
 
           <div className="agent-sidebar-note">
             <p className="agent-sidebar-kicker">File active</p>
-            <strong>{pendingCount} dossiers a suivre</strong>
-            <span>{summary.ACCEPTE} accordes et {summary.REFUSE} refuses a date.</span>
+            <strong>{pendingCount} dossiers à suivre</strong>
+            <span>{summary.ACCEPTE} accordés et {summary.REFUSE} refusés à date.</span>
           </div>
         </aside>
 
@@ -585,7 +585,7 @@ export default function AgentDashboard() {
               </button>
               <button type="button" className="admin-topbar-btn admin-topbar-btn--logout" onClick={handleLogout}>
                 <FaSignOutAlt />
-                <span>Deconnexion</span>
+                <span>Déconnexion</span>
               </button>
             </div>
           </header>
@@ -604,7 +604,7 @@ export default function AgentDashboard() {
                   <article className="admin-kpi-card">
                     <div className="icon"><FaClock /></div>
                     <div>
-                      <h3>A traiter</h3>
+                      <h3>À traiter</h3>
                       <p>{pendingCount}</p>
                     </div>
                   </article>
@@ -626,9 +626,9 @@ export default function AgentDashboard() {
 
                 <div className="admin-row">
                   <section className="admin-card">
-                    <h2>Repartition des statuts</h2>
+                    <h2>Répartition des statuts</h2>
                     <p className="admin-section-help">
-                      Vue rapide pour identifier les dossiers a relancer, analyser ou cloturer.
+                      Vue rapide pour identifier les dossiers à relancer, analyser ou clôturer.
                     </p>
                     {pieData.length ? (
                       <div className="agent-chart-wrap">
@@ -660,9 +660,9 @@ export default function AgentDashboard() {
                   </section>
 
                   <section className="admin-card">
-                    <h2>Lecture conformite</h2>
+                    <h2>Lecture conformité</h2>
                     <p className="admin-section-help">
-                      Les premiers dossiers de la file montrent ici leur score de conformite.
+                      Les premiers dossiers de la file montrent ici leur score de conformité.
                     </p>
                     {complianceData.length ? (
                       <div className="agent-chart-wrap">
@@ -679,7 +679,7 @@ export default function AgentDashboard() {
                     ) : (
                       <div className="admin-state admin-state--inline">
                         <FaFileSignature />
-                        <p>Le score de conformite apparaetra apres la premiere revue.</p>
+                        <p>Le score de conformité apparaîtra après la première revue.</p>
                       </div>
                     )}
                   </section>
@@ -690,7 +690,7 @@ export default function AgentDashboard() {
                     <div>
                       <h2>Dossiers prioritaires</h2>
                       <p className="admin-section-help">
-                        Reprises rapides sur les dossiers qui demandent une analyse ou un complement.
+                        Reprises rapides sur les dossiers qui demandent une analyse ou un complément.
                       </p>
                     </div>
                     <button type="button" className="admin-secondary" onClick={() => setActiveSection('applications')}>
@@ -724,14 +724,14 @@ export default function AgentDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <p className="empty">Aucun dossier prioritaire a afficher.</p>
+                    <p className="empty">Aucun dossier prioritaire à afficher.</p>
                   )}
                 </section>
               </div>
 
               <aside className="admin-crud-column">
                 <section className="admin-card agent-focus-card">
-                  <h2>Dossier a la une</h2>
+                  <h2>Dossier à la une</h2>
                   {selectedApplication ? (
                     <>
                       <p className="agent-focus-title">
@@ -751,7 +751,7 @@ export default function AgentDashboard() {
                           <small>{formatPercent(selectedApplication.debt_ratio)}</small>
                         </span>
                         <span>
-                          <strong>Conformite</strong>
+                          <strong>Conformité</strong>
                           <small>{getComplianceLabel(selectedApplication.compliance_level)}</small>
                         </span>
                       </div>
@@ -764,16 +764,16 @@ export default function AgentDashboard() {
                       </button>
                     </>
                   ) : (
-                    <p className="admin-section-help">Aucun dossier selectionne.</p>
+                    <p className="admin-section-help">Aucun dossier sélectionné.</p>
                   )}
                 </section>
 
                 <section className="admin-card agent-guide-card">
-                  <h2>Points de controle</h2>
+                  <h2>Points de contrôle</h2>
                   <ul className="agent-guide-list">
-                    <li>Verifier la capacite de remboursement et le taux d endettement.</li>
-                    <li>Controler la coherence des pieces transmises et du CIN.</li>
-                    <li>Mettre a jour l etat du dossier pour informer le client.</li>
+                    <li>Vérifier la capacité de remboursement et le taux d’endettement.</li>
+                    <li>Contrôler la cohérence des pièces transmises et du CIN.</li>
+                    <li>Mettre à jour l’état du dossier pour informer le client.</li>
                     <li>Tracer une note claire avant acceptation ou refus.</li>
                   </ul>
                 </section>
@@ -787,9 +787,9 @@ export default function AgentDashboard() {
                 <section className="admin-card">
                   <div className="agent-section-head">
                     <div>
-                      <h2>File des dossiers de credit</h2>
+                      <h2>File des dossiers de crédit</h2>
                       <p className="admin-section-help">
-                        Recherchez un client, filtrez la file puis ouvrez un dossier pour analyse detaillee.
+                        Recherchez un client, filtrez la file puis ouvrez un dossier pour analyse détaillée.
                       </p>
                     </div>
                     <span className="admin-users-count">{applications.length}</span>
@@ -862,7 +862,7 @@ export default function AgentDashboard() {
                               <small>{application.compliance_score ?? '-'}</small>
                             </span>
                             <span>
-                              <strong>Depot</strong>
+                              <strong>Dépôt</strong>
                               <small>{formatDate(application.created_at)}</small>
                             </span>
                           </div>
@@ -886,7 +886,7 @@ export default function AgentDashboard() {
                         <div>
                           <h2>{selectedApplication.property_title || `Dossier #${selectedApplication.id}`}</h2>
                           <p className="admin-section-help">
-                            Cree le {formatDate(selectedApplication.created_at)} par {selectedApplication.full_name}
+                            Créé le {formatDate(selectedApplication.created_at)} par {selectedApplication.full_name}
                           </p>
                         </div>
                         <div className="agent-review-statuses">
@@ -904,7 +904,7 @@ export default function AgentDashboard() {
                         <span><FaPhone /> {selectedApplication.phone}</span>
                         <span><FaIdCard /> {selectedApplication.cin}</span>
                         <span><FaUniversity /> {selectedApplication.rib}</span>
-                        <span><FaMapMarkerAlt /> {selectedApplication.property_location || 'Localisation non renseignee'}</span>
+                        <span><FaMapMarkerAlt /> {selectedApplication.property_location || 'Localisation non renseignée'}</span>
                         <span><FaMoneyCheckAlt /> {formatCurrency(selectedApplication.requested_amount)}</span>
                       </div>
 
@@ -918,19 +918,19 @@ export default function AgentDashboard() {
                           <span>{formatCurrency(selectedApplication.gross_income_value)}</span>
                         </div>
                         <div className="agent-finance-card">
-                          <strong>Duree</strong>
+                          <strong>Durée</strong>
                           <span>
-                            {selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseignee'}
+                            {selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseignée'}
                           </span>
                         </div>
                         <div className="agent-finance-card">
-                          <strong>Mensualite</strong>
+                          <strong>Mensualité</strong>
                           <span>{formatCurrency(selectedApplication.estimated_monthly_payment)}</span>
                         </div>
                       </div>
 
                       <div className="agent-document-block">
-                        <h3>Documents declares</h3>
+                        <h3>Documents déclarés</h3>
                         {selectedApplication.documents?.length ? (
                           <div className="agent-document-list">
                             {selectedApplication.documents.map((documentName) => (
@@ -940,13 +940,13 @@ export default function AgentDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <p className="admin-section-help">Aucun document n a ete declare dans le portail.</p>
+                          <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>
                         )}
                       </div>
 
                       <div className="agent-review-form">
                         <label className="admin-field-block">
-                          <span className="admin-field-label">Etat du dossier</span>
+                          <span className="admin-field-label">État du dossier</span>
                           <select name="status" value={draft.status} onChange={handleDraftChange} disabled={submitting}>
                             {STATUS_OPTIONS.slice(1).map((option) => (
                               <option key={option.value} value={option.value}>
@@ -957,7 +957,7 @@ export default function AgentDashboard() {
                         </label>
 
                         <label className="admin-field-block">
-                          <span className="admin-field-label">Score de conformite</span>
+                          <span className="admin-field-label">Score de conformité</span>
                           <input
                             name="compliance_score"
                             type="number"
@@ -971,14 +971,14 @@ export default function AgentDashboard() {
                         </label>
 
                         <label className="admin-field-block">
-                          <span className="admin-field-label">Synthese conformite</span>
+                          <span className="admin-field-label">Synthèse conformité</span>
                           <textarea
                             name="compliance_summary"
                             rows={4}
                             value={draft.compliance_summary}
                             onChange={handleDraftChange}
                             disabled={submitting}
-                            placeholder="Resume des controles, anomalies et conformites observees."
+                            placeholder="Résumé des contrôles, anomalies et conformités observées."
                           />
                         </label>
 
@@ -990,7 +990,7 @@ export default function AgentDashboard() {
                             value={draft.agent_note}
                             onChange={handleDraftChange}
                             disabled={submitting}
-                            placeholder="Elements a transmettre au client ou au back office."
+                            placeholder="Éléments à transmettre au client ou au back-office."
                           />
                         </label>
                       </div>
@@ -1002,7 +1002,7 @@ export default function AgentDashboard() {
                           onClick={() => handleReviewSubmit('EN_VERIFICATION')}
                           disabled={submitting}
                         >
-                          Verifier documents
+                          Vérifier les documents
                         </button>
                         <button
                           type="button"
@@ -1010,7 +1010,7 @@ export default function AgentDashboard() {
                           onClick={() => handleReviewSubmit('DOCUMENTS_MANQUANTS')}
                           disabled={submitting}
                         >
-                          Demander pieces
+                          Demander les pièces
                         </button>
                         <button
                           type="button"
@@ -1018,7 +1018,7 @@ export default function AgentDashboard() {
                           onClick={() => handleReviewSubmit('EN_ETUDE')}
                           disabled={submitting}
                         >
-                          Passer en etude
+                          Passer en étude
                         </button>
                         <button
                           type="button"
@@ -1052,7 +1052,7 @@ export default function AgentDashboard() {
                   ) : (
                     <div className="admin-state admin-state--inline">
                       <FaFileSignature />
-                      <p>Saisissez un dossier dans la file pour lancer l analyse.</p>
+                      <p>Saisissez un dossier dans la file pour lancer l’analyse.</p>
                     </div>
                   )}
                 </section>
@@ -1064,14 +1064,14 @@ export default function AgentDashboard() {
             <div className="admin-content-grid agent-platform-grid">
               <section className="admin-card agent-platform-toolbar">
                 <div>
-                  <h2>Vue plateforme consolidee</h2>
+                  <h2>Vue plateforme consolidée</h2>
                   <p className="admin-section-help">
-                    KPI utiles a l agent bancaire pour croiser dossiers de credit, portefeuille de biens et reclamations support.
+                    KPI utiles à l’agent bancaire pour croiser dossiers de crédit, portefeuille de biens et réclamations d’assistance.
                   </p>
                 </div>
                 <div className="agent-platform-actions">
                   <label className="admin-field-block agent-period-field">
-                    <span className="admin-field-label">Periode observee</span>
+                    <span className="admin-field-label">Période observée</span>
                     <select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>
                       {PERIOD_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -1105,14 +1105,14 @@ export default function AgentDashboard() {
                 <article className="admin-kpi-card">
                   <div className="icon"><FaClipboardList /></div>
                   <div>
-                    <h3>Reclamations</h3>
+                    <h3>Réclamations</h3>
                     <p>{formatNumber(platformSummary.total_reports)}</p>
                   </div>
                 </article>
                 <article className="admin-kpi-card">
                   <div className="icon"><FaCheckCircle /></div>
                   <div>
-                    <h3>Support traite</h3>
+                    <h3>Assistance traitée</h3>
                     <p>{formatNumber(platformSummary.resolution_rate)}%</p>
                   </div>
                 </article>
@@ -1128,7 +1128,7 @@ export default function AgentDashboard() {
               {hasPowerBiEmbed ? (
                 <section className="admin-card agent-platform-card--wide">
                   <h2>KPI Power BI</h2>
-                  <p className="admin-section-help">Tableau Power BI integre a l espace agent bancaire.</p>
+                  <p className="admin-section-help">Tableau Power BI intégré à l’espace agent bancaire.</p>
                   <div className="agent-powerbi-frame-wrap">
                     <iframe
                       src={POWER_BI_AGENT_DASHBOARD_URL}
@@ -1158,7 +1158,7 @@ export default function AgentDashboard() {
                           <Legend />
                           <Line type="monotone" dataKey="users" stroke={ACTIVITY_COLORS.users} strokeWidth={3} name="Utilisateurs" />
                           <Line type="monotone" dataKey="properties" stroke={ACTIVITY_COLORS.properties} strokeWidth={3} name="Biens" />
-                          <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="Reclamations" />
+                          <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="Réclamations" />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -1171,7 +1171,7 @@ export default function AgentDashboard() {
                 </section>
 
                 <section className="admin-card">
-                  <h2>Repartition des roles</h2>
+                  <h2>Répartition des rôles</h2>
                   <p className="admin-section-help">Population active selon les trois roles autorises.</p>
                   {roleDistribution.length ? (
                     <div className="agent-chart-wrap">
@@ -1213,13 +1213,13 @@ export default function AgentDashboard() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="empty">Aucune ville a afficher.</p>
+                    <p className="empty">Aucune ville à afficher.</p>
                   )}
                 </section>
 
                 <section className="admin-card">
-                  <h2>Statut des reclamations</h2>
-                  <p className="admin-section-help">Les reclamations restent un module support distinct du flux credit.</p>
+                  <h2>Statut des réclamations</h2>
+                  <p className="admin-section-help">Les réclamations restent un module d’assistance distinct du flux crédit.</p>
                   {reportStatusDistribution.length ? (
                     <div className="agent-chart-wrap">
                       <ResponsiveContainer width="100%" height={300}>
@@ -1240,7 +1240,7 @@ export default function AgentDashboard() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="empty">Aucune reclamation a afficher.</p>
+                    <p className="empty">Aucune réclamation à afficher.</p>
                   )}
                 </section>
 
@@ -1268,7 +1268,7 @@ export default function AgentDashboard() {
                         </div>
                       ))
                     ) : (
-                      <p className="empty">Aucune source a afficher.</p>
+                      <p className="empty">Aucune source à afficher.</p>
                     )}
                   </div>
                 </section>
@@ -1301,7 +1301,7 @@ export default function AgentDashboard() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3">Aucun utilisateur recent a afficher.</td>
+                            <td colSpan="3">Aucun utilisateur récent à afficher.</td>
                           </tr>
                         )}
                       </tbody>
@@ -1310,13 +1310,13 @@ export default function AgentDashboard() {
                 </section>
 
                 <section className="admin-card">
-                  <h2>Dernieres reclamations</h2>
-                  <p className="admin-section-help">Vue compacte du support, separee du traitement des dossiers de credit.</p>
+                  <h2>Dernières réclamations</h2>
+                  <p className="admin-section-help">Vue compacte de l’assistance, séparée du traitement des dossiers de crédit.</p>
                   <div className="agent-platform-table-wrap">
                     <table className="agent-platform-table">
                       <thead>
                         <tr>
-                          <th>Reclamation</th>
+                          <th>Réclamation</th>
                           <th>Client</th>
                           <th>Statut</th>
                           <th>Date</th>
@@ -1340,7 +1340,7 @@ export default function AgentDashboard() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4">Aucune reclamation recente a afficher.</td>
+                            <td colSpan="4">Aucune réclamation récente à afficher.</td>
                           </tr>
                         )}
                       </tbody>

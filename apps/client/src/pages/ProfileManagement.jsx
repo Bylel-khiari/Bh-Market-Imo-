@@ -65,17 +65,17 @@ const ProfileManagement = () => {
                   <input type="email" value={user?.email || ''} readOnly />
                 </div>
                 <div className="pm-field">
-                  <label>Role</label>
+                  <label>Rôle</label>
                   <input type="text" value={user?.role || ''} readOnly />
                 </div>
               </div>
             </section>
 
             <section className="pm-card">
-              <h2>Parametres</h2>
+              <h2>Paramètres</h2>
               <p>
-                Cette section est prete pour la modification de profil (nom, mot de passe, preferences)
-                quand les endpoints de mise a jour seront ajoutes.
+                Cette section est prête pour la modification de profil (nom, mot de passe, préférences)
+                quand les endpoints de mise à jour seront ajoutés.
               </p>
             </section>
           </>

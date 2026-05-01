@@ -60,7 +60,7 @@ const Profile = () => {
             }
           } catch (creditErr) {
             if (!ignore) {
-              setCreditApplicationsError(creditErr.message || 'Impossible de charger vos demandes de credit.');
+              setCreditApplicationsError(creditErr.message || 'Impossible de charger vos demandes de crédit.');
             }
           }
         }
@@ -103,16 +103,16 @@ const Profile = () => {
     if (Number.isFinite(numeric) && numeric > 0) {
       return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
     }
-    return property.price_raw || 'Prix non communique';
+    return property.price_raw || 'Prix non communiqué';
   };
 
   const formatCreditApplicationStatus = (status) => {
     if (status === 'SOUMIS') return 'Dossier soumis';
-    if (status === 'EN_VERIFICATION') return 'En verification';
-    if (status === 'DOCUMENTS_MANQUANTS') return 'Pieces manquantes';
-    if (status === 'EN_ETUDE') return 'En etude';
-    if (status === 'ACCEPTE') return 'Accepte';
-    if (status === 'REFUSE') return 'Refuse';
+    if (status === 'EN_VERIFICATION') return 'En vérification';
+    if (status === 'DOCUMENTS_MANQUANTS') return 'Pièces manquantes';
+    if (status === 'EN_ETUDE') return 'En étude';
+    if (status === 'ACCEPTE') return 'Accepté';
+    if (status === 'REFUSE') return 'Refusé';
     return status || 'Inconnu';
   };
 
@@ -122,9 +122,9 @@ const Profile = () => {
   return (
     <div className="profile-page">
       <div className="container">
-        <h1>Mon Profil</h1>
+        <h1>Mon profil</h1>
         <div className="profile-actions">
-          <button type="button" className="profile-logout-btn" onClick={handleLogout}>Se deconnecter</button>
+          <button type="button" className="profile-logout-btn" onClick={handleLogout}>Se déconnecter</button>
         </div>
 
         {loading && <div className="profile-section"><p>Chargement du profil...</p></div>}
@@ -134,9 +134,9 @@ const Profile = () => {
           <div className="profile-content">
             <div className="profile-section">
               <h2>Informations personnelles</h2>
-              <p>Nom: {user?.name || 'N/A'}</p>
-              <p>Email: {user?.email || 'N/A'}</p>
-              <p>Role: {user?.role || 'N/A'}</p>
+              <p>Nom : {user?.name || 'Non renseigné'}</p>
+              <p>E-mail : {user?.email || 'Non renseigné'}</p>
+              <p>Rôle : {user?.role || 'Non renseigné'}</p>
             </div>
 
             {user?.role === 'client' && (
@@ -144,9 +144,9 @@ const Profile = () => {
                 <div className="profile-section">
                   <div className="profile-section-head">
                     <div>
-                      <h2>Mes demandes de credit</h2>
+                      <h2>Mes demandes de crédit</h2>
                       <p className="profile-section-copy">
-                        Suivez ici l avancement des dossiers traites par l agent bancaire.
+                        Suivez ici l’avancement des dossiers traités par l’agent bancaire.
                       </p>
                     </div>
                   </div>
@@ -154,7 +154,7 @@ const Profile = () => {
                   {creditApplicationsError ? (
                     <p>{creditApplicationsError}</p>
                   ) : creditApplications.length === 0 ? (
-                    <p>Vous n'avez pas encore depose de demande de credit.</p>
+                    <p>Vous n'avez pas encore déposé de demande de crédit.</p>
                   ) : (
                     <div className="profile-credit-list">
                       {creditApplications.map((application) => (
@@ -163,7 +163,7 @@ const Profile = () => {
                             <div>
                               <h3>{application.property_title || `Dossier #${application.id}`}</h3>
                               <p>
-                                Depose le {new Date(application.created_at).toLocaleDateString('fr-FR')}
+                                Déposé le {new Date(application.created_at).toLocaleDateString('fr-FR')}
                               </p>
                             </div>
                             <span className={`profile-credit-status status-${getCreditApplicationStatusClass(application.status)}`}>
@@ -173,30 +173,30 @@ const Profile = () => {
 
                           <div className="profile-credit-grid">
                             <span>
-                              <strong>Montant demande</strong>
+                              <strong>Montant demandé</strong>
                               <small>{formatPrice({ price_value: application.requested_amount })}</small>
                             </span>
                             <span>
-                              <strong>Mensualite estimee</strong>
+                              <strong>Mensualité estimée</strong>
                               <small>{formatPrice({ price_value: application.estimated_monthly_payment })}</small>
                             </span>
                             <span>
-                              <strong>Taux d endettement</strong>
+                              <strong>Taux d’endettement</strong>
                               <small>
                                 {Number.isFinite(Number(application.debt_ratio))
                                   ? `${Number(application.debt_ratio).toFixed(1)}%`
-                                  : 'Non renseigne'}
+                                  : 'Non renseigné'}
                               </small>
                             </span>
                             <span>
-                              <strong>Conformite</strong>
-                              <small>{application.compliance_score ?? 'A evaluer'}</small>
+                              <strong>Conformité</strong>
+                              <small>{application.compliance_score ?? 'À évaluer'}</small>
                             </span>
                           </div>
 
                           {(application.agent_note || application.compliance_summary) && (
                             <p className="profile-credit-note">
-                              <strong>Retour banque:</strong> {application.agent_note || application.compliance_summary}
+                              <strong>Retour banque :</strong> {application.agent_note || application.compliance_summary}
                             </p>
                           )}
                         </article>
@@ -210,7 +210,7 @@ const Profile = () => {
                     <div>
                       <h2>Mes biens favoris</h2>
                       <p className="profile-section-copy">
-                        Retrouvez ici les biens sauvegardes avec votre compte.
+                        Retrouvez ici les biens sauvegardés avec votre compte.
                       </p>
                     </div>
                     <Link to="/properties?favorites=1" className="profile-favorites-link">
@@ -221,7 +221,7 @@ const Profile = () => {
                   {favoritesError ? (
                     <p>{favoritesError}</p>
                   ) : favorites.length === 0 ? (
-                    <p>Vous n'avez pas encore ajoute de bien a vos favoris.</p>
+                    <p>Vous n'avez pas encore ajouté de bien à vos favoris.</p>
                   ) : (
                     <div className="profile-favorites-grid">
                       {favorites.slice(0, 6).map((property) => (

@@ -26,3 +26,34 @@ class ChatResponse(BaseModel):
     reply: str
     suggestions: List[str] = Field(default_factory=list)
     handoff: bool = False
+
+
+class CreditScoringRequest(BaseModel):
+    revenu_annuel: float = Field(..., gt=0, description="Revenu annuel du client")
+    charges_impayees: float = Field(
+        default=0,
+        ge=0,
+        description="Total annuel des charges a payer ou impayees",
+    )
+    situation_familiale: str = Field(..., min_length=2, max_length=80)
+    situation_contractuelle: str = Field(..., min_length=2, max_length=80)
+
+
+class CreditCriterionResult(BaseModel):
+    nom: str
+    valide: bool
+    score: int = Field(..., ge=0, le=100)
+    message: str
+
+
+class CreditScoringResponse(BaseModel):
+    decision: Literal["ACCEPTE", "REFUSE"]
+    score: int = Field(..., ge=0, le=100)
+    niveau_risque: Literal["faible", "moyen", "eleve"]
+    formule: str
+    taux_charges: float
+    plafond_charges: float
+    reste_apres_charges: float
+    criteres: List[CreditCriterionResult]
+    resume: str
+    recommandation: str

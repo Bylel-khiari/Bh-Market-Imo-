@@ -3,8 +3,9 @@ import logging
 from fastapi import FastAPI
 
 from .assistant_service import generate_reply
+from .credit_scoring import score_credit_application
 from .knowledge_base import DEFAULT_SUGGESTIONS
-from .schemas import ChatRequest, ChatResponse
+from .schemas import ChatRequest, ChatResponse, CreditScoringRequest, CreditScoringResponse
 
 logger = logging.getLogger(__name__)
 
@@ -45,4 +46,9 @@ def chat(request: ChatRequest):
             suggestions=DEFAULT_SUGGESTIONS,
             handoff=True,
         )
+
+
+@app.post("/credit-scoring", response_model=CreditScoringResponse)
+def credit_scoring(request: CreditScoringRequest):
+    return CreditScoringResponse(**score_credit_application(request))
 

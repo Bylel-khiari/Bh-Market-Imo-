@@ -249,28 +249,64 @@ def parse_price(value: Any) -> Optional[float]:
         return None
 
     s = str(value).strip().lower()
-    s = s.replace("tnd", "").replace("dt", "").replace("دينار", "").strip()
+    s = (
+        s.replace("\u00a0", " ")
+        .replace("\u202f", " ")
+        .replace("tnd", "")
+        .replace("dt", "")
+        .replace("دينار", "")
+        .strip()
+    )
 
     multiplier = 1.0
     if re.search(r"\b(m|mn|million)\b", s):
         multiplier = 1_000_000.0
-    elif re.search(r"\b(k|thousand)\b", s):
+    elif re.search(r"\b(k|thousand|mille)\b", s):
         multiplier = 1_000.0
 
-    match = re.search(r"\d+(?:[.,]\d+)?", s)
+    match = re.search(r"\d[\d\s.,']*", s)
     if not match:
         return None
 
-    num = match.group(0)
-    if "," in num and "." not in num:
-        num = num.replace(",", ".")
-    else:
-        num = num.replace(",", "")
+    num = _normalize_price_number(match.group(0))
+    if not num:
+        return None
 
     try:
         return round(float(num) * multiplier, 2)
     except ValueError:
         return None
+
+
+def _normalize_price_number(value: str) -> str:
+    num = clean_spaces(value).replace("'", "")
+    num = re.sub(r"\s+", "", num)
+
+    if not num:
+        return ""
+
+    if "," in num and "." in num:
+        last_comma = num.rfind(",")
+        last_dot = num.rfind(".")
+        decimal_sep = "," if last_comma > last_dot else "."
+        thousands_sep = "." if decimal_sep == "," else ","
+        return num.replace(thousands_sep, "").replace(decimal_sep, ".")
+
+    for sep in (",", "."):
+        if sep not in num:
+            continue
+
+        parts = num.split(sep)
+        if len(parts) > 2:
+            return "".join(parts)
+
+        integer_part, decimal_part = parts
+        if len(decimal_part) == 3 and 1 <= len(integer_part) <= 3:
+            return integer_part + decimal_part
+
+        return integer_part + "." + decimal_part
+
+    return num
 
 
 def safe_round(value: Optional[float]) -> str:
