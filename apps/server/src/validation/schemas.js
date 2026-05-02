@@ -222,7 +222,15 @@ export const creditApplicationCreateBodySchema = z
     estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
     estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
     debt_ratio: z.coerce.number().finite().min(0).max(100).optional().nullable(),
-    documents: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
+    documents: z
+      .array(
+        z.object({
+          type: z.string().trim().min(1).max(64),
+          name: z.string().trim().min(1).max(200),
+        })
+      )
+      .max(40)
+      .optional(),
   })
   .strict();
 

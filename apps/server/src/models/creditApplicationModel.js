@@ -1,5 +1,6 @@
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
+import { validateDocumentCompleteness, isValidDocumentType } from "../utils/documentTypes.js";
 
 const CREDIT_APPLICATION_TABLE = "credit_applications";
 const CREDIT_APPLICATION_HISTORY_TABLE = "credit_application_history";
@@ -98,6 +99,52 @@ function parseDocumentNames(rawValue) {
   }
 }
 
+function normalizeTypedDocuments(documents) {
+  if (!Array.isArray(documents)) {
+    return [];
+  }
+
+  return documents
+    .map((doc) => {
+      if (typeof doc !== "object" || doc === null) {
+        return null;
+      }
+      const type = String(doc.type || "").trim().toUpperCase();
+      const name = String(doc.name || "").trim();
+      
+      if (!type || !name) {
+        return null;
+      }
+      
+      if (!isValidDocumentType(type)) {
+        return null;
+      }
+      
+      return { type, name };
+    })
+    .filter(Boolean)
+    .slice(0, 40);
+}
+
+function serializeTypedDocuments(documents) {
+  return JSON.stringify(normalizeTypedDocuments(documents));
+}
+
+function parseTypedDocuments(rawValue) {
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(String(rawValue));
+    return Array.isArray(parsed)
+      ? parsed.filter(doc => doc && doc.type && doc.name)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function getComplianceLevel(score) {
   const normalizedScore = normalizeOptionalInteger(score);
 
@@ -124,6 +171,7 @@ function toPublicCreditApplication(row) {
     normalizeOptionalNumber(row.property_price_value);
   const complianceScore = normalizeOptionalInteger(row.compliance_score);
   const documents = parseDocumentNames(row.document_names_json);
+  const typedDocuments = parseTypedDocuments(row.documents_json);
 
   return {
     id: row.id,
@@ -159,6 +207,8 @@ function toPublicCreditApplication(row) {
     agent_note: row.agent_note,
     documents,
     document_count: documents.length,
+    typed_documents: typedDocuments,
+    typed_document_count: typedDocuments.length,
     reviewed_at: row.reviewed_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -223,6 +273,7 @@ async function ensureCreditApplicationTables() {
       compliance_summary TEXT NULL,
       agent_note TEXT NULL,
       document_names_json LONGTEXT NULL,
+      documents_json LONGTEXT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       reviewed_at DATETIME NULL,
@@ -233,6 +284,14 @@ async function ensureCreditApplicationTables() {
       KEY idx_credit_applications_status_created_at (status, created_at)
     )
   `);
+
+  // Add documents_json column if it doesn't exist (for existing databases)
+  await dbPool.query(`
+    ALTER TABLE ${CREDIT_APPLICATION_TABLE}
+    ADD COLUMN IF NOT EXISTS documents_json LONGTEXT NULL
+  `).catch(() => {
+    // Column already exists, ignore error
+  });
 
   await dbPool.query(`
     UPDATE ${CREDIT_APPLICATION_TABLE}
@@ -325,6 +384,7 @@ const CREDIT_APPLICATION_SELECT_COLUMNS = `
   ca.compliance_summary,
   ca.agent_note,
   ca.document_names_json,
+  ca.documents_json,
   ca.reviewed_at,
   ca.created_at,
   ca.updated_at,
@@ -428,6 +488,7 @@ export async function createCreditApplication({
   const normalizedEstimatedRate = normalizeOptionalNumber(estimatedRate);
   const normalizedDebtRatio = normalizeOptionalNumber(debtRatio);
   const normalizedDocuments = normalizeDocumentNames(documents);
+  const normalizedTypedDocuments = normalizeTypedDocuments(documents);
 
   if (!normalizedClientUserId) {
     throw httpError(401, "Invalid client session");
@@ -435,6 +496,12 @@ export async function createCreditApplication({
 
   if (!normalizedFullName || !normalizedEmail || !normalizedPhone || !normalizedCin || !normalizedRib) {
     throw httpError(400, "Missing required credit application fields");
+  }
+
+  // Validate that all required documents are present
+  const documentCompletion = validateDocumentCompleteness(normalizedTypedDocuments);
+  if (!documentCompletion.isComplete) {
+    throw httpError(400, `Missing required documents: ${documentCompletion.missing.join(", ")}`);
   }
 
   let propertySnapshot = null;
@@ -478,9 +545,10 @@ export async function createCreditApplication({
         estimated_rate,
         debt_ratio,
         status,
-        document_names_json
+        document_names_json,
+        documents_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOUMIS', ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOUMIS', ?, ?)
       `,
       [
         normalizedClientUserId,
@@ -505,6 +573,7 @@ export async function createCreditApplication({
         normalizedEstimatedRate,
         normalizedDebtRatio,
         serializeDocumentNames(normalizedDocuments),
+        serializeTypedDocuments(normalizedTypedDocuments),
       ]
     );
 
@@ -513,8 +582,8 @@ export async function createCreditApplication({
       action: "created",
       previousStatus: null,
       nextStatus: "SOUMIS",
-      comment: normalizedDocuments.length
-        ? `Documents fournis: ${normalizedDocuments.join(", ")}`
+      comment: normalizedTypedDocuments.length
+        ? `Documents fournis: ${normalizedTypedDocuments.map(d => `${d.type} (${d.name})`).join(", ")}`
         : "Application created",
       agentUserId: null,
     });

@@ -2,6 +2,62 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
 
+// Document types configuration - must match backend documentTypes.js
+const DOCUMENT_TYPES = {
+  BH_FORM: {
+    key: "BH_FORM",
+    label: "BH Habitat Form",
+    description: "Demande de Crédit Habitat",
+    required: true,
+    downloadUrl: "/documents/BH-Demande-Credit-Habitat.pdf",
+    fileInputId: "doc-bh-form",
+  },
+  ID_COPY: {
+    key: "ID_COPY",
+    label: "Identity Document",
+    description: "CIN / Passport copy",
+    required: true,
+    downloadUrl: null,
+    fileInputId: "doc-id-copy",
+  },
+  INCOME_PROOF: {
+    key: "INCOME_PROOF",
+    label: "Income Proof",
+    description: "Pay stubs, tax returns, or income statement",
+    required: true,
+    downloadUrl: null,
+    fileInputId: "doc-income-proof",
+  },
+  PROPERTY_DOCS: {
+    key: "PROPERTY_DOCS",
+    label: "Property Documents",
+    description: "Deed, survey, or property-related documents",
+    required: true,
+    downloadUrl: null,
+    fileInputId: "doc-property-docs",
+  },
+  BANK_STATEMENTS: {
+    key: "BANK_STATEMENTS",
+    label: "Bank Statements",
+    description: "Last 3-6 months of bank statements",
+    required: true,
+    downloadUrl: null,
+    fileInputId: "doc-bank-statements",
+  },
+  EMPLOYMENT_CONTRACT: {
+    key: "EMPLOYMENT_CONTRACT",
+    label: "Employment Contract",
+    description: "Employment contract or professional status proof",
+    required: true,
+    downloadUrl: null,
+    fileInputId: "doc-employment-contract",
+  },
+};
+
+const REQUIRED_DOCUMENT_KEYS = Object.values(DOCUMENT_TYPES)
+  .filter(doc => doc.required)
+  .map(doc => doc.key);
+
 function formatCurrency(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -28,7 +84,7 @@ export default function CreditImmobilierBHPortal() {
   const [formData, setFormData] = useState(() => createEmptyFormData(getAuthSession()));
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState({});
+  const [uploadedDocuments, setUploadedDocuments] = useState({});
   const [formResetKey, setFormResetKey] = useState(0);
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -106,12 +162,24 @@ export default function CreditImmobilierBHPortal() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDocumentChange = (docId, event) => {
+  const handleDocumentChange = (documentType, event) => {
     const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
-    setUploadedFiles((prev) => ({
+    setUploadedDocuments((prev) => ({
       ...prev,
-      [docId]: file ? file.name : '',
+      [documentType]: file ? file.name : null,
     }));
+  };
+
+  const getUploadedDocumentCount = () => {
+    return Object.values(uploadedDocuments).filter(Boolean).length;
+  };
+
+  const getMissingRequiredDocuments = () => {
+    return REQUIRED_DOCUMENT_KEYS.filter(key => !uploadedDocuments[key]);
+  };
+
+  const isFormReadyToSubmit = () => {
+    return getMissingRequiredDocuments().length === 0;
   };
 
   const openSubmissionModal = () => {
@@ -140,7 +208,19 @@ export default function CreditImmobilierBHPortal() {
       return;
     }
 
-    const documents = Object.values(uploadedFiles).filter(Boolean);
+    const missingDocs = getMissingRequiredDocuments();
+    if (missingDocs.length > 0) {
+      setErrorMessage(`Documents manquants: ${missingDocs.map(key => DOCUMENT_TYPES[key]?.label).join(', ')}`);
+      return;
+    }
+
+    // Convert uploadedDocuments to typed documents format
+    const documents = Object.entries(uploadedDocuments)
+      .filter(([, fileName]) => fileName)
+      .map(([docType, fileName]) => ({
+        type: docType,
+        name: fileName,
+      }));
 
     try {
       setSubmitting(true);
@@ -173,7 +253,7 @@ export default function CreditImmobilierBHPortal() {
       );
 
       setSuccessMessage('Votre dossier a été transmis à l’équipe bancaire avec succès.');
-      setUploadedFiles({});
+      setUploadedDocuments({});
       setFormData(createEmptyFormData(authSession));
       setFormResetKey((prev) => prev + 1);
     } catch (requestError) {
@@ -183,35 +263,7 @@ export default function CreditImmobilierBHPortal() {
     }
   };
 
-  const documentCategories = [
-    {
-      title: 'Administratifs',
-      documents: [
-        { id: 'doc-cin-copy', label: 'CIN (copie recto/verso)' },
-        { id: 'doc-birth', label: 'Extrait de naissance' },
-        { id: 'doc-address', label: "Justificatif d'adresse" },
-      ],
-    },
-    {
-      title: 'Financiers',
-      documents: [
-        { id: 'doc-work', label: 'Attestation de travail' },
-        { id: 'doc-payroll', label: 'Fiches de paie (3 a 6 mois)' },
-        { id: 'doc-bank', label: 'Releves bancaires (6 mois)' },
-        { id: 'doc-rib', label: 'RIB bancaire (document)' },
-        { id: 'doc-tax', label: "Declaration d'impots / Patente" },
-      ],
-    },
-    {
-      title: 'Immobiliers',
-      documents: [
-        { id: 'doc-promise', label: 'Promesse de vente legalisee' },
-        { id: 'doc-title', label: 'Certificat de propriete (Titre bleu)' },
-        { id: 'doc-plan', label: 'Plan architectural' },
-        { id: 'doc-tax-property', label: 'Quittance de taxe fonciere' },
-      ],
-    },
-  ];
+  const requiredDocumentsList = REQUIRED_DOCUMENT_KEYS.map(key => DOCUMENT_TYPES[key]);
 
   const steps = [
     'Simulation de la capacite de remboursement',
@@ -643,43 +695,49 @@ export default function CreditImmobilierBHPortal() {
                   </div>
 
                   <div className="col-12">
-                    <label className="form-label fw-semibold">Joindre vos documents (un document par champ)</label>
+                    <label className="form-label fw-semibold">Documents requis * (tous les documents doivent être fournis)</label>
                     <div className="bh-dropzone">
                       <div className="row g-3">
-                        {documentCategories.map((category) => (
-                          <div className="col-12" key={category.title}>
-                            <div className="border rounded-3 p-3 bg-white">
-                              <h3 className="h6 fw-bold text-primary-emphasis mb-3">{category.title}</h3>
-                              <div className="row g-3">
-                                {category.documents.map((doc) => (
-                                  <div className="col-12 col-md-6" key={doc.id}>
-                                    <div className="bh-upload-group">
-                                      <label htmlFor={doc.id} className="bh-upload-label d-block">
-                                        {doc.label}
-                                      </label>
-                                      <input
-                                        id={doc.id}
-                                        name={doc.id}
-                                        type="file"
-                                        className="form-control"
-                                        accept=".pdf,.jpg,.png,.jpeg"
-                                        onChange={(event) => handleDocumentChange(doc.id, event)}
-                                        disabled={submitting}
-                                      />
-                                      <div className="small mt-1">
-                                        {uploadedFiles[doc.id]
-                                          ? <span className="text-success">Fichier ajouté : {uploadedFiles[doc.id]}</span>
-                                          : <span className="text-secondary">Formats acceptés : PDF, JPG, PNG, JPEG</span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                        {requiredDocumentsList.map((doc) => (
+                          <div className="col-12 col-md-6" key={doc.key}>
+                            <div className="bh-upload-group">
+                              <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                <div>
+                                  <label htmlFor={doc.fileInputId} className="bh-upload-label d-block">
+                                    {doc.label}
+                                  </label>
+                                  <small className="text-secondary">{doc.description}</small>
+                                </div>
+                                {doc.downloadUrl && (
+                                  <a href={doc.downloadUrl} download className="btn btn-sm btn-outline-primary" title="Télécharger le formulaire">
+                                    ⬇ Télécharger
+                                  </a>
+                                )}
+                              </div>
+                              <input
+                                id={doc.fileInputId}
+                                name={doc.fileInputId}
+                                type="file"
+                                className="form-control"
+                                accept=".pdf,.jpg,.png,.jpeg"
+                                onChange={(event) => handleDocumentChange(doc.key, event)}
+                                disabled={submitting}
+                              />
+                              <div className="small mt-1">
+                                {uploadedDocuments[doc.key]
+                                  ? <span className="text-success">✓ Fichier ajouté : {uploadedDocuments[doc.key]}</span>
+                                  : <span className="text-warning">⚠ Non fourni - Formats acceptés : PDF, JPG, PNG, JPEG</span>}
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
+                    {getMissingRequiredDocuments().length > 0 && (
+                      <div className="alert alert-warning mt-3 mb-0" role="alert">
+                        <strong>Documents manquants:</strong> {getMissingRequiredDocuments().map(key => DOCUMENT_TYPES[key]?.label).join(', ')}
+                      </div>
+                    )}
                   </div>
                 </div>
 
