@@ -229,8 +229,8 @@ export const creditApplicationCreateBodySchema = z
           name: z.string().trim().min(1).max(200),
         })
       )
-      .max(40)
-      .optional(),
+      .min(1, "At least one document is required")
+      .max(40),
   })
   .strict();
 

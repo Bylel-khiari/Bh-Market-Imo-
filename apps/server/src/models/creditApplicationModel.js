@@ -44,11 +44,7 @@ function normalizeOptionalString(value) {
 }
 
 function normalizeOptionalNumber(value) {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (value === null || value === "") {
+  if (value === undefined || value === null || value === "") {
     return null;
   }
 
@@ -58,9 +54,7 @@ function normalizeOptionalNumber(value) {
 
 function normalizeOptionalInteger(value) {
   const normalizedValue = normalizeOptionalNumber(value);
-  return normalizedValue === null || normalizedValue === undefined
-    ? normalizedValue
-    : Math.trunc(normalizedValue);
+  return normalizedValue === null ? null : Math.trunc(normalizedValue);
 }
 
 function normalizeDocumentNames(documents) {
@@ -286,12 +280,24 @@ async function ensureCreditApplicationTables() {
   `);
 
   // Add documents_json column if it doesn't exist (for existing databases)
-  await dbPool.query(`
-    ALTER TABLE ${CREDIT_APPLICATION_TABLE}
-    ADD COLUMN IF NOT EXISTS documents_json LONGTEXT NULL
-  `).catch(() => {
-    // Column already exists, ignore error
-  });
+  try {
+    const [columns] = await dbPool.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_NAME = ? AND COLUMN_NAME = 'documents_json'`,
+      [CREDIT_APPLICATION_TABLE]
+    );
+    
+    if (!columns || columns.length === 0) {
+      await dbPool.query(`
+        ALTER TABLE ${CREDIT_APPLICATION_TABLE}
+        ADD COLUMN documents_json LONGTEXT NULL
+      `);
+      console.log('Added documents_json column to credit_applications table');
+    }
+  } catch (error) {
+    console.error('Failed to add documents_json column:', error.message);
+    throw error;
+  }
 
   await dbPool.query(`
     UPDATE ${CREDIT_APPLICATION_TABLE}
@@ -514,9 +520,10 @@ export async function createCreditApplication({
     }
   }
 
-  const connection = await dbPool.getConnection();
+  let connection = null;
 
   try {
+    connection = await dbPool.getConnection();
     await connection.beginTransaction();
 
     const [result] = await connection.execute(
@@ -593,10 +600,14 @@ export async function createCreditApplication({
     const row = await findCreditApplicationRowById(result.insertId);
     return toPublicCreditApplication(row);
   } catch (error) {
-    await connection.rollback();
+    if (connection) {
+      await connection.rollback();
+    }
     throw error;
   } finally {
-    connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 }
 
@@ -768,9 +779,10 @@ export async function updateCreditApplicationReview(
   }
 
   const reviewedAtValue = new Date().toISOString().slice(0, 19).replace("T", " ");
-  const connection = await dbPool.getConnection();
+  let connection = null;
 
   try {
+    connection = await dbPool.getConnection();
     await connection.beginTransaction();
 
     await connection.execute(
@@ -811,9 +823,13 @@ export async function updateCreditApplicationReview(
     const updatedRow = await findCreditApplicationRowById(normalizedApplicationId);
     return toPublicCreditApplication(updatedRow);
   } catch (error) {
-    await connection.rollback();
+    if (connection) {
+      await connection.rollback();
+    }
     throw error;
   } finally {
-    connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 }
