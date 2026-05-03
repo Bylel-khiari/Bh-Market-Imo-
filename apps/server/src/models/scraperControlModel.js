@@ -92,16 +92,6 @@ function toPublicScraperControl(row) {
   };
 }
 
-async function ensureColumn(columnName, definition) {
-  const [rows] = await dbPool.query("SHOW COLUMNS FROM scraper_control LIKE ?", [columnName]);
-
-  if (Array.isArray(rows) && rows.length > 0) {
-    return;
-  }
-
-  await dbPool.query(`ALTER TABLE scraper_control ADD COLUMN ${definition}`);
-}
-
 async function ensureScraperControlTable() {
   if (!ensureScraperControlTablePromise) {
     ensureScraperControlTablePromise = (async () => {
@@ -139,14 +129,6 @@ async function ensureScraperControlTable() {
         `,
         [SCRAPER_CONTROL_ID, DEFAULT_SCRAPER_INTERVAL_DAYS]
       );
-
-      await ensureColumn("run_type", "run_type VARCHAR(32) NULL AFTER status");
-      await ensureColumn("current_stage", "current_stage VARCHAR(32) NULL AFTER run_type");
-      await ensureColumn("progress_current", "progress_current SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER current_spider_name");
-      await ensureColumn("progress_total", "progress_total SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER progress_current");
-      await ensureColumn("progress_percent", "progress_percent DECIMAL(5, 2) NOT NULL DEFAULT 0 AFTER progress_total");
-      await ensureColumn("estimated_remaining_seconds", "estimated_remaining_seconds INT UNSIGNED NULL AFTER progress_percent");
-      await ensureColumn("recent_log", "recent_log LONGTEXT NULL AFTER estimated_remaining_seconds");
     })().catch((error) => {
       ensureScraperControlTablePromise = null;
       throw error;

@@ -7,14 +7,18 @@ import {
 	deleteScrapeSiteByAdmin,
 	deleteUser,
 	getScraperControlByAdmin,
+	acceptScrapeSiteSuggestionByAdmin,
 	listPropertiesByAdmin,
+	listScrapeSiteSuggestionsByAdmin,
 	listScrapeSites,
 	listUsers,
+	startScrapeSiteDiscoveryByAdmin,
 	startListingCleanerByAdmin,
 	startScraperByAdmin,
 	stopScraperByAdmin,
 	updateProperty,
 	updateScraperControlByAdmin,
+	updateScrapeSiteSuggestionByAdmin,
 	updateScrapeSiteByAdmin,
 	updateUser,
 } from "../controllers/adminController.js";
@@ -22,14 +26,18 @@ import { requireAuth, requireRoles } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import {
 	adminCreateScrapeSiteBodySchema,
+	adminAcceptScrapeSiteSuggestionBodySchema,
 	adminCreatePropertyBodySchema,
 	adminCreateUserBodySchema,
 	adminListPropertiesQuerySchema,
+	adminListScrapeSiteSuggestionsQuerySchema,
 	adminListScrapeSitesQuerySchema,
 	adminListUsersQuerySchema,
+	adminStartScrapeSiteDiscoveryBodySchema,
 	adminStartScraperBodySchema,
 	adminUpdatePropertyBodySchema,
 	adminUpdateScraperControlBodySchema,
+	adminUpdateScrapeSiteSuggestionBodySchema,
 	adminUpdateScrapeSiteBodySchema,
 	adminUpdateUserBodySchema,
 	idParamSchema,
@@ -124,6 +132,34 @@ router.post(
 	requireAuth,
 	requireRoles("admin"),
 	stopScraperByAdmin
+);
+router.get(
+	"/api/admin/scrape-site-suggestions",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ query: adminListScrapeSiteSuggestionsQuerySchema }),
+	listScrapeSiteSuggestionsByAdmin
+);
+router.post(
+	"/api/admin/scrape-site-discovery/start",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ body: adminStartScrapeSiteDiscoveryBodySchema }),
+	startScrapeSiteDiscoveryByAdmin
+);
+router.patch(
+	"/api/admin/scrape-site-suggestions/:id",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ params: idParamSchema, body: adminUpdateScrapeSiteSuggestionBodySchema }),
+	updateScrapeSiteSuggestionByAdmin
+);
+router.post(
+	"/api/admin/scrape-site-suggestions/:id/accept",
+	requireAuth,
+	requireRoles("admin"),
+	validateRequest({ params: idParamSchema, body: adminAcceptScrapeSiteSuggestionBodySchema }),
+	acceptScrapeSiteSuggestionByAdmin
 );
 router.get(
 	"/api/admin/scrape-sites",

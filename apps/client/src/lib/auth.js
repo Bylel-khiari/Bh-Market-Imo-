@@ -1,6 +1,7 @@
 const AUTH_STORAGE_KEY = 'bh_market_auth';
 export const AUTH_SESSION_CHANGED_EVENT = 'bh-market-auth-session-changed';
 const DEV_FRONTEND_PORTS = new Set(['3000', '3001', '3002', '3003', '3004', '3005', '5173']);
+const COOKIE_AUTH_SENTINEL = '__http_only_cookie__';
 
 function notifyAuthSessionChanged(session) {
   if (typeof window === 'undefined') {
@@ -86,6 +87,7 @@ export async function jsonRequest(path, options = {}) {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     body,
+    credentials: 'include',
     headers,
   });
 
@@ -98,7 +100,9 @@ export async function authorizedJsonRequest(path, token, options = {}) {
   }
 
   const headers = new Headers(options.headers || {});
-  headers.set('Authorization', `Bearer ${token}`);
+  if (token !== COOKIE_AUTH_SENTINEL) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   return jsonRequest(path, { ...options, headers });
 }
@@ -107,6 +111,12 @@ export async function loginApi(input) {
   return jsonRequest('/api/auth/login', {
     method: 'POST',
     body: input,
+  });
+}
+
+export async function logoutApi() {
+  return jsonRequest('/api/auth/logout', {
+    method: 'POST',
   });
 }
 
@@ -153,8 +163,15 @@ export async function submitCreditApplicationApi(input, token) {
 }
 
 export function saveAuthSession(session) {
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-  notifyAuthSessionChanged(session);
+  const safeSession = {
+    ...session,
+    token: COOKIE_AUTH_SENTINEL,
+    authenticated: true,
+    authMode: 'httpOnlyCookie',
+  };
+
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safeSession));
+  notifyAuthSessionChanged(safeSession);
 }
 
 export function getAuthSession() {
@@ -230,6 +247,40 @@ export async function fetchAdminScrapeSitesApi(token, limit = 200) {
   return authorizedJsonRequest(`/api/admin/scrape-sites?limit=${limit}`, token);
 }
 
+export async function fetchAdminScrapeSiteSuggestionsApi(token, { limit = 100, status = 'pending' } = {}) {
+  const params = new URLSearchParams();
+  if (limit != null) {
+    params.set('limit', String(limit));
+  }
+  if (status) {
+    params.set('status', status);
+  }
+
+  const query = params.toString();
+  return authorizedJsonRequest(`/api/admin/scrape-site-suggestions${query ? `?${query}` : ''}`, token);
+}
+
+export async function startAdminScrapeSiteDiscoveryApi(token) {
+  return authorizedJsonRequest('/api/admin/scrape-site-discovery/start', token, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function updateAdminScrapeSiteSuggestionApi(suggestionId, input, token) {
+  return authorizedJsonRequest(`/api/admin/scrape-site-suggestions/${suggestionId}`, token, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export async function acceptAdminScrapeSiteSuggestionApi(suggestionId, input, token) {
+  return authorizedJsonRequest(`/api/admin/scrape-site-suggestions/${suggestionId}/accept`, token, {
+    method: 'POST',
+    body: input || {},
+  });
+}
+
 export async function fetchAdminScraperControlApi(token) {
   return authorizedJsonRequest('/api/admin/scraper-control', token);
 }
@@ -280,8 +331,30 @@ export async function deleteAdminScrapeSiteApi(siteId, token) {
   });
 }
 
-export async function fetchAdminPropertiesApi(token, limit = 5000) {
-  return authorizedJsonRequest(`/api/admin/properties?limit=${limit}`, token);
+export async function fetchAdminPropertiesApi(
+  token,
+  { limit = 50, page = 1, status = 'all', search = '' } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (limit != null) {
+    params.set('limit', String(limit));
+  }
+
+  if (page != null) {
+    params.set('page', String(page));
+  }
+
+  if (status) {
+    params.set('status', status);
+  }
+
+  if (search) {
+    params.set('search', search);
+  }
+
+  const query = params.toString();
+  return authorizedJsonRequest(`/api/admin/properties${query ? `?${query}` : ''}`, token);
 }
 
 export async function createAdminPropertyApi(input, token) {
@@ -358,4 +431,5 @@ export async function updateAgentCreditApplicationApi(applicationId, input, toke
 export function clearAuthSession() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   notifyAuthSessionChanged(null);
+  logoutApi().catch(() => {});
 }

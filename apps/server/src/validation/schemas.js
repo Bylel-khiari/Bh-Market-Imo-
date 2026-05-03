@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 const adminRole = z.enum(["client", "agent_bancaire", "admin"]);
+const scrapeSiteIntegrationStatus = z.enum(["ready", "pending_spider", "disabled"]);
+const scrapeSiteSuggestionStatus = z.enum(["pending", "accepted", "rejected", "ignored"]);
 
 export const authLoginBodySchema = z
   .object({
@@ -27,6 +29,37 @@ export const adminListScrapeSitesQuerySchema = z
   })
   .strict();
 
+export const adminListScrapeSiteSuggestionsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    status: z.union([z.literal("all"), scrapeSiteSuggestionStatus]).optional(),
+  })
+  .strict();
+
+export const adminUpdateScrapeSiteSuggestionBodySchema = z
+  .object({
+    status: z.enum(["pending", "rejected", "ignored"]),
+    admin_note: z.string().trim().max(2000).optional().nullable(),
+  })
+  .strict();
+
+export const adminAcceptScrapeSiteSuggestionBodySchema = z
+  .object({
+    name: z.string().trim().min(2).max(120).optional(),
+    spider_name: z
+      .string()
+      .trim()
+      .min(2)
+      .max(120)
+      .regex(/^[a-zA-Z0-9_-]+$/, "Invalid spider identifier")
+      .optional(),
+    description: z.string().trim().max(1000).optional().nullable(),
+    admin_note: z.string().trim().max(2000).optional().nullable(),
+  })
+  .strict();
+
+export const adminStartScrapeSiteDiscoveryBodySchema = z.object({}).strict();
+
 export const adminStartScraperBodySchema = z
   .object({
     interval_days: z.coerce.number().int().min(1).max(365).optional(),
@@ -45,7 +78,10 @@ export const adminUpdateScraperControlBodySchema = z
 
 export const adminListPropertiesQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(5000).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    page: z.coerce.number().int().min(1).max(100000).optional(),
+    status: z.enum(["all", "active", "inactive"]).optional(),
+    search: z.string().trim().max(190).optional(),
   })
   .strict();
 
@@ -101,6 +137,7 @@ const scrapeSiteBaseSchema = {
   start_url: z.string().trim().url().max(255).optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
   is_active: z.boolean().optional(),
+  integration_status: scrapeSiteIntegrationStatus.optional(),
 };
 
 const adminPropertyBaseSchema = {
@@ -149,6 +186,7 @@ export const adminUpdateScrapeSiteBodySchema = z
     start_url: scrapeSiteBaseSchema.start_url,
     description: scrapeSiteBaseSchema.description,
     is_active: scrapeSiteBaseSchema.is_active,
+    integration_status: scrapeSiteBaseSchema.integration_status,
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {

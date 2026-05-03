@@ -1,7 +1,14 @@
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
+import { existsSync } from "fs";
+import { join } from "path";
+import { fileURLToPath } from "url";
 
 const MAX_SCRAPE_SITES_LIMIT = Number(process.env.ADMIN_SCRAPE_SITES_MAX_LIMIT || 200);
+const SCRAPER_SPIDER_DIR = fileURLToPath(
+  new URL("../../../../services/scraper/real_estate_scraper/spiders/", import.meta.url)
+);
+const SCRAPE_SITE_INTEGRATION_STATUSES = new Set(["ready", "pending_spider", "disabled"]);
 
 const DEFAULT_SCRAPE_SITES = [
   {
@@ -142,6 +149,43 @@ function normalizeSpiderName(value) {
   return normalized || null;
 }
 
+export function normalizeBaseDomain(value) {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(rawValue.includes("://") ? rawValue : `https://${rawValue}`);
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+function normalizeIntegrationStatus(value, fallback = "ready") {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  if (!SCRAPE_SITE_INTEGRATION_STATUSES.has(normalized)) {
+    throw httpError(400, "Invalid integration_status");
+  }
+
+  return normalized;
+}
+
+function spiderExists(spiderName) {
+  return Boolean(spiderName && existsSync(join(SCRAPER_SPIDER_DIR, `${spiderName}.py`)));
+}
+
+function assertCanActivateScrapeSite({ spiderName, integrationStatus }) {
+  if (integrationStatus !== "ready") {
+    throw httpError(400, "Le site ne peut pas etre active tant que son spider n est pas pret.");
+  }
+
+  if (!spiderExists(spiderName)) {
+    throw httpError(400, "Le spider Scrapy correspondant est introuvable.");
+  }
+}
+
 function toPublicScrapeSite(row) {
   if (!row) return null;
 
@@ -153,6 +197,7 @@ function toPublicScrapeSite(row) {
     start_url: row.start_url,
     description: row.description,
     is_active: Boolean(row.is_active),
+    integration_status: row.integration_status || "ready",
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -173,6 +218,7 @@ async function ensureScrapeSitesTable() {
           start_url VARCHAR(255) NULL,
           description TEXT NULL,
           is_active TINYINT(1) NOT NULL DEFAULT 1,
+          integration_status VARCHAR(32) NOT NULL DEFAULT 'ready',
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           PRIMARY KEY (id),
@@ -184,8 +230,8 @@ async function ensureScrapeSitesTable() {
         for (const site of DEFAULT_SCRAPE_SITES) {
           await dbPool.execute(
             `
-            INSERT INTO scrape_sites (name, spider_name, base_url, start_url, description, is_active)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO scrape_sites (name, spider_name, base_url, start_url, description, is_active, integration_status)
+            VALUES (?, ?, ?, ?, ?, ?, 'ready')
             `,
             [
               site.name,
@@ -229,6 +275,7 @@ async function findScrapeSiteRowById(id) {
       start_url,
       description,
       is_active,
+      integration_status,
       created_at,
       updated_at
     FROM scrape_sites
@@ -271,6 +318,7 @@ export async function fetchScrapeSites({ limit = 100 } = {}) {
       start_url,
       description,
       is_active,
+      integration_status,
       created_at,
       updated_at
     FROM scrape_sites
@@ -282,20 +330,47 @@ export async function fetchScrapeSites({ limit = 100 } = {}) {
   return rows.map(toPublicScrapeSite);
 }
 
+export async function scrapeSiteDomainExists(domain) {
+  const normalizedDomain = normalizeBaseDomain(domain);
+  if (!normalizedDomain) {
+    return false;
+  }
+
+  await ensureScrapeSitesTable();
+
+  const [rows] = await dbPool.execute(
+    `
+    SELECT id
+    FROM scrape_sites
+    WHERE LOWER(REPLACE(REPLACE(REPLACE(COALESCE(base_url, start_url, ''), 'https://', ''), 'http://', ''), 'www.', '')) LIKE ?
+    LIMIT 1
+    `,
+    [`${normalizedDomain}%`]
+  );
+
+  return rows.length > 0;
+}
+
 export async function createScrapeSite(payload = {}) {
   const name = normalizeOptionalString(payload.name);
   const spiderName = normalizeSpiderName(payload.spider_name);
+  const integrationStatus = normalizeIntegrationStatus(payload.integration_status, "ready");
+  const isActive = payload.is_active === false ? false : true;
 
   if (!name || !spiderName) {
     throw httpError(400, "name and spider_name are required");
+  }
+
+  if (isActive) {
+    assertCanActivateScrapeSite({ spiderName, integrationStatus });
   }
 
   await assertUniqueSpiderName(spiderName);
 
   const [result] = await dbPool.execute(
     `
-    INSERT INTO scrape_sites (name, spider_name, base_url, start_url, description, is_active)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO scrape_sites (name, spider_name, base_url, start_url, description, is_active, integration_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
       name,
@@ -303,7 +378,8 @@ export async function createScrapeSite(payload = {}) {
       normalizeOptionalString(payload.base_url),
       normalizeOptionalString(payload.start_url),
       normalizeOptionalString(payload.description),
-      payload.is_active === false ? 0 : 1,
+      isActive ? 1 : 0,
+      integrationStatus,
     ]
   );
 
@@ -324,6 +400,11 @@ export async function updateScrapeSite(siteId, payload = {}) {
 
   const updates = [];
   const params = [];
+  const nextState = {
+    spiderName: currentRow.spider_name,
+    integrationStatus: currentRow.integration_status || "ready",
+    isActive: Boolean(currentRow.is_active),
+  };
 
   if ("name" in payload) {
     const name = normalizeOptionalString(payload.name);
@@ -343,6 +424,7 @@ export async function updateScrapeSite(siteId, payload = {}) {
     await assertUniqueSpiderName(spiderName, normalizedSiteId);
     updates.push("spider_name = ?");
     params.push(spiderName);
+    nextState.spiderName = spiderName;
   }
 
   if ("base_url" in payload) {
@@ -363,10 +445,25 @@ export async function updateScrapeSite(siteId, payload = {}) {
   if ("is_active" in payload) {
     updates.push("is_active = ?");
     params.push(payload.is_active ? 1 : 0);
+    nextState.isActive = Boolean(payload.is_active);
+  }
+
+  if ("integration_status" in payload) {
+    const integrationStatus = normalizeIntegrationStatus(payload.integration_status, currentRow.integration_status);
+    updates.push("integration_status = ?");
+    params.push(integrationStatus);
+    nextState.integrationStatus = integrationStatus;
   }
 
   if (!updates.length) {
     throw httpError(400, "At least one field is required");
+  }
+
+  if (nextState.isActive) {
+    assertCanActivateScrapeSite({
+      spiderName: nextState.spiderName,
+      integrationStatus: nextState.integrationStatus,
+    });
   }
 
   await dbPool.execute(

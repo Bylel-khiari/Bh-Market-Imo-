@@ -105,15 +105,15 @@ function normalizeTypedDocuments(documents) {
       }
       const type = String(doc.type || "").trim().toUpperCase();
       const name = String(doc.name || "").trim();
-      
+
       if (!type || !name) {
         return null;
       }
-      
+
       if (!isValidDocumentType(type)) {
         return null;
       }
-      
+
       return { type, name };
     })
     .filter(Boolean)
@@ -278,26 +278,6 @@ async function ensureCreditApplicationTables() {
       KEY idx_credit_applications_status_created_at (status, created_at)
     )
   `);
-
-  // Add documents_json column if it doesn't exist (for existing databases)
-  try {
-    const [columns] = await dbPool.query(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-       WHERE TABLE_NAME = ? AND COLUMN_NAME = 'documents_json'`,
-      [CREDIT_APPLICATION_TABLE]
-    );
-    
-    if (!columns || columns.length === 0) {
-      await dbPool.query(`
-        ALTER TABLE ${CREDIT_APPLICATION_TABLE}
-        ADD COLUMN documents_json LONGTEXT NULL
-      `);
-      console.log('Added documents_json column to credit_applications table');
-    }
-  } catch (error) {
-    console.error('Failed to add documents_json column:', error.message);
-    throw error;
-  }
 
   await dbPool.query(`
     UPDATE ${CREDIT_APPLICATION_TABLE}
@@ -471,6 +451,10 @@ export async function createCreditApplication({
   estimatedRate,
   debtRatio,
   documents,
+  complianceScore = null,
+  complianceSummary = null,
+  initialStatus = null,
+  scoringResult = null,
 }) {
   const normalizedClientUserId = Number(clientUserId);
   const normalizedPropertyId = normalizeOptionalInteger(propertyId);
@@ -493,8 +477,13 @@ export async function createCreditApplication({
   const normalizedEstimatedMonthlyPayment = normalizeOptionalNumber(estimatedMonthlyPayment);
   const normalizedEstimatedRate = normalizeOptionalNumber(estimatedRate);
   const normalizedDebtRatio = normalizeOptionalNumber(debtRatio);
+  const normalizedComplianceScore = normalizeOptionalInteger(complianceScore);
+  const normalizedComplianceSummary = normalizeOptionalString(complianceSummary);
   const normalizedDocuments = normalizeDocumentNames(documents);
   const normalizedTypedDocuments = normalizeTypedDocuments(documents);
+
+  // Determine the status: use initialStatus if provided, otherwise "SOUMIS"
+  const applicationStatus = normalizeOptionalString(initialStatus) || "SOUMIS";
 
   if (!normalizedClientUserId) {
     throw httpError(401, "Invalid client session");
@@ -552,10 +541,12 @@ export async function createCreditApplication({
         estimated_rate,
         debt_ratio,
         status,
+        compliance_score,
+        compliance_summary,
         document_names_json,
         documents_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOUMIS', ?, ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         normalizedClientUserId,
@@ -579,6 +570,9 @@ export async function createCreditApplication({
         normalizedEstimatedMonthlyPayment,
         normalizedEstimatedRate,
         normalizedDebtRatio,
+        applicationStatus,
+        normalizedComplianceScore,
+        normalizedComplianceSummary,
         serializeDocumentNames(normalizedDocuments),
         serializeTypedDocuments(normalizedTypedDocuments),
       ]
@@ -588,7 +582,7 @@ export async function createCreditApplication({
       applicationId: result.insertId,
       action: "created",
       previousStatus: null,
-      nextStatus: "SOUMIS",
+      nextStatus: applicationStatus,
       comment: normalizedTypedDocuments.length
         ? `Documents fournis: ${normalizedTypedDocuments.map(d => `${d.type} (${d.name})`).join(", ")}`
         : "Application created",

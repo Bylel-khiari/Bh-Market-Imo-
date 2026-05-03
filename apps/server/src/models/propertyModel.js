@@ -4,7 +4,8 @@ import { httpError } from "../utils/httpError.js";
 
 const MAX_PROPERTIES_LIMIT = Number(process.env.PROPERTIES_MAX_LIMIT || 5000);
 const MAX_FAVORITES_LIMIT = Number(process.env.FAVORITES_MAX_LIMIT || 500);
-const MAX_ADMIN_PROPERTIES_LIMIT = Number(process.env.ADMIN_PROPERTIES_MAX_LIMIT || 5000);
+const DEFAULT_ADMIN_PROPERTIES_LIMIT = Number(process.env.ADMIN_PROPERTIES_DEFAULT_LIMIT || 50);
+const MAX_ADMIN_PROPERTIES_LIMIT = Number(process.env.ADMIN_PROPERTIES_MAX_LIMIT || 200);
 const ADMIN_PROPERTY_ID_START = 9000000000000;
 const PROPERTY_TABLE = "properties";
 
@@ -152,83 +153,47 @@ async function ensurePropertiesInfrastructure() {
     ensurePropertiesInfrastructurePromise = (async () => {
       const [tableRows] = await dbPool.query(`SHOW TABLES LIKE '${PROPERTY_TABLE}'`);
       if (!tableRows.length) {
-        const [stagingRows] = await dbPool.query("SHOW TABLES LIKE 'clean_listings'");
-        if (stagingRows.length) {
-          await dbPool.query("CREATE TABLE properties LIKE clean_listings");
-        } else {
-          await dbPool.query(`
-            CREATE TABLE properties (
-              id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-              raw_id VARCHAR(190) NULL,
-              source VARCHAR(120) NULL,
-              title VARCHAR(255) NULL,
-              normalized_title VARCHAR(255) NULL,
-              price_raw VARCHAR(255) NULL,
-              price_value DECIMAL(15, 2) NULL,
-              location_raw VARCHAR(255) NULL,
-              normalized_location VARCHAR(255) NULL,
-              city VARCHAR(120) NULL,
-              country VARCHAR(120) NULL,
-              image TEXT NULL,
-              description LONGTEXT NULL,
-              normalized_description LONGTEXT NULL,
-              url TEXT NULL,
-              dedupe_key VARCHAR(64) NULL,
-              scraped_at DATETIME NULL,
-              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              PRIMARY KEY (id),
-              KEY idx_properties_city (city),
-              KEY idx_properties_source (source)
-            )
-          `);
-        }
-      }
-
-      const [columnRows] = await dbPool.query(`SHOW COLUMNS FROM ${PROPERTY_TABLE}`);
-      const existingColumns = new Set(columnRows.map((row) => row.Field));
-      const addColumnStatements = [];
-
-      const ensureColumn = (columnName, definition) => {
-        if (!existingColumns.has(columnName)) {
-          addColumnStatements.push(`ALTER TABLE ${PROPERTY_TABLE} ADD COLUMN ${definition}`);
-        }
-      };
-
-      ensureColumn("raw_id", "raw_id VARCHAR(190) NULL");
-      ensureColumn("title", "title VARCHAR(255) NULL");
-      ensureColumn("normalized_title", "normalized_title VARCHAR(255) NULL");
-      ensureColumn("price_raw", "price_raw VARCHAR(255) NULL");
-      ensureColumn("price_value", "price_value DECIMAL(15, 2) NULL");
-      ensureColumn("location_raw", "location_raw VARCHAR(255) NULL");
-      ensureColumn("normalized_location", "normalized_location VARCHAR(255) NULL");
-      ensureColumn("city", "city VARCHAR(120) NULL");
-      ensureColumn("country", "country VARCHAR(120) NULL");
-      ensureColumn("image", "image TEXT NULL");
-      ensureColumn("description", "description LONGTEXT NULL");
-      ensureColumn("normalized_description", "normalized_description LONGTEXT NULL");
-      ensureColumn("source", "source VARCHAR(120) NULL");
-      ensureColumn("url", "url TEXT NULL");
-      ensureColumn("dedupe_key", "dedupe_key VARCHAR(64) NULL");
-      ensureColumn("scraped_at", "scraped_at DATETIME NULL");
-      ensureColumn("created_at", "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
-      ensureColumn("is_active", "is_active TINYINT(1) NOT NULL DEFAULT 1");
-      ensureColumn("is_deleted", "is_deleted TINYINT(1) NOT NULL DEFAULT 0");
-      ensureColumn("created_by_admin", "created_by_admin TINYINT(1) NOT NULL DEFAULT 0");
-      ensureColumn("manual_title", "manual_title VARCHAR(255) NULL");
-      ensureColumn("manual_price_raw", "manual_price_raw VARCHAR(255) NULL");
-      ensureColumn("manual_price_value", "manual_price_value DECIMAL(15, 2) NULL");
-      ensureColumn("manual_location_raw", "manual_location_raw VARCHAR(255) NULL");
-      ensureColumn("manual_city", "manual_city VARCHAR(120) NULL");
-      ensureColumn("manual_country", "manual_country VARCHAR(120) NULL");
-      ensureColumn("manual_image", "manual_image TEXT NULL");
-      ensureColumn("manual_description", "manual_description LONGTEXT NULL");
-      ensureColumn("manual_source", "manual_source VARCHAR(120) NULL");
-      ensureColumn("manual_url", "manual_url TEXT NULL");
-      ensureColumn("manual_scraped_at", "manual_scraped_at DATETIME NULL");
-      ensureColumn("admin_updated_at", "admin_updated_at TIMESTAMP NULL DEFAULT NULL");
-
-      for (const sql of addColumnStatements) {
-        await dbPool.query(sql);
+        await dbPool.query(`
+          CREATE TABLE properties (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            raw_id VARCHAR(190) NULL,
+            source VARCHAR(120) NULL,
+            title VARCHAR(255) NULL,
+            normalized_title VARCHAR(255) NULL,
+            price_raw VARCHAR(255) NULL,
+            price_value DECIMAL(15, 2) NULL,
+            location_raw VARCHAR(255) NULL,
+            normalized_location VARCHAR(255) NULL,
+            city VARCHAR(120) NULL,
+            country VARCHAR(120) NULL,
+            image TEXT NULL,
+            description LONGTEXT NULL,
+            normalized_description LONGTEXT NULL,
+            url TEXT NULL,
+            dedupe_key VARCHAR(64) NULL,
+            scraped_at DATETIME NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            created_by_admin TINYINT(1) NOT NULL DEFAULT 0,
+            manual_title VARCHAR(255) NULL,
+            manual_price_raw VARCHAR(255) NULL,
+            manual_price_value DECIMAL(15, 2) NULL,
+            manual_location_raw VARCHAR(255) NULL,
+            manual_city VARCHAR(120) NULL,
+            manual_country VARCHAR(120) NULL,
+            manual_image TEXT NULL,
+            manual_description LONGTEXT NULL,
+            manual_source VARCHAR(120) NULL,
+            manual_url TEXT NULL,
+            manual_scraped_at DATETIME NULL,
+            admin_updated_at TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_properties_city (city),
+            KEY idx_properties_source (source),
+            KEY idx_properties_admin_status_id (is_deleted, is_active, id)
+          )
+        `);
       }
     })().catch((error) => {
       ensurePropertiesInfrastructurePromise = null;
@@ -400,7 +365,7 @@ export async function removeFavoriteProperty(userId, propertyId) {
 }
 
 export async function fetchAdminProperties({ limit = 100 } = {}) {
-  const boundedLimit = toBoundedLimit(limit, 100, MAX_ADMIN_PROPERTIES_LIMIT);
+  const boundedLimit = toBoundedLimit(limit, DEFAULT_ADMIN_PROPERTIES_LIMIT, MAX_ADMIN_PROPERTIES_LIMIT);
 
   const [rows] = await dbPool.query(
     `
@@ -414,6 +379,80 @@ export async function fetchAdminProperties({ limit = 100 } = {}) {
   );
 
   return rows.map(toAdminProperty);
+}
+
+export async function fetchAdminPropertiesPage({
+  limit = DEFAULT_ADMIN_PROPERTIES_LIMIT,
+  page = 1,
+  status = "all",
+  search = "",
+} = {}) {
+  const boundedLimit = toBoundedLimit(limit, DEFAULT_ADMIN_PROPERTIES_LIMIT, MAX_ADMIN_PROPERTIES_LIMIT);
+  const normalizedPage = Math.max(Number(page) || 1, 1);
+  const offset = (normalizedPage - 1) * boundedLimit;
+  const normalizedStatus = String(status || "all").trim().toLowerCase();
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+
+  const whereClauses = ["COALESCE(p.is_deleted, 0) = 0"];
+  const params = [];
+
+  if (normalizedStatus === "active") {
+    whereClauses.push("COALESCE(p.is_active, 1) = 1");
+  } else if (normalizedStatus === "inactive") {
+    whereClauses.push("COALESCE(p.is_active, 1) = 0");
+  }
+
+  if (normalizedSearch) {
+    whereClauses.push(`
+      LOWER(CONCAT_WS(' ',
+        COALESCE(p.manual_title, p.title, ''),
+        COALESCE(p.manual_city, p.city, ''),
+        COALESCE(p.manual_location_raw, p.location_raw, ''),
+        COALESCE(p.manual_source, p.source, ''),
+        COALESCE(p.manual_url, p.url, ''),
+        COALESCE(p.manual_description, p.description, '')
+      )) LIKE ?
+    `);
+    params.push(`%${normalizedSearch}%`);
+  }
+
+  const whereSql = whereClauses.join(" AND ");
+
+  const [[countRow]] = await dbPool.execute(
+    `
+    SELECT COUNT(*) AS total
+    FROM ${PROPERTY_TABLE} p
+    WHERE ${whereSql}
+    `,
+    params
+  );
+
+  const [rows] = await dbPool.execute(
+    `
+    SELECT
+      ${ADMIN_PROPERTY_SELECT_COLUMNS}
+    FROM ${PROPERTY_TABLE} p
+    WHERE ${whereSql}
+    ORDER BY p.id DESC
+    LIMIT ${boundedLimit} OFFSET ${offset}
+    `,
+    params
+  );
+
+  const total = Number(countRow?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(total / boundedLimit));
+
+  return {
+    properties: rows.map(toAdminProperty),
+    pagination: {
+      page: normalizedPage,
+      limit: boundedLimit,
+      total,
+      totalPages,
+      status: normalizedStatus,
+      search: normalizedSearch,
+    },
+  };
 }
 
 export async function createPropertyByAdmin(payload = {}) {

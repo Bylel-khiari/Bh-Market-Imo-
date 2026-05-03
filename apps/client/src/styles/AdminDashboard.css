@@ -1402,11 +1402,102 @@
   color: rgba(214, 232, 250, 0.72);
 }
 
+.admin-scraper-history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.admin-run-history-list {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.admin-run-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d6e8fa;
+  font-size: 0.86rem;
+}
+
+.admin-run-history-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-run-history-row strong {
+  color: #8fd4ff;
+}
+
+.admin-run-history-row.status-error strong,
+.admin-run-history-row.status-stopped strong {
+  color: #ffb4ab;
+}
+
 .admin-sites-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
   margin-top: 14px;
+}
+
+.admin-site-suggestions-card {
+  overflow: visible;
+}
+
+.admin-suggestion-filters {
+  margin-top: 10px;
+}
+
+.admin-suggestions-grid {
+  align-items: stretch;
+}
+
+.admin-suggestion-card {
+  border-style: dashed;
+}
+
+.admin-suggestion-card.status-pending {
+  border-color: rgba(239, 125, 0, 0.28);
+}
+
+.admin-suggestion-card.status-accepted {
+  border-color: rgba(44, 122, 75, 0.25);
+}
+
+.admin-suggestion-card.status-rejected,
+.admin-suggestion-card.status-ignored {
+  opacity: 0.82;
+}
+
+.admin-site-status.status-pending {
+  background: rgba(239, 125, 0, 0.14);
+  color: #d57600;
+}
+
+.admin-site-status.status-accepted {
+  background: rgba(44, 122, 75, 0.12);
+  color: #226640;
+}
+
+.admin-site-status.status-rejected {
+  background: rgba(204, 0, 0, 0.1);
+  color: #b00000;
+}
+
+.admin-site-status.status-ignored {
+  background: rgba(10, 34, 64, 0.08);
+  color: #0a2240;
 }
 
 .admin-properties-grid {

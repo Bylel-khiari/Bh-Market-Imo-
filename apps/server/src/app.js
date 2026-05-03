@@ -20,8 +20,11 @@ import { initializePropertyStore } from "./models/propertyModel.js";
 import { initializePropertyReportStore } from "./models/propertyReportModel.js";
 import { initializeCreditApplicationStore } from "./models/creditApplicationModel.js";
 import { initializeScrapeSiteStore } from "./models/scrapeSiteModel.js";
+import { initializeScrapeSiteSuggestionStore } from "./models/scrapeSiteSuggestionModel.js";
 import { initializeScraperControlStore } from "./models/scraperControlModel.js";
 import { initializeScraperAutomation } from "./services/scraperControlService.js";
+import { initializeSiteDiscoveryAutomation } from "./services/siteDiscoveryService.js";
+import { runMigrations } from "./migrations/migrationRunner.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
@@ -101,14 +104,17 @@ app.use(errorHandler);
 
 export async function startServer() {
   const port = Number(process.env.PORT || 5000);
+  await runMigrations();
   await Promise.all([
     initializePropertyStore(),
     initializePropertyReportStore(),
     initializeCreditApplicationStore(),
     initializeScrapeSiteStore(),
+    initializeScrapeSiteSuggestionStore(),
     initializeScraperControlStore(),
   ]);
   await initializeScraperAutomation();
+  await initializeSiteDiscoveryAutomation();
   return new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
       console.log(`Server running on port ${port} 🔥`);

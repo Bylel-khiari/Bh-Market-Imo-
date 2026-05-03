@@ -45,9 +45,36 @@ Then apply the correction:
 python tools/repair_price_values.py --apply
 ```
 
+## Discover New Source Sites
+
+The site-discovery agent suggests new Tunisian real-estate portals for admin review.
+It does not activate a scraper automatically. Accepted suggestions are added to
+`scrape_sites` with `integration_status='pending_spider'` and `is_active=false`.
+
+Run it manually from the repository root:
+
+```bash
+python services/scraper/real_estate_scraper/site_discovery.py --trigger manual
+```
+
+The admin API also exposes `POST /api/admin/scrape-site-discovery/start`, and the
+server schedules discovery every `SITE_DISCOVERY_INTERVAL_DAYS` days when
+`SITE_DISCOVERY_AUTO_ENABLED=true`.
+
+Search configuration:
+
+- `SITE_DISCOVERY_SEARCH_PROVIDER`: `static`, `bing`, or `serpapi`
+- `SITE_DISCOVERY_API_KEY`: required for `bing` and `serpapi`
+- `SITE_DISCOVERY_INTERVAL_DAYS`: default `7`
+- `SITE_DISCOVERY_CONFIDENCE_THRESHOLD`: default `45`
+- `SITE_DISCOVERY_LIMIT_PER_QUERY`: default `8`
+- `SITE_DISCOVERY_QUERIES`: optional comma-separated search queries
+- `SITE_DISCOVERY_SEED_URLS`: optional comma-separated URLs used with `static`
+
 ## Data Responsibilities
 
 - Scraper writes raw rows to raw_properties.
+- Site discovery writes pending admin suggestions to scrape_site_suggestions.
 - listing_cleaner.py filters rent and out-of-scope rows, deduplicates entries, and writes clean_listings and duplicates_log.
 - clean_listings is an import/staging table only.
 - syncCleanListingsToProperties.mjs validates and imports staged rows into properties.
@@ -63,6 +90,10 @@ Scraper pipeline uses:
 - SCRAPER_DB_NAME
 - SCRAPER_DB_BATCH_SIZE
 - SCRAPER_CRAWL_PROFILE
+- SCRAPER_SCHEDULER_ENABLED
+
+Discovery agent uses standard MySQL variables plus the `SITE_DISCOVERY_*` variables
+listed above.
 
 Cleaner tool uses standard MySQL variables:
 
@@ -76,7 +107,17 @@ Cleaner tool uses standard MySQL variables:
 
 - The backend now auto-detects `services/scraper/.venv` before falling back to global `python`.
 - You can still override the interpreter with `SCRAPER_PYTHON_BIN`.
-- Install scraper dependencies with `services/scraper/requirements.txt`.
+- Install scraper dependencies with `services/scraper/requirements.txt`; the environment includes `Scrapy`, `mysql-connector-python`, `rapidfuzz`, and `httpx`.
+- If the backend reports missing Python modules, recreate the venv then reinstall the requirements file.
+
+## Production Scheduling
+
+For simple deployments, `SCRAPER_SCHEDULER_ENABLED=true` keeps the existing
+in-process scheduler. For production, set `SCRAPER_SCHEDULER_ENABLED=false` and
+start scraper jobs from an external worker/queue or orchestrator that calls the
+admin start endpoints. Run history and spider metrics are persisted in MySQL, so
+the dashboard still shows operational history when execution moves outside the
+API process.
 
 ## Cleanup Policy Applied
 

@@ -7,6 +7,7 @@ This repository uses a clean monorepo layout with clear separation between produ
 - apps/client: React frontend used by end users.
 - apps/server: Express API serving authentication, admin, agent, client, credit, profile, and property endpoints with an MVC-style structure.
 - services/scraper: Scrapy project that ingests raw listing data into MySQL.
+- services/scraper/real_estate_scraper/site_discovery.py: Finds candidate Tunisian real-estate source sites and stores admin suggestions.
 - tools/listing_cleaner.py: Normalizes and deduplicates raw listings into clean datasets.
 - apps/client/src/features/map: Production map feature, including map components, data adapters, pages, and scoped styles.
 
@@ -18,6 +19,20 @@ This repository uses a clean monorepo layout with clear separation between produ
 4. apps/server/scripts/syncCleanListingsToProperties.mjs performs the validated import from clean_listings into properties.
 5. properties is the canonical BienImmobilier table used by the API, credit dossiers, favorites, and reports.
 6. apps/client consumes API data for user-facing pages.
+
+Site discovery is a parallel admin workflow: the Python agent writes candidates to
+scrape_site_suggestions; admins accept, reject, or ignore them in the dashboard.
+Accepted sites remain inactive until a matching Scrapy spider is implemented and
+the scrape-site integration status is set to ready.
+
+Admin database compatibility changes are versioned in `apps/server/src/migrations`.
+Models create the latest table shape for new databases; existing databases are
+upgraded through `schema_migrations` before store bootstrap.
+
+Admin actions are written to `admin_audit_logs`. Scraper execution writes run
+history to `scraper_run_history` and per-spider metrics to `scraper_spider_metrics`,
+so the dashboard can show operational history instead of relying only on the
+current in-memory scheduler state.
 
 ## Roles And Use Cases
 
@@ -40,6 +55,8 @@ Only `client`, `agent_bancaire`, and `admin` are valid application roles. Public
 - Controllers coordinate request handling and call models for data access and business rules.
 - Views shape API responses as JSON payloads for the frontend.
 - Store bootstrap now happens during server startup instead of inside request-path model methods.
+- Admin property lists use server-side pagination/filtering to avoid loading thousands of rows in the React dashboard.
+- Authentication supports httpOnly cookies for the access token; the React app stores only a non-secret session marker.
 
 ## Workspace Policy
 

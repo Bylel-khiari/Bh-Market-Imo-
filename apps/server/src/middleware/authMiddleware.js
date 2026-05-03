@@ -1,11 +1,51 @@
 import { verifyAccessToken } from "../utils/jwt.js";
 import { httpError } from "../utils/httpError.js";
 
-export function requireAuth(req, res, next) {
+const ACCESS_TOKEN_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "bh_market_access_token";
+
+function parseCookieHeader(headerValue = "") {
+  const decodeCookiePart = (value) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
+  return Object.fromEntries(
+    String(headerValue || "")
+      .split(";")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const separatorIndex = entry.indexOf("=");
+        if (separatorIndex === -1) {
+          return [entry, ""];
+        }
+
+        return [
+          decodeCookiePart(entry.slice(0, separatorIndex).trim()),
+          decodeCookiePart(entry.slice(separatorIndex + 1).trim()),
+        ];
+      })
+  );
+}
+
+function readAccessToken(req) {
   const authHeader = req.headers.authorization || "";
   const [scheme, token] = authHeader.split(" ");
 
-  if (scheme !== "Bearer" || !token) {
+  if (scheme === "Bearer" && token) {
+    return token;
+  }
+
+  return parseCookieHeader(req.headers.cookie || "")[ACCESS_TOKEN_COOKIE_NAME] || null;
+}
+
+export function requireAuth(req, res, next) {
+  const token = readAccessToken(req);
+
+  if (!token) {
     return next(httpError(401, "Missing or invalid authorization header"));
   }
 

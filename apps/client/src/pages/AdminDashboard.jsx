@@ -1,24 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FaBan,
   FaBuilding,
   FaChartLine,
-  FaCheckCircle,
-  FaClock,
   FaCog,
   FaEnvelope,
   FaExclamationTriangle,
   FaGlobe,
   FaHome,
   FaListAlt,
-  FaMapMarkerAlt,
-  FaPlus,
-  FaPlay,
   FaSignOutAlt,
-  FaStop,
   FaSyncAlt,
-  FaTerminal,
   FaTimes,
   FaUser,
   FaUserTie,
@@ -39,6 +31,7 @@ import {
 } from 'recharts';
 import {
   clearAuthSession,
+  acceptAdminScrapeSiteSuggestionApi,
   createAdminPropertyApi,
   createAdminScrapeSiteApi,
   createAdminUserApi,
@@ -48,20 +41,30 @@ import {
   fetchAdminScraperControlApi,
   fetchAdminPropertyReportsApi,
   fetchAdminPropertiesApi,
+  fetchAdminScrapeSiteSuggestionsApi,
   fetchAdminScrapeSitesApi,
   fetchAdminUsersApi,
   getApiBaseUrl,
   isAuthError,
   requireAuthToken,
+  startAdminScrapeSiteDiscoveryApi,
   startAdminListingCleanerApi,
   startAdminScraperApi,
   stopAdminScraperApi,
   updateAdminPropertyReportStatusApi,
   updateAdminPropertyApi,
   updateAdminScraperControlApi,
+  updateAdminScrapeSiteSuggestionApi,
   updateAdminScrapeSiteApi,
   updateAdminUserApi,
 } from '../lib/auth';
+import AdminUsersSection from '../features/admin/components/AdminUsersSection';
+import AdminPropertiesSection from '../features/admin/components/AdminPropertiesSection';
+import AdminReportsSection from '../features/admin/components/AdminReportsSection';
+import AdminScraperControlSection from '../features/admin/components/AdminScraperControlSection';
+import AdminSiteSuggestionsSection from '../features/admin/components/AdminSiteSuggestionsSection';
+import AdminScrapeSitesSection from '../features/admin/components/AdminScrapeSitesSection';
+import useAdminPropertiesPagination from '../features/admin/hooks/useAdminPropertiesPagination';
 import '../styles/AdminDashboard.css';
 
 const ADMIN_PROPERTIES_PER_PAGE = 50;
@@ -70,6 +73,21 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'active', label: 'Actifs' },
   { value: 'inactive', label: 'Inactifs' },
 ];
+
+const SITE_SUGGESTION_STATUS_FILTER_OPTIONS = [
+  { value: 'pending', label: 'En attente' },
+  { value: 'ignored', label: 'Ignorees' },
+  { value: 'rejected', label: 'Rejetees' },
+  { value: 'accepted', label: 'Acceptees' },
+  { value: 'all', label: 'Toutes' },
+];
+
+const SITE_SUGGESTION_STATUS_LABELS = {
+  pending: 'En attente',
+  accepted: 'Acceptee',
+  rejected: 'Rejetee',
+  ignored: 'Ignoree',
+};
 
 const REPORT_STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'Toutes les réclamations' },
@@ -127,6 +145,7 @@ function createEmptySiteForm() {
     start_url: '',
     description: '',
     is_active: true,
+    integration_status: 'ready',
   };
 }
 
@@ -234,6 +253,19 @@ function formatScraperRunType(runType) {
   }
 }
 
+function formatSiteSuggestionStatus(status) {
+  return SITE_SUGGESTION_STATUS_LABELS[status] || status || 'Inconnu';
+}
+
+function formatEvidenceList(evidence, key) {
+  const values = evidence?.[key];
+  if (!Array.isArray(values) || values.length === 0) {
+    return '-';
+  }
+
+  return values.slice(0, 5).join(', ');
+}
+
 function formatDuration(secondsLike) {
   if (secondsLike === null || secondsLike === undefined || secondsLike === '') {
     return 'Calcul en cours';
@@ -298,7 +330,14 @@ export default function AdminDashboard() {
   const [propertyDeleteCandidate, setPropertyDeleteCandidate] = useState(null);
   const [propertyFormMode, setPropertyFormMode] = useState('create');
   const [editingPropertyId, setEditingPropertyId] = useState(null);
-  const [currentPropertyPage, setCurrentPropertyPage] = useState(1);
+  const [propertyPagination, setPropertyPagination] = useState({
+    page: 1,
+    limit: ADMIN_PROPERTIES_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+    status: 'all',
+    search: '',
+  });
   const [propertyFormMessage, setPropertyFormMessage] = useState('');
   const [propertySubmitting, setPropertySubmitting] = useState(false);
   const [propertyFormData, setPropertyFormData] = useState(createEmptyPropertyForm());
@@ -317,7 +356,28 @@ export default function AdminDashboard() {
   const [scraperIntervalDays, setScraperIntervalDays] = useState('7');
   const [scraperIntervalDirty, setScraperIntervalDirty] = useState(false);
   const scraperIntervalDirtyRef = useRef(false);
+  const [siteSuggestions, setSiteSuggestions] = useState([]);
+  const [siteSuggestionStatusFilter, setSiteSuggestionStatusFilter] = useState('pending');
+  const [siteSuggestionLoading, setSiteSuggestionLoading] = useState(true);
+  const [siteSuggestionError, setSiteSuggestionError] = useState('');
+  const [siteSuggestionMessage, setSiteSuggestionMessage] = useState('');
+  const [siteSuggestionSubmittingId, setSiteSuggestionSubmittingId] = useState(null);
+  const [siteDiscoverySubmitting, setSiteDiscoverySubmitting] = useState(false);
   const apiBaseUrl = getApiBaseUrl();
+  const {
+    currentPropertyPage,
+    setCurrentPropertyPage,
+    propertyTotalPages,
+    propertyVisiblePageNumbers,
+    propertyVisibleRangeStart,
+    propertyVisibleRangeEnd,
+  } = useAdminPropertiesPagination({
+    limit: propertyPagination.limit,
+    total: propertyPagination.total,
+    totalPages: propertyPagination.totalPages,
+    search: propertySearch,
+    status: propertyStatusFilter,
+  });
 
   const goToHomePage = () => {
     navigate('/');
@@ -378,6 +438,33 @@ export default function AdminDashboard() {
     }
   }, [handleAuthFailure]);
 
+  const fetchScrapeSiteSuggestions = useCallback(async ({ status = siteSuggestionStatusFilter, silent = false } = {}) => {
+    try {
+      const token = requireAuthToken();
+
+      if (!silent) {
+        setSiteSuggestionLoading(true);
+      }
+
+      setSiteSuggestionError('');
+      const payload = await fetchAdminScrapeSiteSuggestionsApi(token, {
+        limit: 100,
+        status,
+      });
+      setSiteSuggestions(Array.isArray(payload?.suggestions) ? payload.suggestions : []);
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setSiteSuggestionError(requestError.message || 'Erreur de chargement des suggestions.');
+    } finally {
+      if (!silent) {
+        setSiteSuggestionLoading(false);
+      }
+    }
+  }, [handleAuthFailure, siteSuggestionStatusFilter]);
+
   const fetchScraperControl = useCallback(async ({ silent = false } = {}) => {
     try {
       const token = requireAuthToken();
@@ -408,13 +495,28 @@ export default function AdminDashboard() {
     }
   }, [handleAuthFailure]);
 
-  const fetchAdminProperties = useCallback(async () => {
+  const fetchAdminProperties = useCallback(async ({ silent = false } = {}) => {
     try {
       const token = requireAuthToken();
-      setPropertyLoading(true);
+      if (!silent) {
+        setPropertyLoading(true);
+      }
       setPropertyError('');
-      const payload = await fetchAdminPropertiesApi(token, 5000);
+      const payload = await fetchAdminPropertiesApi(token, {
+        limit: ADMIN_PROPERTIES_PER_PAGE,
+        page: currentPropertyPage,
+        status: propertyStatusFilter,
+        search: propertySearch,
+      });
       setAdminProperties(Array.isArray(payload?.properties) ? payload.properties : []);
+      setPropertyPagination((prev) => ({
+        ...prev,
+        ...(payload?.pagination || {}),
+        page: Number(payload?.pagination?.page || currentPropertyPage),
+        limit: Number(payload?.pagination?.limit || ADMIN_PROPERTIES_PER_PAGE),
+        total: Number(payload?.pagination?.total || 0),
+        totalPages: Math.max(1, Number(payload?.pagination?.totalPages || 1)),
+      }));
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -422,9 +524,11 @@ export default function AdminDashboard() {
 
       setPropertyError(requestError.message || 'Erreur de chargement des biens.');
     } finally {
-      setPropertyLoading(false);
+      if (!silent) {
+        setPropertyLoading(false);
+      }
     }
-  }, [handleAuthFailure]);
+  }, [currentPropertyPage, handleAuthFailure, propertySearch, propertyStatusFilter]);
 
   const fetchAdminReports = useCallback(async ({ status = 'all', silent = false } = {}) => {
     try {
@@ -460,6 +564,7 @@ export default function AdminDashboard() {
     await Promise.all([
       fetchUsers(),
       fetchScrapeSites(),
+      fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter }),
       fetchScraperControl(),
       fetchAdminProperties(),
       fetchAdminReports({ status: reportStatusFilter }),
@@ -467,10 +572,12 @@ export default function AdminDashboard() {
   }, [
     fetchAdminProperties,
     fetchAdminReports,
+    fetchScrapeSiteSuggestions,
     fetchScrapeSites,
     fetchScraperControl,
     fetchUsers,
     reportStatusFilter,
+    siteSuggestionStatusFilter,
   ]);
 
   const handleReportStatusUpdate = async (report, nextStatus) => {
@@ -661,6 +768,7 @@ export default function AdminDashboard() {
       start_url: site.start_url || '',
       description: site.description || '',
       is_active: Boolean(site.is_active),
+      integration_status: site.integration_status || 'ready',
     });
     setSiteFormMessage('');
     setIsSitePanelOpen(true);
@@ -681,6 +789,7 @@ export default function AdminDashboard() {
     start_url: siteFormData.start_url.trim() || null,
     description: siteFormData.description.trim() || null,
     is_active: Boolean(siteFormData.is_active),
+    integration_status: siteFormData.integration_status || 'ready',
   });
 
   const handleSiteSubmit = async (event) => {
@@ -931,6 +1040,80 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleStartSiteDiscovery = async () => {
+    try {
+      const token = requireAuthToken();
+      setSiteDiscoverySubmitting(true);
+      setSiteSuggestionError('');
+      setSiteSuggestionMessage('');
+
+      const payload = await startAdminScrapeSiteDiscoveryApi(token);
+      const written = Number(payload?.result?.suggestions_written || 0);
+
+      setSiteSuggestionMessage(
+        written > 0
+          ? `${written} nouvelle(s) suggestion(s) detectee(s).`
+          : 'Recherche terminee: aucune nouvelle suggestion.',
+      );
+      await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setSiteSuggestionError(requestError.message || 'Erreur pendant la recherche de nouveaux sites.');
+    } finally {
+      setSiteDiscoverySubmitting(false);
+    }
+  };
+
+  const handleUpdateSiteSuggestionStatus = async (suggestion, status) => {
+    try {
+      const token = requireAuthToken();
+      setSiteSuggestionSubmittingId(suggestion.id);
+      setSiteSuggestionError('');
+      setSiteSuggestionMessage('');
+
+      await updateAdminScrapeSiteSuggestionApi(suggestion.id, { status }, token);
+      setSiteSuggestionMessage('Suggestion mise a jour.');
+      await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setSiteSuggestionError(requestError.message || 'Erreur pendant la mise a jour de la suggestion.');
+    } finally {
+      setSiteSuggestionSubmittingId(null);
+    }
+  };
+
+  const handleAcceptSiteSuggestion = async (suggestion) => {
+    try {
+      const token = requireAuthToken();
+      setSiteSuggestionSubmittingId(suggestion.id);
+      setSiteSuggestionError('');
+      setSiteSuggestionMessage('');
+
+      await acceptAdminScrapeSiteSuggestionApi(suggestion.id, {}, token);
+      setSiteSuggestionMessage(
+        'Suggestion acceptee. Le site est ajoute en attente de spider et reste inactif.',
+      );
+      await Promise.all([
+        fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),
+        fetchScrapeSites(),
+      ]);
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setSiteSuggestionError(requestError.message || 'Erreur pendant l acceptation de la suggestion.');
+    } finally {
+      setSiteSuggestionSubmittingId(null);
+    }
+  };
+
   const resetPropertyForm = () => {
     setPropertyFormMode('create');
     setEditingPropertyId(null);
@@ -1115,9 +1298,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchUsers();
     fetchScrapeSites();
+    fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter });
     fetchScraperControl();
     fetchAdminProperties();
-  }, [fetchAdminProperties, fetchScrapeSites, fetchScraperControl, fetchUsers]);
+  }, [
+    fetchAdminProperties,
+    fetchScrapeSiteSuggestions,
+    fetchScrapeSites,
+    fetchScraperControl,
+    fetchUsers,
+    siteSuggestionStatusFilter,
+  ]);
 
   useEffect(() => {
     fetchAdminReports({ status: reportStatusFilter });
@@ -1178,6 +1369,18 @@ export default function AdminDashboard() {
       { total: 0, active: 0, inactive: 0 },
     );
   }, [scrapeSites]);
+
+  const siteSuggestionTotals = useMemo(() => {
+    return siteSuggestions.reduce(
+      (acc, suggestion) => {
+        const status = suggestion?.status || 'pending';
+        acc.total += 1;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      },
+      { total: 0, pending: 0, accepted: 0, rejected: 0, ignored: 0 },
+    );
+  }, [siteSuggestions]);
 
   const scraperIsRunning = Boolean(scraperControl?.is_running) || scraperControl?.status === 'running';
   const scraperIsEnabled = Boolean(scraperControl?.is_enabled);
@@ -1295,68 +1498,8 @@ export default function AdminDashboard() {
     });
   }, [scrapeSitesSorted, siteSearch, siteStatusFilter]);
 
-  const filteredAdminProperties = useMemo(() => {
-    const query = propertySearch.trim().toLowerCase();
-    return adminPropertiesSorted.filter((property) => {
-      const haystack = `${property?.title || ''} ${property?.city || ''} ${property?.location_raw || ''} ${property?.source || ''} ${property?.url || ''} ${property?.description || ''}`.toLowerCase();
-      const matchesQuery = !query || haystack.includes(query);
-      const matchesStatus =
-        propertyStatusFilter === 'all' ||
-        (propertyStatusFilter === 'active' && Boolean(property?.is_active)) ||
-        (propertyStatusFilter === 'inactive' && !property?.is_active);
-
-      return matchesQuery && matchesStatus;
-    });
-  }, [adminPropertiesSorted, propertySearch, propertyStatusFilter]);
-
-  const propertyTotalPages = useMemo(() => {
-    if (!filteredAdminProperties.length) return 1;
-    return Math.ceil(filteredAdminProperties.length / ADMIN_PROPERTIES_PER_PAGE);
-  }, [filteredAdminProperties.length]);
-
-  const paginatedAdminProperties = useMemo(() => {
-    const start = (currentPropertyPage - 1) * ADMIN_PROPERTIES_PER_PAGE;
-    return filteredAdminProperties.slice(start, start + ADMIN_PROPERTIES_PER_PAGE);
-  }, [currentPropertyPage, filteredAdminProperties]);
-
-  const propertyVisiblePageNumbers = useMemo(() => {
-    const maxVisiblePages = 5;
-
-    if (propertyTotalPages <= maxVisiblePages) {
-      return Array.from({ length: propertyTotalPages }, (_, index) => index + 1);
-    }
-
-    const halfWindow = Math.floor(maxVisiblePages / 2);
-    let startPage = Math.max(1, currentPropertyPage - halfWindow);
-    let endPage = startPage + maxVisiblePages - 1;
-
-    if (endPage > propertyTotalPages) {
-      endPage = propertyTotalPages;
-      startPage = endPage - maxVisiblePages + 1;
-    }
-
-    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
-  }, [currentPropertyPage, propertyTotalPages]);
-
-  const propertyVisibleRangeStart =
-    filteredAdminProperties.length === 0
-      ? 0
-      : (currentPropertyPage - 1) * ADMIN_PROPERTIES_PER_PAGE + 1;
-
-  const propertyVisibleRangeEnd = Math.min(
-    currentPropertyPage * ADMIN_PROPERTIES_PER_PAGE,
-    filteredAdminProperties.length,
-  );
-
-  useEffect(() => {
-    setCurrentPropertyPage(1);
-  }, [propertySearch, propertyStatusFilter]);
-
-  useEffect(() => {
-    if (currentPropertyPage > propertyTotalPages) {
-      setCurrentPropertyPage(propertyTotalPages);
-    }
-  }, [currentPropertyPage, propertyTotalPages]);
+  const filteredAdminProperties = adminPropertiesSorted;
+  const paginatedAdminProperties = filteredAdminProperties;
 
   const menuItems = [
     { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
@@ -1467,7 +1610,7 @@ export default function AdminDashboard() {
                 type="button"
                 className="admin-refresh admin-topbar-btn admin-topbar-btn--primary"
                 onClick={refreshDashboardData}
-                disabled={submitting || siteSubmitting || propertySubmitting}
+                disabled={submitting || siteSubmitting || propertySubmitting || siteDiscoverySubmitting}
               >
                 Actualiser
               </button>
@@ -1575,840 +1718,134 @@ export default function AdminDashboard() {
           )}
 
           {activeSection === 'users' && (
-            <div className="admin-content-grid admin-content-single">
-              <section className="admin-analytics-column">
-                <div className="admin-card admin-users-card">
-                  <div className="admin-users-header">
-                    <h2>Liste des utilisateurs</h2>
-                    <div className="admin-users-header-actions">
-                      <span className="admin-users-count">{filteredUsers.length}</span>
-                      <button type="button" className="admin-refresh" onClick={openCreatePanel}>
-                        Nouveau
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="admin-users-toolbar">
-                    <input
-                      className="admin-search-input"
-                      placeholder="Rechercher par nom, e-mail ou rôle"
-                      value={userSearch}
-                      onChange={(event) => setUserSearch(event.target.value)}
-                    />
-                  </div>
-
-                  <div className="admin-users-table">
-                    <div className="admin-user-row admin-user-row-head">
-                      <span>Utilisateur</span>
-                      <span>Role</span>
-                      <span>Date</span>
-                      <span>Actions</span>
-                    </div>
-
-                    {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouve.</p>}
-
-                    {filteredUsers.map((user) => (
-                      <article
-                        key={user.id}
-                        className={`admin-user-row ${editingUserId === user.id ? 'is-editing' : ''}`}
-                      >
-                        <div className="admin-user-cell user-cell-main">
-                          <div className="admin-user-avatar">
-                            {getInitials(user.name || user.email)}
-                          </div>
-                          <div>
-                            <p className="admin-user-name">{user.name || '-'}</p>
-                            <p className="admin-user-email">{user.email || '-'}</p>
-                            <p className="admin-user-id">ID #{user.id}</p>
-                          </div>
-                        </div>
-
-                        <div className="admin-user-cell">
-                          <span className={`role-pill role-${user.role || 'unknown'}`}>
-                            {formatRole(user.role)}
-                          </span>
-                        </div>
-
-                        <div className="admin-user-cell admin-user-date">
-                          {formatDate(user.created_at)}
-                        </div>
-
-                        <div className="admin-user-cell">
-                          <div className="admin-table-actions">
-                            <button
-                              type="button"
-                              className="admin-secondary"
-                              onClick={() => startEdit(user)}
-                            >
-                              Modifier
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-danger"
-                              onClick={() => requestDelete(user)}
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            </div>
+            <AdminUsersSection
+              filteredUsers={filteredUsers}
+              editingUserId={editingUserId}
+              userSearch={userSearch}
+              setUserSearch={setUserSearch}
+              openCreatePanel={openCreatePanel}
+              startEdit={startEdit}
+              requestDelete={requestDelete}
+              getInitials={getInitials}
+              formatRole={formatRole}
+              formatDate={formatDate}
+            />
           )}
-
           {activeSection === 'properties' && (
-            <div className="admin-content-grid admin-content-single">
-              <section className="admin-analytics-column">
-                <div className="admin-card admin-properties-card">
-                  <div className="admin-users-header">
-                    <h2>Biens immobiliers</h2>
-                    <div className="admin-users-header-actions">
-                      <span className="admin-users-count">{filteredAdminProperties.length}</span>
-                      <button
-                        type="button"
-                        className="admin-refresh"
-                        onClick={openCreatePropertyPanel}
-                      >
-                        <FaPlus /> Nouveau bien
-                      </button>
-                    </div>
-                  </div>
-
-                  <p className="admin-section-help">
-                    Ajoutez, modifiez, supprimez ou activez/désactivez les biens immobiliers.
-                    Les changements admin restent prioritaires sur les données importées.
-                  </p>
-
-                  {!propertyLoading && filteredAdminProperties.length > 0 && (
-                    <p className="admin-section-help">
-                      Affichage de {propertyVisibleRangeStart} à {propertyVisibleRangeEnd} sur{' '}
-                      {filteredAdminProperties.length} biens.
-                    </p>
-                  )}
-
-                  <div className="admin-users-toolbar admin-toolbar-row">
-                    <input
-                      className="admin-search-input"
-                      placeholder="Rechercher par titre, ville, source ou URL"
-                      value={propertySearch}
-                      onChange={(event) => setPropertySearch(event.target.value)}
-                    />
-                    <div className="admin-filter-chips" aria-label="Filtrer les biens par statut">
-                      {STATUS_FILTER_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`admin-filter-chip ${propertyStatusFilter === option.value ? 'is-active' : ''}`}
-                          onClick={() => setPropertyStatusFilter(option.value)}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {propertyFormMessage && (
-                    <p
-                      className={`admin-form-message ${propertyFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
-                    >
-                      {propertyFormMessage}
-                    </p>
-                  )}
-                  {propertyError && (
-                    <p className="admin-form-message admin-form-message--error">{propertyError}</p>
-                  )}
-
-                  {propertyLoading ? (
-                    <div className="admin-state admin-state--inline">
-                      <FaSyncAlt className="spin" />
-                      <p>Chargement des biens...</p>
-                    </div>
-                  ) : filteredAdminProperties.length === 0 ? (
-                    <p className="empty">Aucun bien trouve.</p>
-                  ) : (
-                    <>
-                      <div className="admin-properties-grid">
-                        {paginatedAdminProperties.map((property) => (
-                          <article
-                            key={property.id}
-                            className={`admin-property-card ${property.is_active ? 'is-active' : 'is-inactive'} ${editingPropertyId === property.id ? 'is-editing' : ''}`}
-                          >
-                          <div className="admin-property-media">
-                            {property.image ? (
-                              <img
-                                src={property.image}
-                                alt={property.title || 'Bien immobilier'}
-                                className="admin-property-image"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="admin-property-image-placeholder">
-                                Image non disponible
-                              </div>
-                            )}
-                            <div className="admin-property-badges">
-                              <span
-                                className={`admin-site-status ${property.is_active ? 'is-active' : 'is-inactive'}`}
-                              >
-                                {property.is_active ? <FaCheckCircle /> : <FaBan />}
-                                {property.is_active ? 'Active' : 'Desactivee'}
-                              </span>
-                              {property.created_by_admin && (
-                                <span className="admin-property-origin admin-property-origin--created">
-                                  Ajoutee par admin
-                                </span>
-                              )}
-                              {property.has_manual_changes && !property.created_by_admin && (
-                                <span className="admin-property-origin">Modifiee</span>
-                              )}
-                            </div>
-                            <span className="admin-property-source-badge">
-                              {property.source || 'source inconnue'}
-                            </span>
-                          </div>
-
-                          <div className="admin-property-card-body">
-                            <p className="admin-property-location">
-                              <FaMapMarkerAlt />
-                              <span>{property.location_raw || property.city || 'Localisation non disponible'}</span>
-                            </p>
-                            <h3>{property.title || 'Titre non disponible'}</h3>
-                            <p className="admin-property-description">
-                              {property.description || 'Aucune description renseignee pour ce bien.'}
-                            </p>
-                            <div className="admin-property-footer-row">
-                              <p className="admin-property-price">{formatPropertyPrice(property)}</p>
-                              <span className="admin-property-id-badge">ID #{property.id}</span>
-                            </div>
-                            <div className="admin-property-meta">
-                              <span>
-                                <strong>Ville:</strong> {property.city || '-'}
-                              </span>
-                              <span>
-                      <strong>Mise à jour :</strong>{' '}
-                                {formatDate(property.admin_updated_at || property.scraped_at)}
-                              </span>
-                            </div>
-
-                            <div className="admin-table-actions admin-property-actions">
-                              <button
-                                type="button"
-                                className={`admin-toggle-btn ${property.is_active ? 'is-active' : 'is-inactive'}`}
-                                onClick={() => handleTogglePropertyStatus(property)}
-                                disabled={propertySubmitting}
-                                aria-pressed={property.is_active}
-                                aria-label={
-                                  property.is_active
-                                    ? 'Desactiver ce bien'
-                                    : 'Activer ce bien'
-                                }
-                              >
-                                <span className="admin-toggle-track">
-                                  <span className="admin-toggle-thumb" />
-                                </span>
-                                <span className="admin-toggle-copy">
-                                  <strong>{property.is_active ? 'Active' : 'Inactive'}</strong>
-                                  <small>
-                                    {property.is_active
-                                      ? 'Cliquer pour desactiver'
-                                      : 'Cliquer pour activer'}
-                                  </small>
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-secondary"
-                                onClick={() => startEditProperty(property)}
-                                disabled={propertySubmitting}
-                              >
-                                Modifier
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-danger"
-                                onClick={() => requestDeleteProperty(property)}
-                                disabled={propertySubmitting}
-                              >
-                                Supprimer
-                              </button>
-                            </div>
-                          </div>
-                        </article>
-                        ))}
-                      </div>
-
-                      {propertyTotalPages > 1 && (
-                        <nav className="admin-pagination" aria-label="Pagination des biens admin">
-                          <button
-                            type="button"
-                            className="admin-pagination-btn admin-pagination-btn--nav"
-                            onClick={() => setCurrentPropertyPage((prev) => Math.max(1, prev - 1))}
-                            disabled={currentPropertyPage === 1}
-                          >
-                            Precedent
-                          </button>
-
-                          <div className="admin-pagination-pages">
-                            {propertyVisiblePageNumbers.map((pageNumber) => (
-                              <button
-                                key={pageNumber}
-                                type="button"
-                                className={`admin-pagination-btn ${pageNumber === currentPropertyPage ? 'is-active' : ''}`}
-                                onClick={() => setCurrentPropertyPage(pageNumber)}
-                              >
-                                {pageNumber}
-                              </button>
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="admin-pagination-btn admin-pagination-btn--nav"
-                            onClick={() =>
-                              setCurrentPropertyPage((prev) => Math.min(propertyTotalPages, prev + 1))
-                            }
-                            disabled={currentPropertyPage === propertyTotalPages}
-                          >
-                            Suivant
-                          </button>
-                        </nav>
-                      )}
-                    </>
-                  )}
-                </div>
-              </section>
-            </div>
+            <AdminPropertiesSection
+              statusFilterOptions={STATUS_FILTER_OPTIONS}
+              propertyPagination={propertyPagination}
+              propertyLoading={propertyLoading}
+              propertyError={propertyError}
+              propertyFormMessage={propertyFormMessage}
+              propertySearch={propertySearch}
+              setPropertySearch={setPropertySearch}
+              propertyStatusFilter={propertyStatusFilter}
+              setPropertyStatusFilter={setPropertyStatusFilter}
+              propertyVisibleRangeStart={propertyVisibleRangeStart}
+              propertyVisibleRangeEnd={propertyVisibleRangeEnd}
+              paginatedAdminProperties={paginatedAdminProperties}
+              propertyTotalPages={propertyTotalPages}
+              currentPropertyPage={currentPropertyPage}
+              setCurrentPropertyPage={setCurrentPropertyPage}
+              propertyVisiblePageNumbers={propertyVisiblePageNumbers}
+              propertySubmitting={propertySubmitting}
+              editingPropertyId={editingPropertyId}
+              openCreatePropertyPanel={openCreatePropertyPanel}
+              handleTogglePropertyStatus={handleTogglePropertyStatus}
+              startEditProperty={startEditProperty}
+              requestDeleteProperty={requestDeleteProperty}
+              formatPropertyPrice={formatPropertyPrice}
+              formatDate={formatDate}
+            />
           )}
-
           {activeSection === 'mail' && (
-            <div className="admin-content-grid admin-content-single">
-              <section className="admin-analytics-column">
-                <div className="admin-card admin-reports-card">
-                  <div className="admin-users-header">
-                    <h2>Mail réclamations</h2>
-                    <div className="admin-users-header-actions">
-                      <span className="admin-users-count">{adminReports.length}</span>
-                    </div>
-                  </div>
-
-                  <p className="admin-section-help">
-                    Cette boite regroupe les reclamations envoyees par les clients depuis les biens.
-                    Traitez chaque message pour suivre l incident et garder un historique clair.
-                  </p>
-
-                  <div className="admin-users-toolbar admin-toolbar-row">
-                  <div className="admin-filter-chips" aria-label="Filtrer les réclamations par statut">
-                      {REPORT_STATUS_FILTER_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`admin-filter-chip ${reportStatusFilter === option.value ? 'is-active' : ''}`}
-                          onClick={() => setReportStatusFilter(option.value)}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {reportFormMessage && <p className="admin-form-message">{reportFormMessage}</p>}
-                  {reportError && <p className="admin-form-message admin-form-message--error">{reportError}</p>}
-
-                  {reportLoading ? (
-                    <div className="admin-state admin-state--inline">
-                      <FaSyncAlt className="spin" />
-                    <p>Chargement des réclamations...</p>
-                    </div>
-                  ) : adminReports.length === 0 ? (
-                    <p className="empty">Aucune réclamation trouvée.</p>
-                  ) : (
-                    <div className="admin-reports-list">
-                      {adminReports.map((report) => {
-                        const canMoveToInReview = report.status === 'unread';
-                        const canMoveToResolved = report.status === 'unread' || report.status === 'in_review';
-                        const canMoveToRejected = report.status === 'unread' || report.status === 'in_review';
-                        const isSubmitting = String(reportSubmittingId) === String(report.id);
-
-                        return (
-                          <article key={report.id} className={`admin-report-card status-${report.status}`}>
-                            <div className="admin-report-card-head">
-                              <div>
-                                <h3>{report.property_title || `Bien #${report.property_id}`}</h3>
-                                <p className="admin-report-meta">
-                                  Reclamation #{report.id} - Bien #{report.property_id}
-                                </p>
-                              </div>
-                              <span className={`admin-report-status-pill status-${report.status}`}>
-                                {formatReportStatus(report.status)}
-                              </span>
-                            </div>
-
-                            <p className="admin-report-category">{formatReportCategory(report.category)}</p>
-                            <p className="admin-report-message">{report.message}</p>
-
-                            <div className="admin-report-footnote">
-                              <span>
-                                <strong>Client:</strong>{' '}
-                                {report.reporter_name || report.reporter_email || `#${report.reporter_user_id}`}
-                              </span>
-                              <span>
-                                <strong>Date:</strong> {formatDate(report.created_at)}
-                              </span>
-                            </div>
-
-                            {report.property_url && (
-                              <div className="admin-property-link-row">
-                                <span className="admin-property-link-label">Source:</span>
-                                <a
-                                  href={report.property_url}
-                                  className="admin-property-link"
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  Ouvrir le bien
-                                </a>
-                              </div>
-                            )}
-
-                            {report.admin_note && (
-                              <p className="admin-report-note">
-                                <strong>Note admin:</strong> {report.admin_note}
-                              </p>
-                            )}
-
-                            <div className="admin-table-actions admin-report-actions">
-                              <button
-                                type="button"
-                                className="admin-secondary"
-                                onClick={() => handleReportStatusUpdate(report, 'in_review')}
-                                disabled={!canMoveToInReview || isSubmitting}
-                              >
-                                En revue
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-refresh"
-                                onClick={() => handleReportStatusUpdate(report, 'resolved')}
-                                disabled={!canMoveToResolved || isSubmitting}
-                              >
-                                Resolu
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-danger"
-                                onClick={() => handleReportStatusUpdate(report, 'rejected')}
-                                disabled={!canMoveToRejected || isSubmitting}
-                              >
-                                Rejete
-                              </button>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
+            <AdminReportsSection
+              reportStatusFilterOptions={REPORT_STATUS_FILTER_OPTIONS}
+              adminReports={adminReports}
+              reportLoading={reportLoading}
+              reportError={reportError}
+              reportFormMessage={reportFormMessage}
+              reportStatusFilter={reportStatusFilter}
+              setReportStatusFilter={setReportStatusFilter}
+              reportSubmittingId={reportSubmittingId}
+              handleReportStatusUpdate={handleReportStatusUpdate}
+              formatReportStatus={formatReportStatus}
+              formatReportCategory={formatReportCategory}
+              formatDate={formatDate}
+            />
           )}
-
           {activeSection === 'sites' && (
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column admin-sites-column">
-                <div className="admin-card admin-scraper-control-card">
-                  <div className="admin-scraper-control-head">
-                    <div className="admin-scraper-title-block">
-                    <span className="admin-scraper-kicker">Mission contrôle</span>
-                      <h2>Automatisation du scraping</h2>
-                      <p className="admin-section-help">
-                        Demarrer lance un cycle de collecte complet. Agent de filtrage execute
-                        uniquement le nettoyage des annonces deja collectees puis synchronise les
-                        biens visibles.
-                      </p>
-                    </div>
-                    <div className="admin-scraper-top-meta">
-                      <span className={`admin-scraper-badge ${scraperStatusClassName}`}>
-                        {scraperStatusLabel}
-                      </span>
-                      <span className="admin-scraper-sites-pill">
-                        Sites actifs {siteTotals.active} / {siteTotals.total}
-                      </span>
-                    </div>
-                  </div>
-
-                  {scraperControlMessage && (
-                    <p
-                      className={`admin-form-message ${scraperControlMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
-                    >
-                      {scraperControlMessage}
-                    </p>
-                  )}
-                  {scraperControlError && (
-                    <p className="admin-form-message admin-form-message--error">{scraperControlError}</p>
-                  )}
-
-                  {scraperControlLoading ? (
-                    <div className="admin-state admin-state--inline">
-                      <FaSyncAlt className="spin" />
-                    <p>Chargement du contrôle du scraper...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="admin-scraper-control-grid">
-                        <div className="admin-scraper-main">
-                          <div className="admin-scraper-main-panel">
-                            <div className="admin-scraper-mini-grid">
-                              <div className="admin-scraper-mini-card">
-                                <span>Cadence actuelle</span>
-                                <strong>
-                                  {(scraperControl?.interval_days || Number(scraperIntervalDays) || 0)} jours
-                                </strong>
-                              </div>
-                              <div className="admin-scraper-mini-card">
-                                <span>Mode</span>
-                                <strong>
-                                  {scraperIsRunning
-                                    ? 'Cycle en direct'
-                                    : scraperIsEnabled
-                                      ? 'Planifie'
-                                      : 'Arrete'}
-                                </strong>
-                              </div>
-                              <div className="admin-scraper-mini-card">
-                                <span>Run courant</span>
-                                <strong>{scraperRunTypeLabel}</strong>
-                              </div>
-                              <div className="admin-scraper-mini-card">
-                                <span>Temps restant</span>
-                                <strong>{scraperEtaLabel}</strong>
-                              </div>
-                            </div>
-
-                            <div className="admin-scraper-progress-panel">
-                              <div className="admin-scraper-progress-head">
-                                <span>Progression</span>
-                                <strong>{Math.round(scraperProgressPercent)}%</strong>
-                              </div>
-                              <div
-                                className="admin-scraper-progress-track"
-                                role="progressbar"
-                                aria-valuemin="0"
-                                aria-valuemax="100"
-                                aria-valuenow={Math.round(scraperProgressPercent)}
-                              >
-                                <span style={{ width: `${scraperProgressPercent}%` }} />
-                              </div>
-                              <small>{scraperProgressSteps}</small>
-                            </div>
-
-                            <div className="admin-scraper-form-shell">
-                              <div className="admin-field-block">
-                                <label className="admin-field-label" htmlFor="scraper-interval-days">
-                                  Intervalle de rescrape automatique
-                                </label>
-                                <p className="admin-scraper-field-help">
-                                  Definissez dans combien de jours le prochain cycle doit etre relance
-                                  automatiquement.
-                                </p>
-                                <div className="admin-inline-control">
-                                  <input
-                                    id="scraper-interval-days"
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    step="1"
-                                    value={scraperIntervalDays}
-                                    onChange={handleScraperIntervalChange}
-                                    disabled={scraperSubmitting}
-                                  />
-                                  <span className="admin-inline-suffix">jours</span>
-                                  <button
-                                    type="button"
-                                    className="admin-secondary admin-scraper-btn admin-scraper-btn--save"
-                                    onClick={handleSaveScraperConfig}
-                                    disabled={scraperSubmitting || !scraperIntervalDirty}
-                                  >
-                                    Enregistrer
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div className="admin-form-actions admin-scraper-actions">
-                                <button
-                                  type="button"
-                                  className="admin-refresh admin-scraper-btn admin-scraper-btn--start"
-                                  onClick={handleStartScraper}
-                                  disabled={scraperSubmitting || scraperIsRunning}
-                                >
-                                  <FaPlay />
-                                  {scraperIsEnabled ? 'Relancer maintenant' : 'Demarrer'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-secondary admin-scraper-btn admin-scraper-btn--agent"
-                                  onClick={handleStartListingCleaner}
-                                  disabled={scraperSubmitting || scraperIsRunning}
-                                >
-                                  <FaUserTie />
-                                  Agent de filtrage
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-danger admin-scraper-btn admin-scraper-btn--stop"
-                                  onClick={handleStopScraper}
-                                  disabled={scraperSubmitting || (!scraperIsEnabled && !scraperIsRunning)}
-                                >
-                                  <FaStop />
-                                  Arreter
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-secondary admin-scraper-btn admin-scraper-btn--refresh"
-                                  onClick={() => fetchScraperControl()}
-                                  disabled={scraperSubmitting || scraperControlLoading}
-                                >
-                                  <FaSyncAlt />
-                                  Actualiser
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="admin-scraper-stats">
-                          <div className="admin-scraper-stat">
-                            <div className="admin-scraper-stat-head">
-                              <span className="admin-scraper-stat-icon">
-                                <FaCog />
-                              </span>
-                              <span>Etat courant</span>
-                            </div>
-                            <strong>{scraperStatusLabel}</strong>
-                            <small>{scraperControl?.current_step || 'Aucun cycle actif.'}</small>
-                          </div>
-                          <div className="admin-scraper-stat">
-                            <div className="admin-scraper-stat-head">
-                              <span className="admin-scraper-stat-icon">
-                                <FaGlobe />
-                              </span>
-                              <span>Spider courant</span>
-                            </div>
-                            <strong>{scraperControl?.current_spider_name || '-'}</strong>
-                            <small>{scraperCurrentCommandLabel}</small>
-                          </div>
-                          <div className="admin-scraper-stat">
-                            <div className="admin-scraper-stat-head">
-                              <span className="admin-scraper-stat-icon">
-                                <FaClock />
-                              </span>
-                              <span>Temps estime</span>
-                            </div>
-                            <strong>{scraperEtaLabel}</strong>
-                            <small>
-                              Progression: {Math.round(scraperProgressPercent)}% ({scraperProgressSteps})
-                            </small>
-                          </div>
-                          <div className="admin-scraper-stat">
-                            <div className="admin-scraper-stat-head">
-                              <span className="admin-scraper-stat-icon">
-                                <FaCheckCircle />
-                              </span>
-                              <span>Dernier succes</span>
-                            </div>
-                            <strong>{formatDateTime(scraperControl?.last_success_at)}</strong>
-                            <small>
-                              Dernier lancement: {formatDateTime(scraperControl?.last_started_at)}
-                            </small>
-                          </div>
-                          <div className="admin-scraper-stat">
-                            <div className="admin-scraper-stat-head">
-                              <span className="admin-scraper-stat-icon">
-                                <FaSyncAlt />
-                              </span>
-                              <span>Prochain rescrape</span>
-                            </div>
-                            <strong>
-                              {scraperIsEnabled
-                                ? formatDateTime(scraperControl?.next_run_at)
-                                : 'Desactive'}
-                            </strong>
-                            <small>
-                              Sites actifs: {siteTotals.active} / {siteTotals.total}
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-
-                      {scraperControl?.last_error && (
-                        <div className="admin-scraper-alert">
-                          <div className="admin-scraper-alert-icon">
-                            <FaExclamationTriangle />
-                          </div>
-                          <div>
-                    <strong>Dernière erreur détectée</strong>
-                            <p>{scraperControl.last_error}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="admin-scraper-log-panel">
-                        <div className="admin-scraper-log-head">
-                          <h3>
-                            <FaTerminal /> Logs scraping et agent
-                          </h3>
-                          <span>{scraperIsRunning ? 'Suivi live' : 'Dernier run'}</span>
-                        </div>
-                        {scraperRecentLog ? (
-                          <pre>{scraperRecentLog}</pre>
-                        ) : (
-                          <p className="empty">Aucun log disponible pour le moment.</p>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="admin-card admin-sites-card">
-                  <div className="admin-users-header">
-                    <h2>Sites de collecte</h2>
-                    <div className="admin-users-header-actions">
-                      <span className="admin-users-count">{filteredSites.length}</span>
-                      <button type="button" className="admin-refresh" onClick={openCreateSitePanel}>
-                        <FaPlus /> Nouveau site
-                      </button>
-                    </div>
-                  </div>
-
-                  <p className="admin-section-help">
-                    Ajoutez, modifiez, supprimez ou activez/desactivez les sites scrapes.
-                    L identifiant technique doit correspondre au spider Scrapy pour piloter les
-                    prochains lancements.
-                  </p>
-
-                  <div className="admin-users-toolbar admin-toolbar-row">
-                    <input
-                      className="admin-search-input"
-                      placeholder="Rechercher par nom, spider ou URL"
-                      value={siteSearch}
-                      onChange={(event) => setSiteSearch(event.target.value)}
-                    />
-                    <div className="admin-filter-chips" aria-label="Filtrer les sites par statut">
-                      {STATUS_FILTER_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`admin-filter-chip ${siteStatusFilter === option.value ? 'is-active' : ''}`}
-                          onClick={() => setSiteStatusFilter(option.value)}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {siteFormMessage && (
-                    <p
-                      className={`admin-form-message ${siteFormMessage.toLowerCase().includes('erreur') ? 'admin-form-message--error' : ''}`}
-                    >
-                      {siteFormMessage}
-                    </p>
-                  )}
-                  {siteError && <p className="admin-form-message admin-form-message--error">{siteError}</p>}
-
-                  {siteLoading ? (
-                    <div className="admin-state admin-state--inline">
-                      <FaSyncAlt className="spin" />
-                      <p>Chargement des sites de collecte...</p>
-                    </div>
-                  ) : filteredSites.length === 0 ? (
-                    <p className="empty">Aucun site de collecte trouve.</p>
-                  ) : (
-                    <div className="admin-sites-grid">
-                      {filteredSites.map((site) => (
-                        <article
-                          key={site.id}
-                          className={`admin-site-card ${site.is_active ? 'is-active' : 'is-inactive'} ${editingSiteId === site.id ? 'is-editing' : ''}`}
-                        >
-                          <div className="admin-site-card-head">
-                            <div>
-                              <h3>{site.name}</h3>
-                              <p className="admin-site-spider">Spider: {site.spider_name}</p>
-                            </div>
-                            <span className={`admin-site-status ${site.is_active ? 'is-active' : 'is-inactive'}`}>
-                              {site.is_active ? <FaCheckCircle /> : <FaBan />}
-                              {site.is_active ? 'Actif' : 'Desactive'}
-                            </span>
-                          </div>
-
-                          <div className="admin-site-meta">
-                            <span>
-                              <strong>Base:</strong> {site.base_url || '-'}
-                            </span>
-                            <span>
-                              <strong>Depart:</strong> {site.start_url || '-'}
-                            </span>
-                            <span>
-                        <strong>Mise à jour :</strong>{' '}
-                              {formatDate(site.updated_at || site.created_at)}
-                            </span>
-                          </div>
-
-                          <p className="admin-site-description">
-                            {site.description || 'Aucune description renseignee pour ce site.'}
-                          </p>
-
-                          <div className="admin-table-actions admin-site-actions">
-                            <button
-                              type="button"
-                              className={`admin-toggle-btn ${site.is_active ? 'is-active' : 'is-inactive'}`}
-                              onClick={() => handleToggleSiteStatus(site)}
-                              disabled={siteSubmitting}
-                              aria-pressed={site.is_active}
-                              aria-label={
-                                site.is_active ? 'Desactiver ce site scrape' : 'Activer ce site scrape'
-                              }
-                            >
-                              <span className="admin-toggle-track">
-                                <span className="admin-toggle-thumb" />
-                              </span>
-                              <span className="admin-toggle-copy">
-                                <strong>{site.is_active ? 'Actif' : 'Inactif'}</strong>
-                                <small>
-                                  {site.is_active
-                                    ? 'Cliquer pour desactiver'
-                                    : 'Cliquer pour activer'}
-                                </small>
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-secondary"
-                              onClick={() => startEditSite(site)}
-                              disabled={siteSubmitting}
-                            >
-                              Modifier
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-danger"
-                              onClick={() => requestDeleteSite(site)}
-                              disabled={siteSubmitting}
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AdminScraperControlSection
+                  scraperControl={scraperControl}
+                  scraperControlLoading={scraperControlLoading}
+                  scraperControlError={scraperControlError}
+                  scraperControlMessage={scraperControlMessage}
+                  scraperSubmitting={scraperSubmitting}
+                  scraperIntervalDays={scraperIntervalDays}
+                  scraperIntervalDirty={scraperIntervalDirty}
+                  scraperStatusClassName={scraperStatusClassName}
+                  scraperStatusLabel={scraperStatusLabel}
+                  scraperIsRunning={scraperIsRunning}
+                  scraperIsEnabled={scraperIsEnabled}
+                  scraperProgressPercent={scraperProgressPercent}
+                  scraperProgressSteps={scraperProgressSteps}
+                  scraperRunTypeLabel={scraperRunTypeLabel}
+                  scraperEtaLabel={scraperEtaLabel}
+                  scraperCurrentCommandLabel={scraperCurrentCommandLabel}
+                  scraperRecentLog={scraperRecentLog}
+                  siteTotals={siteTotals}
+                  handleScraperIntervalChange={handleScraperIntervalChange}
+                  handleSaveScraperConfig={handleSaveScraperConfig}
+                  handleStartScraper={handleStartScraper}
+                  handleStartListingCleaner={handleStartListingCleaner}
+                  handleStopScraper={handleStopScraper}
+                  fetchScraperControl={fetchScraperControl}
+                  formatDateTime={formatDateTime}
+                  formatDuration={formatDuration}
+                  formatScraperRunType={formatScraperRunType}
+                />
+                <AdminSiteSuggestionsSection
+                  suggestionStatusFilterOptions={SITE_SUGGESTION_STATUS_FILTER_OPTIONS}
+                  siteSuggestions={siteSuggestions}
+                  siteSuggestionTotals={siteSuggestionTotals}
+                  siteSuggestionStatusFilter={siteSuggestionStatusFilter}
+                  setSiteSuggestionStatusFilter={setSiteSuggestionStatusFilter}
+                  siteSuggestionLoading={siteSuggestionLoading}
+                  siteSuggestionError={siteSuggestionError}
+                  siteSuggestionMessage={siteSuggestionMessage}
+                  siteSuggestionSubmittingId={siteSuggestionSubmittingId}
+                  siteDiscoverySubmitting={siteDiscoverySubmitting}
+                  handleStartSiteDiscovery={handleStartSiteDiscovery}
+                  handleAcceptSiteSuggestion={handleAcceptSiteSuggestion}
+                  handleUpdateSiteSuggestionStatus={handleUpdateSiteSuggestionStatus}
+                  formatSiteSuggestionStatus={formatSiteSuggestionStatus}
+                  formatEvidenceList={formatEvidenceList}
+                  formatDate={formatDate}
+                />
+                <AdminScrapeSitesSection
+                  statusFilterOptions={STATUS_FILTER_OPTIONS}
+                  filteredSites={filteredSites}
+                  siteSearch={siteSearch}
+                  setSiteSearch={setSiteSearch}
+                  siteStatusFilter={siteStatusFilter}
+                  setSiteStatusFilter={setSiteStatusFilter}
+                  siteFormMessage={siteFormMessage}
+                  siteError={siteError}
+                  siteLoading={siteLoading}
+                  siteSubmitting={siteSubmitting}
+                  editingSiteId={editingSiteId}
+                  openCreateSitePanel={openCreateSitePanel}
+                  handleToggleSiteStatus={handleToggleSiteStatus}
+                  startEditSite={startEditSite}
+                  requestDeleteSite={requestDeleteSite}
+                  formatDate={formatDate}
+                />
               </section>
             </div>
           )}
-
           {activeSection === 'activities' && (
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
@@ -2483,7 +1920,7 @@ export default function AdminDashboard() {
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
                     <li>Utilisateurs chargés : {users.length}</li>
-                    <li>Biens chargés : {adminProperties.length}</li>
+                    <li>Biens chargés : {adminProperties.length} / {propertyPagination.total}</li>
                     <li>Réclamations non lues : {unreadReportCount}</li>
                     <li>Sites de collecte chargés : {scrapeSites.length}</li>
                     <li>Mode édition utilisateur : {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
@@ -2951,6 +2388,22 @@ export default function AdminDashboard() {
                   disabled={siteSubmitting}
                   rows={4}
                 />
+              </div>
+              <div className="admin-field-block">
+                <label className="admin-field-label" htmlFor="site-integration-status">
+                  Statut integration
+                </label>
+                <select
+                  id="site-integration-status"
+                  name="integration_status"
+                  value={siteFormData.integration_status}
+                  onChange={handleSiteFormChange}
+                  disabled={siteSubmitting}
+                >
+                  <option value="ready">Spider pret</option>
+                  <option value="pending_spider">En attente de spider</option>
+                  <option value="disabled">Desactive techniquement</option>
+                </select>
               </div>
               <label className="admin-checkbox-row">
                 <input

@@ -8,6 +8,13 @@ import {
   patchScraperControl,
   updateScraperControlSettings,
 } from "../models/scraperControlModel.js";
+import {
+  createScraperRun,
+  fetchScraperRunHistory,
+  fetchScraperSpiderMetrics,
+  finishScraperRun,
+  recordScraperSpiderMetric,
+} from "../models/scraperRunModel.js";
 import { httpError } from "../utils/httpError.js";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -19,10 +26,11 @@ const SYNC_PROPERTIES_SCRIPT = fileURLToPath(
 const NODE_BIN = process.env.SCRAPER_NODE_BIN || process.execPath || "node";
 const LOG_SNIPPET_MAX_LENGTH = 12000;
 const RUNNING_STATUSES = new Set(["running", "stopping"]);
-const SCRAPER_RUNTIME_MODULES = ["scrapy", "mysql.connector", "rapidfuzz"];
+const SCRAPER_RUNTIME_MODULES = ["scrapy", "mysql.connector", "rapidfuzz", "httpx"];
 const CLEANER_PROGRESS_EVERY = process.env.CLEANER_PROGRESS_EVERY || "250";
 const RUN_TYPE_SCRAPER_CYCLE = "scraper_cycle";
 const RUN_TYPE_LISTING_CLEANER = "listing_cleaner";
+const SCRAPER_SCHEDULER_ENABLED = String(process.env.SCRAPER_SCHEDULER_ENABLED || "true").toLowerCase() !== "false";
 
 const runtimeState = {
   initializePromise: null,
@@ -37,6 +45,7 @@ const runtimeState = {
   recentLog: "",
   progressPercent: 0,
   estimatedRemainingSeconds: null,
+  runHistoryId: null,
   lastLogPersistedAt: 0,
   stopRequested: false,
 };
@@ -115,8 +124,51 @@ function resetRuntimeProgress({ runType, totalSteps }) {
   runtimeState.completedSteps = 0;
   runtimeState.progressPercent = 0;
   runtimeState.estimatedRemainingSeconds = null;
+  runtimeState.runHistoryId = null;
   runtimeState.recentLog = "";
   runtimeState.lastLogPersistedAt = 0;
+}
+
+async function safeCreateRunHistory({ runType, trigger, totalSteps, startedAt }) {
+  try {
+    runtimeState.runHistoryId = await createScraperRun({ runType, trigger, totalSteps, startedAt });
+  } catch (error) {
+    runtimeState.runHistoryId = null;
+    console.error("Failed to create scraper run history:", error);
+  }
+}
+
+async function safeFinishRunHistory({ succeeded, errorMessage }) {
+  if (!runtimeState.runHistoryId) {
+    return;
+  }
+
+  try {
+    await finishScraperRun(runtimeState.runHistoryId, {
+      status: succeeded ? "success" : runtimeState.stopRequested ? "stopped" : "error",
+      errorMessage: succeeded ? null : errorMessage,
+      finishedAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Failed to finish scraper run history:", error);
+  }
+}
+
+async function safeRecordSpiderMetric(site, { status, startedAt, errorMessage = null } = {}) {
+  try {
+    await recordScraperSpiderMetric({
+      runId: runtimeState.runHistoryId,
+      scrapeSiteId: site?.id,
+      spiderName: site?.spider_name,
+      siteName: site?.name,
+      status,
+      startedAt,
+      finishedAt: new Date(),
+      errorMessage,
+    });
+  } catch (error) {
+    console.error("Failed to record scraper spider metric:", error);
+  }
 }
 
 function appendRuntimeLog(message) {
@@ -346,6 +398,11 @@ function clearScheduledRun() {
 }
 
 function queueScheduledRun(dateLike) {
+  if (!SCRAPER_SCHEDULER_ENABLED) {
+    clearScheduledRun();
+    return;
+  }
+
   clearScheduledRun();
 
   if (!dateLike) {
@@ -471,7 +528,7 @@ async function runCommand({ command, args, cwd, label, envOverrides = {}, onOutp
 
 async function fetchActiveSites() {
   const sites = await fetchScrapeSites({ limit: 200 });
-  return sites.filter((site) => site?.is_active);
+  return sites.filter((site) => site?.is_active && (site.integration_status || "ready") === "ready");
 }
 
 export function buildInitialScraperRunState(activeSites = []) {
@@ -548,6 +605,7 @@ async function finalizeScraperCycle({ succeeded, errorMessage = null }) {
   }
 
   const updatedControl = await patchScraperControl(updates);
+  await safeFinishRunHistory({ succeeded, errorMessage });
 
   if (updatedControl.is_enabled && updatedControl.next_run_at) {
     queueScheduledRun(updatedControl.next_run_at);
@@ -685,12 +743,27 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
         { completedSteps: index }
       );
 
-      await runCommand({
-        command: pythonBin,
-        args: ["-m", "scrapy", "crawl", site.spider_name],
-        cwd: SCRAPER_PROJECT_DIR,
-        label: `le spider ${site.spider_name}`,
-      });
+      const spiderStartedAt = new Date();
+      try {
+        await runCommand({
+          command: pythonBin,
+          args: ["-m", "scrapy", "crawl", site.spider_name],
+          cwd: SCRAPER_PROJECT_DIR,
+          label: `le spider ${site.spider_name}`,
+        });
+
+        await safeRecordSpiderMetric(site, {
+          status: "success",
+          startedAt: spiderStartedAt,
+        });
+      } catch (error) {
+        await safeRecordSpiderMetric(site, {
+          status: runtimeState.stopRequested ? "stopped" : "error",
+          startedAt: spiderStartedAt,
+          errorMessage: truncateLog(error?.message || "Erreur inconnue."),
+        });
+        throw error;
+      }
 
       runtimeState.completedSteps = index + 1;
       appendRuntimeLog(`Collecte terminee pour ${site.name || site.spider_name}.`);
@@ -779,6 +852,22 @@ async function executeListingCleanerAgent(trigger) {
 async function syncSchedulerWithStoredState({ runOverdue = false } = {}) {
   const control = await fetchScraperControl();
 
+  if (!SCRAPER_SCHEDULER_ENABLED) {
+    clearScheduledRun();
+    if (control?.is_enabled && !runtimeState.currentRunPromise) {
+      await patchScraperControl({
+        is_enabled: false,
+        status: "idle",
+        current_stage: null,
+        current_step: null,
+        current_spider_name: null,
+        next_run_at: null,
+      });
+    }
+
+    return fetchScraperAutomationStatus();
+  }
+
   if (!control?.is_enabled) {
     clearScheduledRun();
 
@@ -857,6 +946,10 @@ export async function initializeScraperAutomation() {
 
 export async function fetchScraperAutomationStatus() {
   const control = await fetchScraperControl();
+  const [recentRuns, spiderMetrics] = await Promise.all([
+    fetchScraperRunHistory({ limit: 8 }).catch(() => []),
+    fetchScraperSpiderMetrics({ limit: 12 }).catch(() => []),
+  ]);
 
   return {
     ...control,
@@ -871,6 +964,8 @@ export async function fetchScraperAutomationStatus() {
     estimated_remaining_seconds: runtimeState.currentRunPromise
       ? runtimeState.estimatedRemainingSeconds
       : control?.estimated_remaining_seconds ?? null,
+    recent_runs: recentRuns,
+    spider_metrics: spiderMetrics,
   };
 }
 
@@ -929,6 +1024,12 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
   const initialProgress = buildProgressSnapshot({ completedSteps: 0 });
 
   const startedAt = new Date();
+  await safeCreateRunHistory({
+    runType: RUN_TYPE_SCRAPER_CYCLE,
+    trigger,
+    totalSteps: activeSites.length + 2,
+    startedAt,
+  });
   const updates = {
     is_enabled: true,
     status: "running",
@@ -977,6 +1078,12 @@ export async function startListingCleanerAgent({ trigger = "manual" } = {}) {
   appendRuntimeLog("Demarrage manuel de l agent de filtrage.");
   const initialProgress = buildProgressSnapshot({ completedSteps: 0 });
   const startedAt = new Date();
+  await safeCreateRunHistory({
+    runType: RUN_TYPE_LISTING_CLEANER,
+    trigger,
+    totalSteps: 2,
+    startedAt,
+  });
 
   await patchScraperControl({
     status: "running",

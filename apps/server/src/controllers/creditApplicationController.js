@@ -11,9 +11,15 @@ import {
   renderCreatedCreditApplication,
   renderUpdatedCreditApplication,
 } from "../views/creditApplicationView.js";
+import {
+  scoreCreditApplication,
+  determineApplicationStatus,
+} from "../services/creditScoringService.js";
+import { httpError } from "../utils/httpError.js";
 
 export async function submitCreditApplication(req, res) {
-  const application = await createCreditApplication({
+  // Prepare application data
+  const applicationData = {
     clientUserId: req.user?.sub,
     propertyId: req.body?.property_id,
     fullName: req.body?.full_name,
@@ -36,6 +42,35 @@ export async function submitCreditApplication(req, res) {
     estimatedRate: req.body?.estimated_rate,
     debtRatio: req.body?.debt_ratio,
     documents: req.body?.documents,
+  };
+
+  let scoringResult = null;
+  let applicationStatus = null;
+
+  // Attempt to score the application
+  try {
+    scoringResult = await scoreCreditApplication({
+      grossIncome: applicationData.grossIncome,
+      incomePeriod: applicationData.incomePeriod,
+      estimatedMonthlyPayment: applicationData.estimatedMonthlyPayment,
+      socioCategory: applicationData.socioCategory,
+    });
+
+    applicationStatus = determineApplicationStatus(scoringResult);
+  } catch (scoringError) {
+    // Log scoring error but continue with application submission
+    console.error("Credit scoring failed:", scoringError.message);
+    // If scoring fails, the application will be created with status "SOUMIS"
+    // and an agent will need to review it manually
+  }
+
+  // Create the credit application with scoring results (if available)
+  const application = await createCreditApplication({
+    ...applicationData,
+    complianceScore: applicationStatus?.complianceScore,
+    complianceSummary: applicationStatus?.complianceSummary,
+    initialStatus: applicationStatus?.status,
+    scoringResult: scoringResult,
   });
 
   return renderCreatedCreditApplication(res, application);
