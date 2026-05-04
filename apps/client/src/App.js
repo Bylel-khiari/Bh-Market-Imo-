@@ -11,6 +11,7 @@ import AgentDashboard from './pages/AgentDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
+import MesDemandes from './pages/MesDemandes';
 import ForgotPassword from './pages/ForgotPassword';
 import Contact from './pages/Contact';
 import CreditImmobilierBHPortal from './pages/CreditImmobilierBHPortal';
@@ -50,6 +51,10 @@ function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/manage" element={<ProfileManagement />} />
+          <Route
+            path="/mes-demandes"
+            element={role === 'admin' || role === 'agent_bancaire' ? <Navigate to="/" replace /> : <MesDemandes />}
+          />
         </Routes>
       </main>
       {!hideNavFooter && <Footer />}

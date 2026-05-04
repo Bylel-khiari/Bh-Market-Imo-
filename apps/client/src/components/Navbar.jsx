@@ -17,6 +17,7 @@ import {
   FaSignOutAlt,
   FaUserShield,
   FaUserTie,
+  FaClipboardList,
 } from 'react-icons/fa';
 import '../styles/Navbar.css';
 import logo from '../assets/favicon.ico';
@@ -49,6 +50,12 @@ const Navbar = () => {
   const accountMenuLinks = [{ label: 'Mon compte', to: '/profile/manage', icon: FaUserCircle }];
 
   if (currentRole === 'client') {
+    accountMenuLinks.push({
+      label: 'Mes demandes',
+      to: '/mes-demandes',
+      icon: FaClipboardList,
+    });
+
     accountMenuLinks.push({
       label: 'Mes favoris',
       to: '/properties?favorites=1',

@@ -172,6 +172,20 @@ function formatStatus(status) {
   return STATUS_LABELS[status] || status || 'Inconnu';
 }
 
+function formatQueueStatusLabel(option) {
+  const labels = {
+    all: 'Tous',
+    SOUMIS: 'Soumis',
+    EN_VERIFICATION: 'Verif.',
+    DOCUMENTS_MANQUANTS: 'Pieces',
+    EN_ETUDE: 'Etude',
+    ACCEPTE: 'Accept.',
+    REFUSE: 'Refus.',
+  };
+
+  return labels[option.value] || option.label;
+}
+
 function formatMonthLabel(monthKey) {
   if (!monthKey) {
     return '-';
@@ -852,19 +866,24 @@ export default function AgentDashboard() {
                     <span className="admin-users-count">{applications.length}</span>
                   </div>
 
-                  <form className="admin-toolbar-row" onSubmit={handleSearchSubmit}>
+                  <form className="admin-toolbar-row agent-queue-search-form" onSubmit={handleSearchSubmit}>
                     <div className="agent-search-group">
                       <FaSearch />
                       <input
                         className="admin-search-input"
                         type="search"
-                        placeholder="Nom client, email, CIN ou bien immobilier"
+                        placeholder="Client, email, CIN..."
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                       />
                     </div>
-                    <button type="submit" className="admin-secondary">
-                      Rechercher
+                    <button
+                      type="submit"
+                      className="admin-secondary agent-queue-search-button"
+                      aria-label="Rechercher"
+                      title="Rechercher"
+                    >
+                      <FaSearch />
                     </button>
                   </form>
 
@@ -876,7 +895,7 @@ export default function AgentDashboard() {
                         className={`admin-filter-chip ${statusFilter === option.value ? 'is-active' : ''}`}
                         onClick={() => handleFilterChange(option.value)}
                       >
-                        {option.label}
+                        {formatQueueStatusLabel(option)}
                       </button>
                     ))}
                   </div>

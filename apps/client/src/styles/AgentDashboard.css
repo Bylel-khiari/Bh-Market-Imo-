@@ -289,51 +289,87 @@
 .agent-queue-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   max-height: calc(100vh - 150px);
   min-height: 0;
-  padding: 16px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .agent-queue-panel .agent-section-head {
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .agent-queue-panel .agent-section-head h2 {
-  font-size: 18px;
+  font-size: 20px;
   margin-bottom: 2px;
 }
 
 .agent-queue-panel .admin-section-help {
-  font-size: 12px;
+  color: #6b7f96;
+  font-size: 13px;
   line-height: 1.35;
   margin: 0;
 }
 
-.agent-queue-panel .admin-toolbar-row {
+.agent-queue-search-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
   gap: 8px;
 }
 
-.agent-queue-panel .admin-toolbar-row .admin-secondary {
+.agent-queue-panel .agent-queue-search-button {
   justify-content: center;
-  min-height: 40px;
-  width: 100%;
+  min-width: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-color: rgba(10, 34, 64, 0.12);
+  background: #0a2240;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(10, 34, 64, 0.14);
+}
+
+.agent-queue-panel .agent-queue-search-button:hover {
+  background: #0d2d52;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(10, 34, 64, 0.18);
 }
 
 .agent-queue-panel .admin-filter-chips {
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  overflow: visible;
+  padding: 4px;
+  border: 1px solid rgba(10, 34, 64, 0.08);
+  border-radius: 14px;
+  background: #f4f8fc;
 }
 
 .agent-queue-panel .admin-filter-chip {
-  flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 12px;
+  justify-content: center;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.agent-queue-panel .admin-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  transform: none;
+}
+
+.agent-queue-panel .admin-filter-chip.is-active {
+  background: #ff0000;
+  box-shadow: 0 8px 18px rgba(204, 0, 0, 0.18);
 }
 
 .agent-search-group {
@@ -347,12 +383,23 @@
 .agent-queue-panel .agent-search-group {
   flex: 0 1 auto;
   min-width: 0;
+  position: relative;
   width: 100%;
 }
 
 .agent-queue-panel .admin-search-input {
-  height: 42px;
+  height: 44px;
+  border-radius: 14px;
+  padding-left: 42px;
   font-size: 13px;
+}
+
+.agent-queue-panel .agent-search-group svg {
+  left: 14px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
 }
 
 .agent-search-group svg {

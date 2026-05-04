@@ -182,6 +182,33 @@ function getComplianceLevel(score) {
   return "risk";
 }
 
+function isDecisionStatus(status) {
+  const normalizedStatus = normalizeCreditApplicationStatus(status);
+  return normalizedStatus === "ACCEPTE" || normalizedStatus === "REFUSE";
+}
+
+function buildDecisionMotif(status, { agentNote, complianceSummary, complianceScore } = {}) {
+  const explicitMotif =
+    normalizeOptionalString(agentNote) || normalizeOptionalString(complianceSummary);
+
+  if (explicitMotif) {
+    return explicitMotif;
+  }
+
+  const score = normalizeOptionalInteger(complianceScore);
+  const scoreSuffix = score === null ? "" : ` Score retenu: ${score}/100.`;
+
+  if (normalizeCreditApplicationStatus(status) === "ACCEPTE") {
+    return `Demande acceptee apres analyse bancaire et validation des criteres de scoring.${scoreSuffix}`;
+  }
+
+  if (normalizeCreditApplicationStatus(status) === "REFUSE") {
+    return `Demande refusee apres analyse bancaire et controle des criteres de scoring.${scoreSuffix}`;
+  }
+
+  return null;
+}
+
 function toPublicCreditApplication(row) {
   if (!row) return null;
 
@@ -191,6 +218,16 @@ function toPublicCreditApplication(row) {
   const complianceScore = normalizeOptionalInteger(row.compliance_score);
   const documents = parseDocumentNames(row.document_names_json);
   const typedDocuments = parseTypedDocuments(row.documents_json);
+  const normalizedStatus = normalizeCreditApplicationStatus(row.status);
+  const decisionMotif =
+    row.decision_motif ||
+    (isDecisionStatus(normalizedStatus)
+      ? buildDecisionMotif(normalizedStatus, {
+          agentNote: row.agent_note,
+          complianceSummary: row.compliance_summary,
+          complianceScore,
+        })
+      : null);
 
   return {
     id: row.id,
@@ -224,11 +261,13 @@ function toPublicCreditApplication(row) {
     estimated_monthly_payment: normalizeOptionalNumber(row.estimated_monthly_payment),
     estimated_rate: normalizeOptionalNumber(row.estimated_rate),
     debt_ratio: normalizeOptionalNumber(row.debt_ratio),
-    status: normalizeCreditApplicationStatus(row.status),
+    status: normalizedStatus,
     compliance_score: complianceScore,
     compliance_level: getComplianceLevel(complianceScore),
     compliance_summary: row.compliance_summary,
     agent_note: row.agent_note,
+    decision_motif: decisionMotif,
+    client_notified_at: row.client_notified_at,
     documents,
     document_count: documents.length,
     typed_documents: typedDocuments,
@@ -301,6 +340,8 @@ async function ensureCreditApplicationTables() {
       compliance_score TINYINT UNSIGNED NULL,
       compliance_summary TEXT NULL,
       agent_note TEXT NULL,
+      decision_motif TEXT NULL,
+      client_notified_at DATETIME NULL,
       document_names_json LONGTEXT NULL,
       documents_json LONGTEXT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -333,6 +374,8 @@ async function ensureCreditApplicationTables() {
   await ensureCreditApplicationColumn("family_situation", "VARCHAR(80) NULL");
   await ensureCreditApplicationColumn("contract_type", "VARCHAR(80) NULL");
   await ensureCreditApplicationColumn("other_monthly_charges", "DECIMAL(14, 2) NULL");
+  await ensureCreditApplicationColumn("decision_motif", "TEXT NULL");
+  await ensureCreditApplicationColumn("client_notified_at", "DATETIME NULL");
 
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS ${CREDIT_APPLICATION_HISTORY_TABLE} (
@@ -415,6 +458,8 @@ const CREDIT_APPLICATION_SELECT_COLUMNS = `
   ca.compliance_score,
   ca.compliance_summary,
   ca.agent_note,
+  ca.decision_motif,
+  ca.client_notified_at,
   ca.document_names_json,
   ca.documents_json,
   ca.reviewed_at,
@@ -540,6 +585,15 @@ export async function createCreditApplication({
 
   // Determine the status: use initialStatus if provided, otherwise "SOUMIS"
   const applicationStatus = normalizeOptionalString(initialStatus) || "SOUMIS";
+  const initialDecisionMotif = isDecisionStatus(applicationStatus)
+    ? buildDecisionMotif(applicationStatus, {
+        complianceSummary: normalizedComplianceSummary,
+        complianceScore: normalizedComplianceScore,
+      })
+    : null;
+  const clientNotifiedAtValue = isDecisionStatus(applicationStatus)
+    ? new Date().toISOString().slice(0, 19).replace("T", " ")
+    : null;
 
   if (!normalizedClientUserId) {
     throw httpError(401, "Invalid client session");
@@ -604,10 +658,12 @@ export async function createCreditApplication({
         status,
         compliance_score,
         compliance_summary,
+        decision_motif,
+        client_notified_at,
         document_names_json,
         documents_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         normalizedClientUserId,
@@ -639,6 +695,8 @@ export async function createCreditApplication({
         applicationStatus,
         normalizedComplianceScore,
         normalizedComplianceSummary,
+        initialDecisionMotif,
+        clientNotifiedAtValue,
         serializeDocumentNames(normalizedDocuments),
         serializeTypedDocuments(normalizedTypedDocuments),
       ]
@@ -844,6 +902,16 @@ export async function updateCreditApplicationScoring(
   const complianceSummary = normalizeOptionalString(
     scoringResult?.complianceSummary || scoringResult?.summary || scoringResult?.resume
   );
+  const nextComplianceScore = normalizeOptionalInteger(scoringResult?.score);
+  const decisionMotif = isDecisionStatus(normalizedNextStatus)
+    ? buildDecisionMotif(normalizedNextStatus, {
+        complianceSummary,
+        complianceScore: nextComplianceScore,
+      })
+    : currentRow.decision_motif || null;
+  const clientNotifiedAtValue = isDecisionStatus(normalizedNextStatus)
+    ? reviewedAtValue
+    : currentRow.client_notified_at || null;
   let connection = null;
 
   try {
@@ -860,18 +928,22 @@ export async function updateCreditApplicationScoring(
           scoring_annual_charges = ?,
           family_situation = ?,
           contract_type = ?,
+          decision_motif = ?,
+          client_notified_at = ?,
           assigned_agent_user_id = ?,
           reviewed_at = ?
       WHERE id = ?
       `,
       [
         normalizedNextStatus,
-        normalizeOptionalInteger(scoringResult?.score),
+        nextComplianceScore,
         complianceSummary,
         normalizeOptionalNumber(scoringRequest.revenu_annuel),
         normalizeOptionalNumber(scoringRequest.charges_impayees),
         normalizeOptionalString(scoringRequest.situation_familiale),
         normalizeOptionalString(scoringRequest.situation_contractuelle),
+        decisionMotif,
+        clientNotifiedAtValue,
         normalizedAgentUserId,
         reviewedAtValue,
         normalizedApplicationId,
@@ -883,7 +955,7 @@ export async function updateCreditApplicationScoring(
       action: "scoring_requested",
       previousStatus: currentStatus,
       nextStatus: normalizedNextStatus,
-      comment: complianceSummary || "Dossier transmis à l'agent de scoring.",
+      comment: decisionMotif || complianceSummary || "Dossier transmis à l'agent de scoring.",
       agentUserId: normalizedAgentUserId,
     });
 
@@ -940,12 +1012,20 @@ export async function updateCreditApplicationReview(
   const nextAgentNote =
     agentNote === undefined ? currentRow.agent_note : normalizeOptionalString(agentNote);
   const currentComplianceScore = normalizeOptionalInteger(currentRow.compliance_score);
+  const nextDecisionMotif = isDecisionStatus(nextStatus)
+    ? buildDecisionMotif(nextStatus, {
+        agentNote: nextAgentNote,
+        complianceSummary: nextComplianceSummary,
+        complianceScore: nextComplianceScore,
+      })
+    : currentRow.decision_motif || null;
 
   const hasAnyChange =
     nextStatus !== currentStatus ||
     nextComplianceScore !== currentComplianceScore ||
     nextComplianceSummary !== currentRow.compliance_summary ||
     nextAgentNote !== currentRow.agent_note ||
+    nextDecisionMotif !== currentRow.decision_motif ||
     Number(currentRow.assigned_agent_user_id || 0) !== normalizedAgentUserId;
 
   if (!hasAnyChange) {
@@ -953,6 +1033,9 @@ export async function updateCreditApplicationReview(
   }
 
   const reviewedAtValue = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const clientNotifiedAtValue = isDecisionStatus(nextStatus)
+    ? reviewedAtValue
+    : currentRow.client_notified_at || null;
   let connection = null;
 
   try {
@@ -966,6 +1049,8 @@ export async function updateCreditApplicationReview(
           compliance_score = ?,
           compliance_summary = ?,
           agent_note = ?,
+          decision_motif = ?,
+          client_notified_at = ?,
           assigned_agent_user_id = ?,
           reviewed_at = ?
       WHERE id = ?
@@ -975,13 +1060,17 @@ export async function updateCreditApplicationReview(
         nextComplianceScore,
         nextComplianceSummary,
         nextAgentNote,
+        nextDecisionMotif,
+        clientNotifiedAtValue,
         normalizedAgentUserId,
         reviewedAtValue,
         normalizedApplicationId,
       ]
     );
 
-    const historyComment = [nextComplianceSummary, nextAgentNote].filter(Boolean).join(" | ") || null;
+    const historyComment = [nextDecisionMotif, nextComplianceSummary, nextAgentNote]
+      .filter(Boolean)
+      .join(" | ") || null;
 
     await appendCreditApplicationHistory(connection, {
       applicationId: normalizedApplicationId,
