@@ -53,8 +53,7 @@
 }
 
 .mes-demandes-readonly-pill,
-.mes-demandes-new-link,
-.mes-demandes-notification-action {
+.mes-demandes-new-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -74,14 +73,6 @@
 }
 
 .mes-demandes-new-link,
-.mes-demandes-notification-action {
-  border: none;
-  background: #d60000;
-  color: #ffffff;
-  box-shadow: 0 12px 24px rgba(214, 0, 0, 0.18);
-  cursor: pointer;
-}
-
 .mes-demandes-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -112,7 +103,7 @@
 
 .mes-demandes-notification {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 18px;
@@ -591,7 +582,6 @@
     grid-template-columns: 1fr;
   }
 
-  .mes-demandes-notification-action,
   .mes-demandes-new-link,
   .mes-demandes-readonly-pill {
     width: 100%;

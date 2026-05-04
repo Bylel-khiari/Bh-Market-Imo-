@@ -124,6 +124,15 @@ function getApplicationTitle(application) {
   return application.property_title || `Demande #${application.id}`;
 }
 
+function getClientDisplayName(application) {
+  return (
+    application?.full_name ||
+    application?.client_name ||
+    application?.client_account_email ||
+    'Client'
+  );
+}
+
 function DetailItem({ icon: Icon, label, value }) {
   return (
     <div className="mes-demandes-info-item">
@@ -277,17 +286,12 @@ const MesDemandes = () => {
               <h2>
                 Dossier #{latestNotification.id} -
                 {' '}
+                {getClientDisplayName(latestNotification)} -
+                {' '}
                 {getStatusMeta(latestNotification.status).label}
               </h2>
               <p>{getDecisionMotif(latestNotification)}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedId(latestNotification.id)}
-              className="mes-demandes-notification-action"
-            >
-              Voir le dossier
-            </button>
           </section>
         ) : null}
 
