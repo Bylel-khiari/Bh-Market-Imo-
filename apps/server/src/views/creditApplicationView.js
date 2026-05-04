@@ -38,12 +38,9 @@ export function renderCreatedCreditApplication(res, application) {
   const feedback = getScoringFeedback(application);
 
   return res.status(201).json({
-    message:
-      application?.status === "ACCEPTE"
-        ? "Votre demande de crédit a été acceptée automatiquement!"
-        : application?.status === "REFUSE"
-          ? "Votre demande de crédit a été refusée automatiquement après évaluation."
-          : "Votre demande de crédit a été reçue avec succès.",
+    message: feedback
+      ? "Votre demande de crédit a été reçue avec succès. Le score a été calculé et sera vérifié par un agent bancaire."
+      : "Votre demande de crédit a été reçue avec succès.",
     statusMessage: message,
     scoring: feedback,
     application,

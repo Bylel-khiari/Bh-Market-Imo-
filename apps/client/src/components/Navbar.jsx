@@ -47,6 +47,12 @@ const Navbar = () => {
 
   const currentRole = authSession?.user?.role || null;
   const isPropertiesPage = routeLocation.pathname === '/properties';
+  const isClientUserSpace =
+    currentRole === 'client' &&
+    ['/profile', '/profile/manage', '/mes-demandes'].some((path) =>
+      routeLocation.pathname === path || routeLocation.pathname.startsWith(`${path}/`),
+    );
+  const showPublicNavigation = !isClientUserSpace;
   const accountMenuLinks = [{ label: 'Mon compte', to: '/profile/manage', icon: FaUserCircle }];
 
   if (currentRole === 'client') {
@@ -204,7 +210,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bh-navbar">
+    <nav className={`bh-navbar${isClientUserSpace ? ' bh-navbar--user-space' : ''}`}>
       <div className="navbar-top">
         <div className="container">
           <div className="nav-top-content">
@@ -215,11 +221,18 @@ const Navbar = () => {
                 </span>
                 <span className="brand-copy">
                   <span className="brand-kicker">BH Bank Tunisie</span>
-                  <span className="marketplace-tag">Marketplace immobilière</span>
+                  <span className="marketplace-tag">{'Marketplace immobili\u00E8re'}</span>
                 </span>
               </Link>
             </div>
             <div className="nav-actions">
+              {isClientUserSpace ? (
+                <Link to="/" className="navbar-home-link" onClick={closeMenuPanels}>
+                  <FaHome />
+                  <span>Accueil</span>
+                </Link>
+              ) : null}
+
               {isPropertiesPage ? (
                 <button
                   type="button"
@@ -283,7 +296,7 @@ const Navbar = () => {
                       onClick={handleLogout}
                     >
                       <FaSignOutAlt />
-                      <span>Déconnexion</span>
+                      <span>{'D\u00E9connexion'}</span>
                     </button>
                   </div>
                 </div>
@@ -369,9 +382,11 @@ const Navbar = () => {
         </div>
       ) : null}
 
-      <div className="navbar-main">
+      {showPublicNavigation || isOpen ? (
+      <div className={`navbar-main${isClientUserSpace ? ' navbar-main--user-space' : ''}`}>
         <div className="container">
           <div className={`navbar-menu-panel ${isOpen ? 'active' : ''}`}>
+            {showPublicNavigation ? (
             <ul className="nav-menu">
               {navItems.map((item) => (
                 <li key={item.to}>
@@ -386,8 +401,20 @@ const Navbar = () => {
                 </li>
               ))}
             </ul>
+            ) : null}
 
             <div className="mobile-account-panel">
+              {isClientUserSpace ? (
+                <Link
+                  to="/"
+                  className="mobile-account-link"
+                  onClick={closeMenuPanels}
+                >
+                  <FaHome />
+                  <span>Accueil</span>
+                </Link>
+              ) : null}
+
               <span className="mobile-menu-section-title">Compte</span>
 
               {authSession?.token ? (
@@ -412,7 +439,7 @@ const Navbar = () => {
                     onClick={handleLogout}
                   >
                     <FaSignOutAlt />
-                    <span>Déconnexion</span>
+                    <span>{'D\u00E9connexion'}</span>
                   </button>
                 </>
               ) : (
@@ -429,6 +456,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+      ) : null}
     </nav>
   );
 };

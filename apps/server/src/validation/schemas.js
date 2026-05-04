@@ -11,6 +11,22 @@ export const authLoginBodySchema = z
   })
   .strict();
 
+export const authChangePasswordBodySchema = z
+  .object({
+    current_password: z.string().min(1).max(128),
+    new_password: z.string().min(6).max(128),
+    confirm_password: z.string().min(6).max(128),
+  })
+  .strict()
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: "Password confirmation does not match",
+    path: ["confirm_password"],
+  })
+  .refine((data) => data.current_password !== data.new_password, {
+    message: "New password must be different from current password",
+    path: ["new_password"],
+  });
+
 export const idParamSchema = z
   .object({
     id: z.coerce.number().int().positive(),

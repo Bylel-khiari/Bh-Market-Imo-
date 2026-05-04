@@ -885,12 +885,7 @@ export async function updateCreditApplicationScoring(
   }
 
   const scoringRequest = scoringResult?.scoring_request_data || {};
-  const fallbackStatus =
-    scoringResult?.decision === "ACCEPTE"
-      ? "ACCEPTE"
-      : scoringResult?.decision === "REFUSE"
-        ? "REFUSE"
-        : "EN_VERIFICATION";
+  const fallbackStatus = "EN_ETUDE";
   const normalizedNextStatus = normalizeCreditApplicationStatus(
     nextStatus || fallbackStatus
   );

@@ -124,6 +124,13 @@ export async function meApi(token) {
   return authorizedJsonRequest('/api/auth/me', token);
 }
 
+export async function changePasswordApi(input, token) {
+  return authorizedJsonRequest('/api/auth/password', token, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
 export async function fetchAgentDashboardApi(token) {
   return authorizedJsonRequest('/api/agent/dashboard', token);
 }

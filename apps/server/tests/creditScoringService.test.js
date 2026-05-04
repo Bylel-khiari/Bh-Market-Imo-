@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  determineApplicationStatus,
   prepareCreditScoringRequest,
   scoreCreditApplication,
 } from "../src/services/creditScoringService.js";
@@ -65,7 +66,7 @@ describe("creditScoringService", () => {
     });
 
     expect(result).toMatchObject({
-      decision: "ACCEPTE",
+      decision: "FAVORABLE",
       score: 80,
       niveau_risque: "faible",
       scoring_request_data: {
@@ -75,5 +76,28 @@ describe("creditScoringService", () => {
         situation_contractuelle: "fonctionnaire",
       },
     });
+  });
+
+  it("keeps the final decision for the banking agent after scoring", () => {
+    const status = determineApplicationStatus({
+      decision: "FAVORABLE",
+      score: 82,
+      niveau_risque: "faible",
+      resume: "Avis favorable avec un score de 82/100.",
+      scoring_input_sources: {
+        revenu_annuel: "champ revenu annuel du formulaire",
+        charges_impayees: "champ charges annuelles du formulaire",
+        situation_familiale: "champ situation familiale du formulaire",
+        situation_contractuelle: "champ situation contractuelle du formulaire",
+      },
+    });
+
+    expect(status).toMatchObject({
+      status: "EN_ETUDE",
+      autoApproved: false,
+      complianceScore: 82,
+      scoringAdvice: "FAVORABLE",
+    });
+    expect(status.complianceSummary).toContain("Decision finale reservee a l'agent bancaire");
   });
 });

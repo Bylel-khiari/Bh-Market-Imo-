@@ -33,27 +33,27 @@ const STATUS_META = {
     icon: FaClock,
   },
   EN_VERIFICATION: {
-    label: 'En verification',
+    label: 'En vérification',
     tone: 'review',
     icon: FaClipboardList,
   },
   DOCUMENTS_MANQUANTS: {
-    label: 'Pieces manquantes',
+    label: 'Pièces manquantes',
     tone: 'warning',
     icon: FaExclamationTriangle,
   },
   EN_ETUDE: {
-    label: 'En etude',
+    label: 'En étude',
     tone: 'study',
     icon: FaClipboardList,
   },
   ACCEPTE: {
-    label: 'Accepte',
+    label: 'Accepté',
     tone: 'accepted',
     icon: FaCheckCircle,
   },
   REFUSE: {
-    label: 'Refuse',
+    label: 'Refusé',
     tone: 'refused',
     icon: FaTimesCircle,
   },
@@ -73,10 +73,10 @@ function toTimestamp(value) {
 }
 
 function formatDate(value) {
-  if (!value) return 'Non renseigne';
+  if (!value) return 'Non renseigné';
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Non renseigne';
+  if (Number.isNaN(date.getTime())) return 'Non renseigné';
 
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
@@ -85,7 +85,7 @@ function formatDate(value) {
   }).format(date);
 }
 
-function formatMoney(value, fallback = 'Non renseigne') {
+function formatMoney(value, fallback = 'Non renseigné') {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return fallback;
@@ -96,10 +96,10 @@ function formatMoney(value, fallback = 'Non renseigne') {
 
 function formatPercent(value) {
   const numeric = Number(value);
-  return Number.isFinite(numeric) ? `${numeric.toFixed(1)}%` : 'Non renseigne';
+  return Number.isFinite(numeric) ? `${numeric.toFixed(1)}%` : 'Non renseigné';
 }
 
-function displayValue(value, fallback = 'Non renseigne') {
+function displayValue(value, fallback = 'Non renseigné') {
   if (value === undefined || value === null || value === '') return fallback;
   return String(value);
 }
@@ -112,15 +112,15 @@ function getDecisionMotif(application) {
     application.agent_note ||
     application.compliance_summary ||
     (application.status === 'ACCEPTE'
-      ? 'Demande acceptee apres analyse bancaire.'
+      ? 'Demande acceptée après analyse bancaire.'
       : application.status === 'REFUSE'
-        ? 'Demande refusee apres analyse bancaire.'
+        ? 'Demande refusée après analyse bancaire.'
         : null)
   );
 }
 
 function getApplicationTitle(application) {
-  if (!application) return 'Demande de credit';
+  if (!application) return 'Demande de crédit';
   return application.property_title || `Demande #${application.id}`;
 }
 
@@ -178,7 +178,7 @@ const MesDemandes = () => {
             return;
           }
 
-          setError(err.message || 'Impossible de charger vos demandes de credit.');
+          setError(err.message || 'Impossible de charger vos demandes de crédit.');
         }
       } finally {
         if (!ignore) {
@@ -234,7 +234,7 @@ const MesDemandes = () => {
           <div>
             <span className="mes-demandes-eyebrow">Espace client</span>
             <h1>Mes demandes</h1>
-            <p>Suivi bancaire des demandes de credit deposees sur BH Market Imo.</p>
+            <p>Suivi bancaire des demandes de crédit déposées sur BH Market Imo.</p>
           </div>
           <div className="mes-demandes-header-actions">
             <span className="mes-demandes-readonly-pill">
@@ -246,7 +246,7 @@ const MesDemandes = () => {
           </div>
         </header>
 
-        <section className="mes-demandes-stats" aria-label="Synthese des demandes">
+        <section className="mes-demandes-stats" aria-label="Synthèse des demandes">
           <article>
             <strong>{stats.total}</strong>
             <span>Total demandes</span>
@@ -257,11 +257,11 @@ const MesDemandes = () => {
           </article>
           <article>
             <strong>{stats.accepted}</strong>
-            <span>Acceptees</span>
+            <span>Acceptées</span>
           </article>
           <article>
             <strong>{stats.refused}</strong>
-            <span>Refusees</span>
+            <span>Refusées</span>
           </article>
         </section>
 
@@ -304,10 +304,10 @@ const MesDemandes = () => {
         ) : applications.length === 0 ? (
           <section className="mes-demandes-empty">
             <FaClipboardList />
-            <h2>Aucune demande deposee</h2>
-            <p>Votre prochaine demande apparaitra ici apres depot.</p>
+            <h2>Aucune demande déposée</h2>
+            <p>Votre prochaine demande apparaîtra ici après dépôt.</p>
             <Link to="/credit-immobilier-bh" className="mes-demandes-new-link">
-              Deposer une demande
+              Déposer une demande
             </Link>
           </section>
         ) : (
@@ -342,7 +342,7 @@ const MesDemandes = () => {
                       <strong>Dossier #{application.id}</strong>
                       <small>{getApplicationTitle(application)}</small>
                       <span className="mes-demandes-list-meta">
-                        Depose le {formatDate(application.created_at)}
+                        Déposé le {formatDate(application.created_at)}
                       </span>
                     </button>
                   );
@@ -350,12 +350,12 @@ const MesDemandes = () => {
               </div>
             </aside>
 
-            <section className="mes-demandes-detail-panel" aria-label="Detail de la demande">
+            <section className="mes-demandes-detail-panel" aria-label="Détail de la demande">
               <div className="mes-demandes-detail-head">
                 <div>
                   <span className="mes-demandes-eyebrow">Dossier #{selectedApplication.id}</span>
                   <h2>{getApplicationTitle(selectedApplication)}</h2>
-                  <p>Depose le {formatDate(selectedApplication.created_at)}</p>
+                  <p>Déposé le {formatDate(selectedApplication.created_at)}</p>
                 </div>
                 <span className={`mes-demandes-status status-${selectedStatus.tone}`}>
                   <SelectedStatusIcon /> {selectedStatus.label}
@@ -368,16 +368,16 @@ const MesDemandes = () => {
                   <strong>
                     {selectedApplication.compliance_score === null ||
                     selectedApplication.compliance_score === undefined
-                      ? 'A calculer'
+                      ? 'À calculer'
                       : `${selectedApplication.compliance_score}/100`}
                   </strong>
                 </div>
                 <div>
-                  <span>Decision</span>
+                  <span>Décision</span>
                   <strong>{selectedStatus.label}</strong>
                 </div>
                 <div>
-                  <span>Date decision</span>
+                  <span>Date décision</span>
                   <strong>{formatDate(selectedApplication.reviewed_at || selectedApplication.updated_at)}</strong>
                 </div>
               </div>
@@ -389,7 +389,7 @@ const MesDemandes = () => {
                 </div>
                 <p>
                   {decisionMotif ||
-                    'Le motif sera affiche apres la decision finale de la banque.'}
+                    'Le motif sera affiché après la décision finale de la banque.'}
                 </p>
               </article>
 
@@ -411,7 +411,7 @@ const MesDemandes = () => {
                   </div>
                   <DetailItem icon={FaHome} label="Bien" value={displayValue(selectedApplication.property_title)} />
                   <DetailItem icon={FaMapMarkerAlt} label="Localisation" value={displayValue(selectedApplication.property_location)} />
-                  <DetailItem icon={FaMoneyBillWave} label="Prix" value={formatMoney(selectedApplication.property_price_value, selectedApplication.property_price_raw || 'Non renseigne')} />
+                  <DetailItem icon={FaMoneyBillWave} label="Prix" value={formatMoney(selectedApplication.property_price_value, selectedApplication.property_price_raw || 'Non renseigné')} />
                 </article>
 
                 <article>
@@ -419,9 +419,9 @@ const MesDemandes = () => {
                     <FaMoneyBillWave />
                     <h3>Financement</h3>
                   </div>
-                  <DetailItem icon={FaMoneyBillWave} label="Montant demande" value={formatMoney(selectedApplication.requested_amount)} />
+                  <DetailItem icon={FaMoneyBillWave} label="Montant demandé" value={formatMoney(selectedApplication.requested_amount)} />
                   <DetailItem icon={FaMoneyBillWave} label="Apport" value={formatMoney(selectedApplication.personal_contribution_value)} />
-                  <DetailItem icon={FaCalendarAlt} label="Duree" value={selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseigne'} />
+                  <DetailItem icon={FaCalendarAlt} label="Durée" value={selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseigné'} />
                 </article>
 
                 <article>
@@ -438,7 +438,7 @@ const MesDemandes = () => {
               <article className="mes-demandes-documents-card">
                 <div className="mes-demandes-card-title">
                   <FaFileAlt />
-                  <h3>Pieces deposees</h3>
+                  <h3>Pièces déposées</h3>
                 </div>
                 {selectedDocuments.length ? (
                   <div className="mes-demandes-documents-grid">
@@ -446,12 +446,12 @@ const MesDemandes = () => {
                       <span key={`${document.type}-${document.name}-${index}`}>
                         <FaFileAlt />
                         <strong>{displayValue(document.type, 'Document')}</strong>
-                        <small>{displayValue(document.name, 'Piece fournie')}</small>
+                        <small>{displayValue(document.name, 'Pièce fournie')}</small>
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p>Aucune piece rattachee a ce dossier.</p>
+                  <p>Aucune pièce rattachée à ce dossier.</p>
                 )}
               </article>
             </section>

@@ -1,4 +1,4 @@
-import { getUserById, loginUser } from "../models/authModel.js";
+import { changeUserPassword, getUserById, loginUser } from "../models/authModel.js";
 import { renderAuthenticatedUser, renderCurrentUser } from "../views/authView.js";
 
 const ACCESS_TOKEN_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "bh_market_access_token";
@@ -24,6 +24,15 @@ export async function me(req, res) {
   const userId = req.user?.sub;
   const user = await getUserById(userId);
   return renderCurrentUser(res, user);
+}
+
+export async function updatePassword(req, res) {
+  const user = await changeUserPassword(req.user?.sub, req.body || {});
+
+  return res.json({
+    message: "Mot de passe mis a jour avec succes.",
+    user,
+  });
 }
 
 export async function logout(req, res) {

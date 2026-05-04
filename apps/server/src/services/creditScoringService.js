@@ -397,8 +397,8 @@ export function scoreCreditApplicationLocally(scoringRequest = {}) {
   );
   const contractPassed = contract.score >= 12;
   const score = Math.max(0, Math.min(100, capacityScore + contract.score + family.score));
-  const accepted = chargesPassed && contractPassed && score >= ACCEPTANCE_SCORE;
-  const decision = accepted ? "ACCEPTE" : "REFUSE";
+  const favorable = chargesPassed && contractPassed && score >= ACCEPTANCE_SCORE;
+  const decision = favorable ? "FAVORABLE" : "DEFAVORABLE";
   const chargesMessage = chargesPassed
     ? `Charges conformes: ${roundMoney(annualCharges)} <= ${roundMoney(chargesLimit)}`
     : `Charges trop elevees: ${roundMoney(annualCharges)} > ${roundMoney(chargesLimit)}`;
@@ -431,12 +431,12 @@ export function scoreCreditApplicationLocally(scoringRequest = {}) {
         message: family.message,
       },
     ],
-    resume: `Dossier ${decision.toLowerCase()} avec un score de ${score}/100. Le taux de charges est de ${roundMoney(
+    resume: `Avis ${decision.toLowerCase()} avec un score de ${score}/100. Le taux de charges est de ${roundMoney(
       chargesRatio * 100
     )}% pour un seuil maximal de ${Math.round(CHARGES_RATIO_LIMIT * 100)}%.`,
-    recommandation: accepted
-      ? "Le dossier respecte la regle principale et peut passer a l'etape d'etude bancaire."
-      : "Le dossier doit etre rejete ou revu par un agent bancaire avant acceptation.",
+    recommandation: favorable
+      ? "Le dossier respecte la regle principale. L'agent bancaire doit verifier le dossier puis prendre la decision finale."
+      : "Le dossier presente un risque. L'agent bancaire doit verifier les elements avant toute decision finale.",
   };
 }
 
@@ -481,9 +481,11 @@ export function generateScoringDecision(scoringResult) {
   const { decision, score, niveau_risque, resume, scoring_input_sources: sources } = scoringResult;
 
   const decisionText =
-    decision === "ACCEPTE"
-      ? "✓ Dossier ACCEPTÉ automatiquement par l'agent de scoring"
-      : "✗ Dossier REFUSÉ automatiquement par l'agent de scoring";
+    decision === "ACCEPTE" || decision === "FAVORABLE"
+      ? "Avis scoring favorable"
+      : decision === "REFUSE" || decision === "DEFAVORABLE"
+        ? "Avis scoring defavorable"
+        : "Avis scoring a verifier";
 
   const riskText =
     {
@@ -496,38 +498,19 @@ export function generateScoringDecision(scoringResult) {
     ? ` Donnees utilisees: revenu (${sources.revenu_annuel}), charges (${sources.charges_impayees}), situation familiale (${sources.situation_familiale}), situation contractuelle (${sources.situation_contractuelle}).`
     : "";
 
-  return `${decisionText}. Score: ${score}/100 (risque ${riskText}). ${resume}${sourceText}`;
+  return `${decisionText}. Score: ${score}/100 (risque ${riskText}). ${resume}${sourceText} Decision finale reservee a l'agent bancaire.`;
 }
 
 /**
- * Determine the status and auto-assignment based on scoring
+ * Determine the review status after scoring.
+ * Scoring gives an advisory score only; it never accepts or rejects a credit application.
  */
 export function determineApplicationStatus(scoringResult) {
-  const { decision } = scoringResult;
-
-  if (decision === "ACCEPTE") {
-    return {
-      status: "ACCEPTE",
-      autoApproved: true,
-      complianceScore: scoringResult.score,
-      complianceSummary: generateScoringDecision(scoringResult),
-    };
-  }
-
-  if (decision === "REFUSE") {
-    return {
-      status: "REFUSE",
-      autoApproved: true,
-      complianceScore: scoringResult.score,
-      complianceSummary: generateScoringDecision(scoringResult),
-    };
-  }
-
-  // Default to EN_VERIFICATION if decision is unclear
   return {
-    status: "EN_VERIFICATION",
+    status: "EN_ETUDE",
     autoApproved: false,
     complianceScore: scoringResult.score,
     complianceSummary: generateScoringDecision(scoringResult),
+    scoringAdvice: scoringResult.decision || null,
   };
 }

@@ -130,6 +130,7 @@
 .search-toggle,
 .profile-menu-trigger,
 .login-btn,
+.navbar-home-link,
 .mobile-menu-btn {
   min-height: 48px;
   border-radius: 14px;
@@ -528,10 +529,31 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.login-btn:hover {
+.navbar-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.login-btn:hover,
+.navbar-home-link:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.26);
   color: #ffffff;
+}
+
+.bh-navbar--user-space .navbar-top {
+  padding-bottom: 18px;
 }
 
 .mobile-menu-btn {
@@ -877,9 +899,15 @@
   }
 
   .search-toggle,
+  .navbar-home-link,
   .mobile-menu-btn {
     width: 44px;
     min-height: 44px;
     border-radius: 12px;
+  }
+
+  .navbar-home-link {
+    width: auto;
+    padding: 0 12px;
   }
 }

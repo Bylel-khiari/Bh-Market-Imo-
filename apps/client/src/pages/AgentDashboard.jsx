@@ -569,7 +569,7 @@ export default function AgentDashboard() {
 
       await scoreAgentCreditApplicationApi(selectedApplication.id, token);
 
-      setFormMessage("Dossier transmis à l'agent de scoring avec succès.");
+      setFormMessage("Score calculé. L'agent bancaire garde la décision finale.");
       await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -577,7 +577,7 @@ export default function AgentDashboard() {
       }
 
       setFormMessage('');
-      setError(requestError.message || "Impossible de passer ce dossier à l'agent de scoring.");
+      setError(requestError.message || "Impossible de calculer le score de ce dossier.");
     } finally {
       setSubmitting(false);
     }
@@ -991,7 +991,7 @@ export default function AgentDashboard() {
                           disabled={submitting}
                         >
                           <FaSyncAlt className={submitting ? 'spin' : undefined} />
-                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le score' : 'Traiter ce dossier'}</span>
+                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le score' : 'Calculer le score'}</span>
                         </button>
                       </div>
 
@@ -1101,7 +1101,7 @@ export default function AgentDashboard() {
                               disabled={submitting}
                             >
                               <FaSyncAlt className={submitting ? 'spin' : undefined} />
-                              <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Passer au scoring'}</span>
+                              <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Calculer le scoring'}</span>
                             </button>
                           </>
                         )}
@@ -1311,7 +1311,7 @@ export default function AgentDashboard() {
                           disabled={submitting}
                         >
                           <FaSyncAlt className={submitting ? 'spin' : undefined} />
-                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Passer au scoring'}</span>
+                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Calculer le scoring'}</span>
                         </button>
                         </details>
 
