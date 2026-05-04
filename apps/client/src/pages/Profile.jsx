@@ -161,7 +161,7 @@ const Profile = () => {
                         <article key={application.id} className="profile-credit-card">
                           <div className="profile-credit-head">
                             <div>
-                              <h3>{application.property_title || `Dossier #${application.id}`}</h3>
+                              <h3>{application.property_title || 'Demande de crédit immobilier'}</h3>
                               <p>
                                 Déposé le {new Date(application.created_at).toLocaleDateString('fr-FR')}
                               </p>

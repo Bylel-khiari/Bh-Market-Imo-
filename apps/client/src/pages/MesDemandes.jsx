@@ -121,7 +121,7 @@ function getDecisionMotif(application) {
 
 function getApplicationTitle(application) {
   if (!application) return 'Demande de crédit';
-  return application.property_title || `Demande #${application.id}`;
+  return application.property_title || 'Demande de crédit immobilier';
 }
 
 function getClientDisplayName(application) {
@@ -284,8 +284,7 @@ const MesDemandes = () => {
             <div>
               <span>Notification bancaire</span>
               <h2>
-                Dossier #{latestNotification.id} -
-                {' '}
+                {getApplicationTitle(latestNotification)} -
                 {getClientDisplayName(latestNotification)} -
                 {' '}
                 {getStatusMeta(latestNotification.status).label}
@@ -343,8 +342,8 @@ const MesDemandes = () => {
                       <span className={`mes-demandes-mini-status status-${meta.tone}`}>
                         <StatusIcon /> {meta.label}
                       </span>
-                      <strong>Dossier #{application.id}</strong>
-                      <small>{getApplicationTitle(application)}</small>
+                      <strong>{getApplicationTitle(application)}</strong>
+                      <small>{getClientDisplayName(application)}</small>
                       <span className="mes-demandes-list-meta">
                         Déposé le {formatDate(application.created_at)}
                       </span>
@@ -357,7 +356,7 @@ const MesDemandes = () => {
             <section className="mes-demandes-detail-panel" aria-label="Détail de la demande">
               <div className="mes-demandes-detail-head">
                 <div>
-                  <span className="mes-demandes-eyebrow">Dossier #{selectedApplication.id}</span>
+                  <span className="mes-demandes-eyebrow">Dossier client</span>
                   <h2>{getApplicationTitle(selectedApplication)}</h2>
                   <p>Déposé le {formatDate(selectedApplication.created_at)}</p>
                 </div>
