@@ -269,6 +269,7 @@ export default function AgentDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState(null);
+  const [activeApplicationPanel, setActiveApplicationPanel] = useState('summary');
   const [draft, setDraft] = useState({
     status: 'SOUMIS',
     compliance_score: '',
@@ -355,6 +356,10 @@ export default function AgentDashboard() {
       applications[0]
     );
   }, [applications, selectedApplicationId]);
+
+  useEffect(() => {
+    setActiveApplicationPanel('summary');
+  }, [selectedApplication?.id]);
 
   useEffect(() => {
     if (!selectedApplication) {
@@ -834,14 +839,14 @@ export default function AgentDashboard() {
           )}
 
           {activeSection === 'applications' && (
-            <div className="admin-content-grid">
+            <div className="admin-content-grid agent-dossier-workbench">
               <div className="admin-analytics-column">
-                <section className="admin-card">
+                <section className="admin-card agent-queue-panel">
                   <div className="agent-section-head">
                     <div>
-                      <h2>File des dossiers de crédit</h2>
+                      <h2>File de dossiers</h2>
                       <p className="admin-section-help">
-                        Recherchez un client, filtrez la file puis ouvrez un dossier pour analyse détaillée.
+                        Selection rapide du dossier a traiter.
                       </p>
                     </div>
                     <span className="admin-users-count">{applications.length}</span>
@@ -969,6 +974,251 @@ export default function AgentDashboard() {
                           <FaSyncAlt className={submitting ? 'spin' : undefined} />
                           <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le score' : 'Traiter ce dossier'}</span>
                         </button>
+                      </div>
+
+                      <div className="agent-detail-tabs" role="tablist" aria-label="Sections du dossier">
+                        <button
+                          type="button"
+                          className={activeApplicationPanel === 'summary' ? 'is-active' : ''}
+                          onClick={() => setActiveApplicationPanel('summary')}
+                        >
+                          <FaIdCard />
+                          <span>Client</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={activeApplicationPanel === 'scoring' ? 'is-active' : ''}
+                          onClick={() => setActiveApplicationPanel('scoring')}
+                        >
+                          <FaMoneyCheckAlt />
+                          <span>Scoring</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={activeApplicationPanel === 'documents' ? 'is-active' : ''}
+                          onClick={() => setActiveApplicationPanel('documents')}
+                        >
+                          <FaFolderOpen />
+                          <span>Pieces</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={activeApplicationPanel === 'decision' ? 'is-active' : ''}
+                          onClick={() => setActiveApplicationPanel('decision')}
+                        >
+                          <FaFileSignature />
+                          <span>Decision</span>
+                        </button>
+                      </div>
+
+                      <div className="agent-detail-panel">
+                        {activeApplicationPanel === 'summary' && (
+                          <>
+                            <div className="agent-panel-head">
+                              <h3>Informations client</h3>
+                              <p>Coordonnees, identite et elements financiers principaux.</p>
+                            </div>
+                            <div className="agent-info-grid">
+                              <span><FaEnvelope /> {selectedApplication.email}</span>
+                              <span><FaPhone /> {selectedApplication.phone}</span>
+                              <span><FaIdCard /> {selectedApplication.cin}</span>
+                              <span><FaUniversity /> {selectedApplication.rib}</span>
+                              <span><FaMapMarkerAlt /> {selectedApplication.property_location || 'Localisation non renseignée'}</span>
+                              <span><FaMoneyCheckAlt /> {formatCurrency(selectedApplication.requested_amount)}</span>
+                            </div>
+
+                            <div className="agent-finance-grid">
+                              <div className="agent-finance-card">
+                                <strong>Apport</strong>
+                                <span>{formatCurrency(selectedApplication.personal_contribution_value)}</span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Revenus</strong>
+                                <span>{formatCurrency(selectedApplication.gross_income_value)}</span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Duree</strong>
+                                <span>
+                                  {selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseignée'}
+                                </span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Mensualite</strong>
+                                <span>{formatCurrency(selectedApplication.estimated_monthly_payment)}</span>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {activeApplicationPanel === 'scoring' && (
+                          <>
+                            <div className="agent-panel-head">
+                              <h3>Variables de scoring</h3>
+                              <p>Donnees utilisees pour calculer le score bancaire du dossier.</p>
+                            </div>
+                            <div className="agent-scoring-grid">
+                              <div className="agent-finance-card">
+                                <strong>Revenu annuel scoring</strong>
+                                <span>{formatCurrency(selectedApplication.revenu_annuel)}</span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Charges annuelles scoring</strong>
+                                <span>{formatCurrency(selectedApplication.charges_impayees)}</span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Situation familiale</strong>
+                                <span>{selectedApplication.situation_familiale || 'A verifier'}</span>
+                              </div>
+                              <div className="agent-finance-card">
+                                <strong>Situation contractuelle</strong>
+                                <span>{selectedApplication.situation_contractuelle || 'A verifier'}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="admin-secondary agent-scoring-action agent-panel-action"
+                              onClick={handleScoringSubmit}
+                              disabled={submitting}
+                            >
+                              <FaSyncAlt className={submitting ? 'spin' : undefined} />
+                              <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Passer au scoring'}</span>
+                            </button>
+                          </>
+                        )}
+
+                        {activeApplicationPanel === 'documents' && (
+                          <div className="agent-document-block">
+                            <div className="agent-panel-head">
+                              <h3>Pieces du dossier</h3>
+                              <p>Documents declares par le client pour l'etude du credit.</p>
+                            </div>
+                            {selectedApplication.documents?.length ? (
+                              <div className="agent-document-list">
+                                {selectedApplication.documents.map((documentName) => (
+                                  <span key={documentName} className="agent-document-pill">
+                                    {documentName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="admin-section-help">Aucun document n'a ete declare dans le portail.</p>
+                            )}
+                          </div>
+                        )}
+
+                        {activeApplicationPanel === 'decision' && (
+                          <>
+                            <div className="agent-panel-head">
+                              <h3>Decision agent</h3>
+                              <p>Mise a jour du statut, note interne et decision finale.</p>
+                            </div>
+                            <div className="agent-review-form">
+                              <label className="admin-field-block">
+                                <span className="admin-field-label">Etat du dossier</span>
+                                <select name="status" value={draft.status} onChange={handleDraftChange} disabled={submitting}>
+                                  {STATUS_OPTIONS.slice(1).map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <label className="admin-field-block">
+                                <span className="admin-field-label">Score de conformite</span>
+                                <input
+                                  name="compliance_score"
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={draft.compliance_score}
+                                  onChange={handleDraftChange}
+                                  disabled={submitting}
+                                  placeholder="Ex: 78"
+                                />
+                              </label>
+
+                              <label className="admin-field-block">
+                                <span className="admin-field-label">Synthese conformite</span>
+                                <textarea
+                                  name="compliance_summary"
+                                  rows={4}
+                                  value={draft.compliance_summary}
+                                  onChange={handleDraftChange}
+                                  disabled={submitting}
+                                  placeholder="Resume des controles, anomalies et conformites observees."
+                                />
+                              </label>
+
+                              <label className="admin-field-block">
+                                <span className="admin-field-label">Note agent</span>
+                                <textarea
+                                  name="agent_note"
+                                  rows={4}
+                                  value={draft.agent_note}
+                                  onChange={handleDraftChange}
+                                  disabled={submitting}
+                                  placeholder="Elements a transmettre au client ou au back-office."
+                                />
+                              </label>
+                            </div>
+
+                            <div className="agent-quick-actions">
+                              <button
+                                type="button"
+                                className="admin-secondary"
+                                onClick={() => handleReviewSubmit('EN_VERIFICATION')}
+                                disabled={submitting}
+                              >
+                                Verifier les documents
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-secondary"
+                                onClick={() => handleReviewSubmit('DOCUMENTS_MANQUANTS')}
+                                disabled={submitting}
+                              >
+                                Demander les pieces
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-secondary"
+                                onClick={() => handleReviewSubmit('EN_ETUDE')}
+                                disabled={submitting}
+                              >
+                                Passer en etude
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-refresh"
+                                onClick={() => handleReviewSubmit('ACCEPTE')}
+                                disabled={submitting}
+                              >
+                                <FaCheckCircle />
+                                <span>Accepter</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-danger"
+                                onClick={() => handleReviewSubmit('REFUSE')}
+                                disabled={submitting}
+                              >
+                                <FaBan />
+                                <span>Refuser</span>
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="admin-refresh agent-save-btn"
+                              onClick={() => handleReviewSubmit(draft.status)}
+                              disabled={submitting}
+                            >
+                              {submitting ? 'Traitement...' : 'Enregistrer les modifications'}
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       <div className="agent-detail-accordion">
