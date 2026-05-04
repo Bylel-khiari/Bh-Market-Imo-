@@ -337,6 +337,7 @@
   box-shadow: 0 12px 30px rgba(10, 34, 64, 0.08);
   padding: 22px;
   position: relative;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -362,6 +363,7 @@
   max-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .admin-section-help {

@@ -2,7 +2,9 @@ import {
   createCreditApplication,
   fetchAgentCreditApplicationSummary,
   fetchAgentCreditApplications,
+  fetchCreditApplicationById,
   fetchClientCreditApplications,
+  updateCreditApplicationScoring,
   updateCreditApplicationReview,
 } from "../models/creditApplicationModel.js";
 import {
@@ -15,7 +17,25 @@ import {
   scoreCreditApplication,
   determineApplicationStatus,
 } from "../services/creditScoringService.js";
-import { httpError } from "../utils/httpError.js";
+
+function toScoringApplicationData(application) {
+  return {
+    fullName: application?.full_name,
+    socioCategory: application?.socio_category,
+    grossIncome: application?.gross_income_value,
+    incomePeriod: application?.income_period,
+    revenu_annuel: application?.revenu_annuel,
+    charges_impayees: application?.charges_impayees,
+    situation_familiale: application?.situation_familiale,
+    situation_contractuelle: application?.situation_contractuelle,
+    other_monthly_charges: application?.other_monthly_charges,
+    estimatedMonthlyPayment: application?.estimated_monthly_payment,
+    debtRatio: application?.debt_ratio,
+    documents: application?.typed_documents?.length
+      ? application.typed_documents
+      : application?.documents,
+  };
+}
 
 export async function submitCreditApplication(req, res) {
   // Prepare application data
@@ -37,6 +57,11 @@ export async function submitCreditApplication(req, res) {
     personalContribution: req.body?.personal_contribution,
     grossIncome: req.body?.gross_income,
     incomePeriod: req.body?.income_period,
+    revenuAnnuel: req.body?.revenu_annuel,
+    chargesImpayees: req.body?.charges_impayees,
+    familySituation: req.body?.situation_familiale,
+    contractType: req.body?.situation_contractuelle,
+    otherMonthlyCharges: req.body?.other_monthly_charges,
     durationMonths: req.body?.duration_months,
     estimatedMonthlyPayment: req.body?.estimated_monthly_payment,
     estimatedRate: req.body?.estimated_rate,
@@ -49,12 +74,15 @@ export async function submitCreditApplication(req, res) {
 
   // Attempt to score the application
   try {
-    scoringResult = await scoreCreditApplication({
-      grossIncome: applicationData.grossIncome,
-      incomePeriod: applicationData.incomePeriod,
-      estimatedMonthlyPayment: applicationData.estimatedMonthlyPayment,
-      socioCategory: applicationData.socioCategory,
-    });
+    scoringResult = await scoreCreditApplication(applicationData);
+    applicationData.revenuAnnuel =
+      scoringResult.scoring_request_data?.revenu_annuel ?? applicationData.revenuAnnuel;
+    applicationData.chargesImpayees =
+      scoringResult.scoring_request_data?.charges_impayees ?? applicationData.chargesImpayees;
+    applicationData.familySituation =
+      scoringResult.scoring_request_data?.situation_familiale ?? applicationData.familySituation;
+    applicationData.contractType =
+      scoringResult.scoring_request_data?.situation_contractuelle ?? applicationData.contractType;
 
     applicationStatus = determineApplicationStatus(scoringResult);
   } catch (scoringError) {
@@ -104,6 +132,23 @@ export async function updateAgentCreditApplication(req, res) {
     complianceScore: req.body?.compliance_score,
     complianceSummary: req.body?.compliance_summary,
     agentNote: req.body?.agent_note,
+    agentUserId: req.user?.sub,
+  });
+
+  return renderUpdatedCreditApplication(res, application);
+}
+
+export async function scoreAgentCreditApplication(req, res) {
+  const currentApplication = await fetchCreditApplicationById(req.params.id);
+  const scoringResult = await scoreCreditApplication(toScoringApplicationData(currentApplication));
+  const applicationStatus = determineApplicationStatus(scoringResult);
+
+  const application = await updateCreditApplicationScoring(req.params.id, {
+    scoringResult: {
+      ...scoringResult,
+      complianceSummary: applicationStatus.complianceSummary,
+    },
+    nextStatus: applicationStatus.status,
     agentUserId: req.user?.sub,
   });
 

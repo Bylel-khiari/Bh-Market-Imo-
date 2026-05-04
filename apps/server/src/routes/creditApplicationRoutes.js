@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   listAgentCreditApplications,
   listMyCreditApplications,
+  scoreAgentCreditApplication,
   submitCreditApplication,
   updateAgentCreditApplication,
 } from "../controllers/creditApplicationController.js";
@@ -47,6 +48,14 @@ router.patch(
   requireRoles("agent_bancaire"),
   validateRequest({ params: idParamSchema, body: agentUpdateCreditApplicationBodySchema }),
   updateAgentCreditApplication
+);
+
+router.post(
+  "/api/agent/credit-applications/:id/score",
+  requireAuth,
+  requireRoles("agent_bancaire"),
+  validateRequest({ params: idParamSchema }),
+  scoreAgentCreditApplication
 );
 
 export default router;

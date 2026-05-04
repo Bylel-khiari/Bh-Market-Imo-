@@ -1,4 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  FaCheckCircle,
+  FaCloudUploadAlt,
+  FaDownload,
+  FaExclamationTriangle,
+  FaFileAlt,
+} from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
 
@@ -6,7 +13,7 @@ import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
 const DOCUMENT_TYPES = {
   BH_FORM: {
     key: "BH_FORM",
-    label: "BH Habitat Form",
+    label: "Formulaire BH Habitat",
     description: "Demande de Crédit Habitat",
     required: true,
     downloadUrl: "/documents/BH-Demande-Credit-Habitat.pdf",
@@ -14,40 +21,40 @@ const DOCUMENT_TYPES = {
   },
   ID_COPY: {
     key: "ID_COPY",
-    label: "Identity Document",
-    description: "CIN / Passport copy",
+    label: "Piece d'identite",
+    description: "Copie CIN ou passeport",
     required: true,
     downloadUrl: null,
     fileInputId: "doc-id-copy",
   },
   INCOME_PROOF: {
     key: "INCOME_PROOF",
-    label: "Income Proof",
-    description: "Pay stubs, tax returns, or income statement",
+    label: "Justificatifs de revenus",
+    description: "Fiches de paie, declaration fiscale ou attestation de revenu",
     required: true,
     downloadUrl: null,
     fileInputId: "doc-income-proof",
   },
   PROPERTY_DOCS: {
     key: "PROPERTY_DOCS",
-    label: "Property Documents",
-    description: "Deed, survey, or property-related documents",
+    label: "Documents du bien",
+    description: "Promesse de vente, titre ou documents immobiliers",
     required: true,
     downloadUrl: null,
     fileInputId: "doc-property-docs",
   },
   BANK_STATEMENTS: {
     key: "BANK_STATEMENTS",
-    label: "Bank Statements",
-    description: "Last 3-6 months of bank statements",
+    label: "Releves bancaires",
+    description: "Releves des 3 a 6 derniers mois",
     required: true,
     downloadUrl: null,
     fileInputId: "doc-bank-statements",
   },
   EMPLOYMENT_CONTRACT: {
     key: "EMPLOYMENT_CONTRACT",
-    label: "Employment Contract",
-    description: "Employment contract or professional status proof",
+    label: "Situation professionnelle",
+    description: "Contrat de travail ou justificatif d'activite",
     required: true,
     downloadUrl: null,
     fileInputId: "doc-employment-contract",
@@ -74,7 +81,36 @@ function createEmptyFormData(authSession) {
     phone: '',
     cin: '',
     rib: '',
+    scoringAnnualIncome: '',
+    scoringAnnualCharges: '',
+    familySituation: '',
+    contractType: '',
+    otherMonthlyCharges: '',
   };
+}
+
+function toPositiveNumberOrNull(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function mapSocioCategoryToContractType(socioCategory) {
+  const categoryMap = {
+    salarie: 'CDI',
+    fonctionnaire: 'fonctionnaire',
+    profession_libre: 'profession liberale',
+    profession_liberale: 'profession liberale',
+    retraite: 'retraite',
+    independant: 'independant',
+  };
+
+  return categoryMap[socioCategory] || '';
+}
+
+function calculateAnnualIncome(income, incomePeriod) {
+  const amount = Number(income || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  return Math.round(incomePeriod === 'annual' ? amount : amount * 12);
 }
 
 export default function CreditImmobilierBHPortal() {
@@ -94,6 +130,7 @@ export default function CreditImmobilierBHPortal() {
     const propertyPrice = Number(params.get('price') || 0);
     const requestedAmount = Number(params.get('amount') || 0);
     const monthlyPayment = Number(params.get('monthlyPayment') || 0);
+    const otherMonthlyCharges = Number(params.get('otherMonthlyCharges') || 0);
     const debtRatio = Number(params.get('debtRatio') || 0);
 
     return {
@@ -107,6 +144,7 @@ export default function CreditImmobilierBHPortal() {
       incomePeriod: params.get('incomePeriod') || '',
       duration: Number(params.get('duration') || 0) || 0,
       monthlyPayment: Number.isFinite(monthlyPayment) ? monthlyPayment : 0,
+      otherMonthlyCharges: Number.isFinite(otherMonthlyCharges) ? otherMonthlyCharges : 0,
       rate: Number(params.get('rate') || 0) || 0,
       debtRatio: Number.isFinite(debtRatio) ? debtRatio : 0,
       fundingType: params.get('fundingType') || '',
@@ -157,6 +195,24 @@ export default function CreditImmobilierBHPortal() {
     }));
   }, [authSession]);
 
+  useEffect(() => {
+    const annualIncome = calculateAnnualIncome(propertyContext.income, propertyContext.incomePeriod);
+    const annualCharges = Math.round(
+      (Number(propertyContext.monthlyPayment || 0) + Number(propertyContext.otherMonthlyCharges || 0)) * 12,
+    );
+    const contractType = mapSocioCategoryToContractType(propertyContext.socioCategory);
+
+    setFormData((prev) => ({
+      ...prev,
+      scoringAnnualIncome: prev.scoringAnnualIncome || annualIncome || '',
+      scoringAnnualCharges: prev.scoringAnnualCharges || (annualCharges > 0 ? String(annualCharges) : ''),
+      otherMonthlyCharges:
+        prev.otherMonthlyCharges ||
+        (propertyContext.otherMonthlyCharges > 0 ? String(Math.round(propertyContext.otherMonthlyCharges)) : ''),
+      contractType: prev.contractType || contractType,
+    }));
+  }, [propertyContext]);
+
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -170,16 +226,8 @@ export default function CreditImmobilierBHPortal() {
     }));
   };
 
-  const getUploadedDocumentCount = () => {
-    return Object.values(uploadedDocuments).filter(Boolean).length;
-  };
-
   const getMissingRequiredDocuments = () => {
     return REQUIRED_DOCUMENT_KEYS.filter(key => !uploadedDocuments[key]);
-  };
-
-  const isFormReadyToSubmit = () => {
-    return getMissingRequiredDocuments().length === 0;
   };
 
   const openSubmissionModal = () => {
@@ -221,6 +269,9 @@ export default function CreditImmobilierBHPortal() {
         type: docType,
         name: fileName,
       }));
+    const scoringAnnualIncome = toPositiveNumberOrNull(formData.scoringAnnualIncome);
+    const scoringAnnualCharges = toPositiveNumberOrNull(formData.scoringAnnualCharges);
+    const otherMonthlyCharges = toPositiveNumberOrNull(formData.otherMonthlyCharges);
 
     try {
       setSubmitting(true);
@@ -241,8 +292,13 @@ export default function CreditImmobilierBHPortal() {
           property_price_raw: propertyContext.propertyPrice > 0 ? formatCurrency(propertyContext.propertyPrice) : null,
           requested_amount: propertyContext.requestedAmount > 0 ? propertyContext.requestedAmount : null,
           personal_contribution: propertyContext.contribution > 0 ? propertyContext.contribution : null,
-          gross_income: propertyContext.income > 0 ? propertyContext.income : null,
-          income_period: propertyContext.incomePeriod || null,
+          gross_income: propertyContext.income > 0 ? propertyContext.income : scoringAnnualIncome,
+          income_period: propertyContext.incomePeriod || (scoringAnnualIncome ? 'annual' : null),
+          revenu_annuel: scoringAnnualIncome,
+          charges_impayees: scoringAnnualCharges,
+          situation_familiale: formData.familySituation || null,
+          situation_contractuelle: formData.contractType || null,
+          other_monthly_charges: otherMonthlyCharges,
           duration_months: propertyContext.duration > 0 ? propertyContext.duration : null,
           estimated_monthly_payment: propertyContext.monthlyPayment > 0 ? propertyContext.monthlyPayment : null,
           estimated_rate: propertyContext.rate > 0 ? propertyContext.rate : null,
@@ -340,18 +396,240 @@ export default function CreditImmobilierBHPortal() {
           color: #173d6b;
         }
 
-        .bh-dropzone {
-          border: 2px dashed #7f9fbe;
-          border-radius: 0.8rem;
-          background: #f8fbff;
-          padding: 1.25rem;
+        .bh-doc-upload-panel {
+          border: 1px solid #d7e3f2;
+          border-radius: 1rem;
+          background: #f7fafe;
+          padding: 1rem;
+        }
+
+        .bh-doc-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
         }
 
         .bh-upload-group {
-          border: 1px solid #dbe3ee;
+          border: 1px solid #d7e3f2;
           border-radius: 0.85rem;
           background: #fff;
-          padding: 0.9rem;
+          padding: 1rem;
+          min-height: 190px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.85rem;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .bh-upload-group:hover {
+          border-color: #9eb9db;
+          box-shadow: 0 12px 28px rgba(15, 42, 79, 0.08);
+          transform: translateY(-1px);
+        }
+
+        .bh-upload-group.is-uploaded {
+          border-color: #86c59b;
+          background: #fbfffc;
+        }
+
+        .bh-upload-card-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 0.85rem;
+        }
+
+        .bh-upload-title {
+          display: flex;
+          gap: 0.75rem;
+          align-items: flex-start;
+          min-width: 0;
+        }
+
+        .bh-document-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 0.75rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #0f2a4f;
+          background: #eef5ff;
+          flex: 0 0 auto;
+        }
+
+        .bh-upload-title h4 {
+          margin: 0;
+          color: #0f2a4f;
+          font-size: 1rem;
+          font-weight: 800;
+        }
+
+        .bh-upload-title p {
+          margin: 0.25rem 0 0;
+          color: #5a6d84;
+          line-height: 1.45;
+          font-size: 0.9rem;
+        }
+
+        .bh-required-badge {
+          border-radius: 999px;
+          background: #fff1f3;
+          color: #a51224;
+          padding: 0.25rem 0.55rem;
+          font-size: 0.72rem;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .bh-file-control {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+          border: 1px solid #d7e3f2;
+          border-radius: 0.75rem;
+          overflow: hidden;
+          background: #f9fbfe;
+        }
+
+        .bh-file-action {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          min-height: 46px;
+          padding: 0 0.95rem;
+          color: #fff;
+          background: #0f2a4f;
+          font-weight: 800;
+          cursor: pointer;
+          border-right: 1px solid #d7e3f2;
+          margin: 0;
+          white-space: nowrap;
+        }
+
+        .bh-file-action:hover {
+          background: #153967;
+        }
+
+        .bh-file-input {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        .bh-file-name {
+          min-width: 0;
+          padding: 0 0.9rem;
+          color: #324b66;
+          font-weight: 700;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .bh-upload-status {
+          display: inline-flex;
+          align-items: flex-start;
+          gap: 0.45rem;
+          color: #a86c00;
+          font-size: 0.88rem;
+          line-height: 1.45;
+        }
+
+        .bh-upload-status.is-uploaded {
+          color: #267344;
+        }
+
+        .bh-download-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          border: 1px solid #bcd0e8;
+          border-radius: 0.65rem;
+          color: #0f2a4f;
+          background: #fff;
+          min-height: 36px;
+          padding: 0 0.75rem;
+          font-weight: 800;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .bh-download-link:hover {
+          border-color: #0f2a4f;
+          background: #f4f8fd;
+          color: #0f2a4f;
+        }
+
+        .bh-form-section {
+          border: 1px solid #dbe3ee;
+          border-radius: 0.9rem;
+          padding: 1rem;
+          background: #fbfdff;
+        }
+
+        .bh-form-section + .bh-form-section {
+          margin-top: 1rem;
+        }
+
+        .bh-section-title {
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+          color: #0f2a4f;
+          font-weight: 800;
+          margin-bottom: 0.85rem;
+        }
+
+        .bh-section-title span {
+          width: 30px;
+          height: 30px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          color: #fff;
+          background: #c5162e;
+          font-size: 0.9rem;
+        }
+
+        .bh-scoring-panel {
+          border-color: #bfd4ea;
+          background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        }
+
+        .bh-form-note {
+          border-left: 4px solid #c5162e;
+          background: #fff7f8;
+          color: #5d2730;
+          border-radius: 0.7rem;
+          padding: 0.75rem 0.9rem;
+          font-size: 0.9rem;
+        }
+
+        .bh-progress-strip {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.6rem;
+          margin-bottom: 1rem;
+        }
+
+        .bh-progress-strip span {
+          border: 1px solid #dbe3ee;
+          border-radius: 0.75rem;
+          padding: 0.65rem 0.75rem;
+          color: #324b66;
+          background: #f8fbff;
+          font-size: 0.85rem;
+          font-weight: 700;
         }
 
         .bh-upload-label {
@@ -449,6 +727,22 @@ export default function CreditImmobilierBHPortal() {
           from { opacity: 0; transform: translateY(10px) scale(0.98); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+
+        @media (max-width: 720px) {
+          .bh-progress-strip,
+          .bh-doc-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .bh-file-control {
+            grid-template-columns: 1fr;
+          }
+
+          .bh-file-action {
+            border-right: 0;
+            border-bottom: 1px solid #d7e3f2;
+          }
+        }
       `}</style>
 
       <div className="container">
@@ -487,6 +781,10 @@ export default function CreditImmobilierBHPortal() {
               <span>
                 <strong>Mensualité estimée</strong>
                 <small>{formatCurrency(propertyContext.monthlyPayment)}</small>
+              </span>
+              <span>
+                <strong>Autres engagements</strong>
+                <small>{formatCurrency(propertyContext.otherMonthlyCharges)}</small>
               </span>
               <span>
                 <strong>Taux d endettement</strong>
@@ -621,6 +919,11 @@ export default function CreditImmobilierBHPortal() {
               )}
 
               <form key={formResetKey} onSubmit={handleSubmit} noValidate>
+                <div className="bh-progress-strip">
+                  <span>1. Identite client</span>
+                  <span>2. Variables de scoring</span>
+                  <span>3. Pieces justificatives</span>
+                </div>
                 <div className="row g-3">
                   <div className="col-12 col-md-6">
                     <label htmlFor="fullName" className="form-label fw-semibold">Nom complet</label>
@@ -678,6 +981,116 @@ export default function CreditImmobilierBHPortal() {
                     />
                   </div>
 
+                  <div className="col-12">
+                    <div className="bh-form-section bh-scoring-panel">
+                      <div className="bh-section-title">
+                        <span>2</span>
+                        <strong>Variables necessaires au scoring bancaire</strong>
+                      </div>
+
+                      <div className="row g-3">
+                        <div className="col-12 col-md-6">
+                          <label htmlFor="scoringAnnualIncome" className="form-label fw-semibold">
+                            Revenu annuel a retenir (DT)
+                          </label>
+                          <input
+                            id="scoringAnnualIncome"
+                            name="scoringAnnualIncome"
+                            type="number"
+                            min="0"
+                            className="form-control"
+                            value={formData.scoringAnnualIncome}
+                            onChange={handleInputChange}
+                            disabled={submitting}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label htmlFor="scoringAnnualCharges" className="form-label fw-semibold">
+                            Charges annuelles de remboursement (DT)
+                          </label>
+                          <input
+                            id="scoringAnnualCharges"
+                            name="scoringAnnualCharges"
+                            type="number"
+                            min="0"
+                            className="form-control"
+                            value={formData.scoringAnnualCharges}
+                            onChange={handleInputChange}
+                            disabled={submitting}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label htmlFor="otherMonthlyCharges" className="form-label fw-semibold">
+                            Autres mensualites en cours (DT)
+                          </label>
+                          <input
+                            id="otherMonthlyCharges"
+                            name="otherMonthlyCharges"
+                            type="number"
+                            min="0"
+                            className="form-control"
+                            value={formData.otherMonthlyCharges}
+                            onChange={handleInputChange}
+                            disabled={submitting}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label htmlFor="familySituation" className="form-label fw-semibold">
+                            Situation familiale
+                          </label>
+                          <select
+                            id="familySituation"
+                            name="familySituation"
+                            className="form-select"
+                            value={formData.familySituation}
+                            onChange={handleInputChange}
+                            disabled={submitting}
+                          >
+                            <option value="">A completer depuis le dossier si absent</option>
+                            <option value="celibataire">Celibataire</option>
+                            <option value="marie sans enfant">Marie sans enfant</option>
+                            <option value="marie avec enfant">Marie avec enfant</option>
+                            <option value="divorce">Divorce</option>
+                            <option value="veuf">Veuf</option>
+                          </select>
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label htmlFor="contractType" className="form-label fw-semibold">
+                            Situation contractuelle
+                          </label>
+                          <select
+                            id="contractType"
+                            name="contractType"
+                            className="form-select"
+                            value={formData.contractType}
+                            onChange={handleInputChange}
+                            disabled={submitting}
+                          >
+                            <option value="">A completer depuis le dossier si absent</option>
+                            <option value="fonctionnaire">Fonctionnaire</option>
+                            <option value="CDI">CDI</option>
+                            <option value="CDD">CDD</option>
+                            <option value="profession liberale">Profession liberale</option>
+                            <option value="independant">Independant</option>
+                            <option value="retraite">Retraite</option>
+                            <option value="stage">Stage</option>
+                            <option value="sans contrat">Sans contrat</option>
+                          </select>
+                        </div>
+
+                        <div className="col-12">
+                          <div className="bh-form-note">
+                            Si une valeur reste vide, l'agent de scoring utilisera les donnees de simulation, les engagements declares et les pieces jointes disponibles.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="col-12 col-md-6">
                     <label htmlFor="rib" className="form-label fw-semibold">RIB bancaire</label>
                     <input
@@ -696,41 +1109,67 @@ export default function CreditImmobilierBHPortal() {
 
                   <div className="col-12">
                     <label className="form-label fw-semibold">Documents requis * (tous les documents doivent être fournis)</label>
-                    <div className="bh-dropzone">
-                      <div className="row g-3">
-                        {requiredDocumentsList.map((doc) => (
-                          <div className="col-12 col-md-6" key={doc.key}>
-                            <div className="bh-upload-group">
-                              <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
-                                <div>
-                                  <label htmlFor={doc.fileInputId} className="bh-upload-label d-block">
-                                    {doc.label}
-                                  </label>
-                                  <small className="text-secondary">{doc.description}</small>
+                    <div className="bh-doc-upload-panel">
+                      <div className="bh-doc-grid">
+                        {requiredDocumentsList.map((doc) => {
+                          const uploadedFileName = uploadedDocuments[doc.key];
+
+                          return (
+                          <article
+                            className={`bh-upload-group ${uploadedFileName ? 'is-uploaded' : ''}`}
+                            key={doc.key}
+                          >
+                              <div className="bh-upload-card-head">
+                                <div className="bh-upload-title">
+                                  <span className="bh-document-icon" aria-hidden="true">
+                                    <FaFileAlt />
+                                  </span>
+                                  <div>
+                                    <h4>{doc.label}</h4>
+                                    <p>{doc.description}</p>
+                                  </div>
                                 </div>
                                 {doc.downloadUrl && (
-                                  <a href={doc.downloadUrl} download className="btn btn-sm btn-outline-primary" title="Télécharger le formulaire">
-                                    ⬇ Télécharger
+                                  <a href={doc.downloadUrl} download className="bh-download-link" title="Telecharger le formulaire">
+                                    <FaDownload aria-hidden="true" />
+                                    Modele
                                   </a>
                                 )}
+                              </div>
+                              <div className="bh-file-control">
+                                <label htmlFor={doc.fileInputId} className="bh-file-action">
+                                  <FaCloudUploadAlt aria-hidden="true" />
+                                  Parcourir
+                                </label>
+                                <span className="bh-file-name">
+                                  {uploadedFileName || 'Aucun fichier selectionne'}
+                                </span>
                               </div>
                               <input
                                 id={doc.fileInputId}
                                 name={doc.fileInputId}
                                 type="file"
-                                className="form-control"
+                                className="bh-file-input"
                                 accept=".pdf,.jpg,.png,.jpeg"
                                 onChange={(event) => handleDocumentChange(doc.key, event)}
                                 disabled={submitting}
                               />
-                              <div className="small mt-1">
-                                {uploadedDocuments[doc.key]
-                                  ? <span className="text-success">✓ Fichier ajouté : {uploadedDocuments[doc.key]}</span>
-                                  : <span className="text-warning">⚠ Non fourni - Formats acceptés : PDF, JPG, PNG, JPEG</span>}
+                              <div className={`bh-upload-status ${uploadedFileName ? 'is-uploaded' : ''}`}>
+                                {uploadedFileName ? (
+                                  <>
+                                    <FaCheckCircle aria-hidden="true" />
+                                    <span>Fichier ajoute</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <FaExclamationTriangle aria-hidden="true" />
+                                    <span>En attente - PDF, JPG, PNG ou JPEG</span>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          </div>
-                        ))}
+                            </article>
+                          );
+                        })}
                       </div>
                     </div>
                     {getMissingRequiredDocuments().length > 0 && (

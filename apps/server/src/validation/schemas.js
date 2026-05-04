@@ -256,6 +256,11 @@ export const creditApplicationCreateBodySchema = z
     personal_contribution: z.coerce.number().finite().min(0).optional().nullable(),
     gross_income: z.coerce.number().finite().min(0).optional().nullable(),
     income_period: z.enum(["monthly", "annual"]).optional().nullable(),
+    revenu_annuel: z.coerce.number().finite().min(0).optional().nullable(),
+    charges_impayees: z.coerce.number().finite().min(0).optional().nullable(),
+    situation_familiale: z.string().trim().max(80).optional().nullable(),
+    situation_contractuelle: z.string().trim().max(80).optional().nullable(),
+    other_monthly_charges: z.coerce.number().finite().min(0).optional().nullable(),
     duration_months: z.coerce.number().int().min(12).max(360).optional().nullable(),
     estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
     estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
@@ -265,6 +270,7 @@ export const creditApplicationCreateBodySchema = z
         z.object({
           type: z.string().trim().min(1).max(64),
           name: z.string().trim().min(1).max(200),
+          extracted_text: z.string().trim().max(4000).optional().nullable(),
         })
       )
       .min(1, "At least one document is required")

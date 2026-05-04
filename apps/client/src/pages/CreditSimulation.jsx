@@ -185,6 +185,9 @@ const CreditSimulation = () => {
     if (Number(formData.grossIncome || 0) > 0) {
       nextParams.set('income', String(Math.round(Number(formData.grossIncome || 0))));
     }
+    if (Number(formData.otherLoansMonthly || 0) > 0) {
+      nextParams.set('otherMonthlyCharges', String(Math.round(Number(formData.otherLoansMonthly || 0))));
+    }
     if (formData.incomePeriod) nextParams.set('incomePeriod', formData.incomePeriod);
     if (Number(formData.durationMonths || 0) > 0) {
       nextParams.set('duration', String(Math.round(Number(formData.durationMonths || 0))));

@@ -45,6 +45,7 @@ import {
   fetchAgentProfileApi,
   isAuthError,
   requireAuthToken,
+  scoreAgentCreditApplicationApi,
   updateAgentCreditApplicationApi,
 } from '../lib/auth';
 import '../styles/AdminDashboard.css';
@@ -222,7 +223,31 @@ function getComplianceLabel(level) {
   if (level === 'solid') return 'Conforme';
   if (level === 'watch') return 'A surveiller';
   if (level === 'risk') return 'Risque';
-  return 'A noter';
+  return 'Score à calculer';
+}
+
+function hasComplianceScore(application) {
+  if (!application || application.compliance_score === null || application.compliance_score === undefined) {
+    return false;
+  }
+
+  return Number.isFinite(Number(application.compliance_score));
+}
+
+function formatComplianceScore(application) {
+  if (!hasComplianceScore(application)) {
+    return 'À calculer';
+  }
+
+  return `${Math.round(Number(application.compliance_score))}/100`;
+}
+
+function getComplianceLabelForApplication(application) {
+  if (!hasComplianceScore(application)) {
+    return 'Score à calculer';
+  }
+
+  return getComplianceLabel(application.compliance_level);
 }
 
 function getInitials(value) {
@@ -512,6 +537,33 @@ export default function AgentDashboard() {
     }
   };
 
+  const handleScoringSubmit = async () => {
+    if (!selectedApplication) {
+      return;
+    }
+
+    try {
+      const token = requireAuthToken();
+      setSubmitting(true);
+      setError('');
+      setFormMessage('');
+
+      await scoreAgentCreditApplicationApi(selectedApplication.id, token);
+
+      setFormMessage("Dossier transmis à l'agent de scoring avec succès.");
+      await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setFormMessage('');
+      setError(requestError.message || "Impossible de passer ce dossier à l'agent de scoring.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="admin-dashboard admin-dashboard--state agent-dashboard">
@@ -751,8 +803,8 @@ export default function AgentDashboard() {
                           <small>{formatPercent(selectedApplication.debt_ratio)}</small>
                         </span>
                         <span>
-                          <strong>Conformité</strong>
-                          <small>{getComplianceLabel(selectedApplication.compliance_level)}</small>
+                          <strong>Score</strong>
+                          <small>{formatComplianceScore(selectedApplication)}</small>
                         </span>
                       </div>
                       <button
@@ -859,7 +911,7 @@ export default function AgentDashboard() {
                             </span>
                             <span>
                               <strong>Score</strong>
-                              <small>{application.compliance_score ?? '-'}</small>
+                              <small>{formatComplianceScore(application)}</small>
                             </span>
                             <span>
                               <strong>Dépôt</strong>
@@ -894,10 +946,37 @@ export default function AgentDashboard() {
                             {formatStatus(selectedApplication.status)}
                           </span>
                           <span className={`agent-score-pill level-${selectedApplication.compliance_level}`}>
-                            {getComplianceLabel(selectedApplication.compliance_level)}
+                            {getComplianceLabelForApplication(selectedApplication)}
                           </span>
                         </div>
                       </div>
+
+                      <div className={`agent-treatment-panel ${hasComplianceScore(selectedApplication) ? 'has-score' : 'is-pending'}`}>
+                        <div className="agent-treatment-score">
+                          <strong>{formatComplianceScore(selectedApplication)}</strong>
+                          <span>
+                            {hasComplianceScore(selectedApplication)
+                              ? 'Score calculé par l’agent de scoring'
+                              : 'Aucun score calculé pour ce dossier'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-refresh agent-treatment-button"
+                          onClick={handleScoringSubmit}
+                          disabled={submitting}
+                        >
+                          <FaSyncAlt className={submitting ? 'spin' : undefined} />
+                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le score' : 'Traiter ce dossier'}</span>
+                        </button>
+                      </div>
+
+                      <div className="agent-detail-accordion">
+                        <details className="agent-detail-section" open>
+                          <summary>
+                            <FaIdCard />
+                            <span>Resume client</span>
+                          </summary>
 
                       <div className="agent-info-grid">
                         <span><FaEnvelope /> {selectedApplication.email}</span>
@@ -929,6 +1008,50 @@ export default function AgentDashboard() {
                         </div>
                       </div>
 
+                        </details>
+
+                        <details className="agent-detail-section">
+                          <summary>
+                            <FaMoneyCheckAlt />
+                            <span>Scoring</span>
+                          </summary>
+
+                      <div className="agent-scoring-grid">
+                        <div className="agent-finance-card">
+                          <strong>Revenu annuel scoring</strong>
+                          <span>{formatCurrency(selectedApplication.revenu_annuel)}</span>
+                        </div>
+                        <div className="agent-finance-card">
+                          <strong>Charges annuelles scoring</strong>
+                          <span>{formatCurrency(selectedApplication.charges_impayees)}</span>
+                        </div>
+                        <div className="agent-finance-card">
+                          <strong>Situation familiale</strong>
+                          <span>{selectedApplication.situation_familiale || 'A verifier'}</span>
+                        </div>
+                        <div className="agent-finance-card">
+                          <strong>Situation contractuelle</strong>
+                          <span>{selectedApplication.situation_contractuelle || 'A verifier'}</span>
+                        </div>
+                      </div>
+
+                        <button
+                          type="button"
+                          className="admin-secondary agent-scoring-action agent-panel-action"
+                          onClick={handleScoringSubmit}
+                          disabled={submitting}
+                        >
+                          <FaSyncAlt className={submitting ? 'spin' : undefined} />
+                          <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Passer au scoring'}</span>
+                        </button>
+                        </details>
+
+                        <details className="agent-detail-section">
+                          <summary>
+                            <FaFolderOpen />
+                            <span>Pieces</span>
+                          </summary>
+
                       <div className="agent-document-block">
                         <h3>Documents déclarés</h3>
                         {selectedApplication.documents?.length ? (
@@ -943,6 +1066,14 @@ export default function AgentDashboard() {
                           <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>
                         )}
                       </div>
+
+                        </details>
+
+                        <details className="agent-detail-section">
+                          <summary>
+                            <FaFileSignature />
+                            <span>Decision</span>
+                          </summary>
 
                       <div className="agent-review-form">
                         <label className="admin-field-block">
@@ -1048,6 +1179,8 @@ export default function AgentDashboard() {
                       >
                         {submitting ? 'Traitement...' : 'Enregistrer les modifications'}
                       </button>
+                        </details>
+                      </div>
                     </>
                   ) : (
                     <div className="admin-state admin-state--inline">

@@ -63,7 +63,13 @@ function normalizeDocumentNames(documents) {
   }
 
   return documents
-    .map((item) => String(item || "").trim())
+    .map((item) => {
+      if (typeof item === "object" && item !== null) {
+        return String(item.name || "").trim();
+      }
+
+      return String(item || "").trim();
+    })
     .filter(Boolean)
     .slice(0, 40);
 }
@@ -139,6 +145,25 @@ function parseTypedDocuments(rawValue) {
   }
 }
 
+async function ensureCreditApplicationColumn(columnName, columnDefinition) {
+  const [[row]] = await dbPool.execute(
+    `
+    SELECT COUNT(*) AS column_count
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?
+    `,
+    [CREDIT_APPLICATION_TABLE, columnName]
+  );
+
+  if (Number(row?.column_count || 0) === 0) {
+    await dbPool.query(
+      `ALTER TABLE ${CREDIT_APPLICATION_TABLE} ADD COLUMN ${columnName} ${columnDefinition}`
+    );
+  }
+}
+
 function getComplianceLevel(score) {
   const normalizedScore = normalizeOptionalInteger(score);
 
@@ -190,6 +215,11 @@ function toPublicCreditApplication(row) {
     personal_contribution_value: normalizeOptionalNumber(row.personal_contribution_value),
     gross_income_value: normalizeOptionalNumber(row.gross_income_value),
     income_period: row.income_period,
+    revenu_annuel: normalizeOptionalNumber(row.scoring_annual_income),
+    charges_impayees: normalizeOptionalNumber(row.scoring_annual_charges),
+    situation_familiale: row.family_situation,
+    situation_contractuelle: row.contract_type,
+    other_monthly_charges: normalizeOptionalNumber(row.other_monthly_charges),
     duration_months: normalizeOptionalInteger(row.duration_months),
     estimated_monthly_payment: normalizeOptionalNumber(row.estimated_monthly_payment),
     estimated_rate: normalizeOptionalNumber(row.estimated_rate),
@@ -258,6 +288,11 @@ async function ensureCreditApplicationTables() {
       personal_contribution_value DECIMAL(14, 2) NULL,
       gross_income_value DECIMAL(14, 2) NULL,
       income_period VARCHAR(16) NULL,
+      scoring_annual_income DECIMAL(14, 2) NULL,
+      scoring_annual_charges DECIMAL(14, 2) NULL,
+      family_situation VARCHAR(80) NULL,
+      contract_type VARCHAR(80) NULL,
+      other_monthly_charges DECIMAL(14, 2) NULL,
       duration_months INT NULL,
       estimated_monthly_payment DECIMAL(14, 2) NULL,
       estimated_rate DECIMAL(8, 3) NULL,
@@ -292,6 +327,12 @@ async function ensureCreditApplicationTables() {
     WHERE status <> UPPER(status)
        OR LOWER(status) IN ('submitted', 'documents_pending', 'under_review', 'approved', 'rejected')
   `);
+
+  await ensureCreditApplicationColumn("scoring_annual_income", "DECIMAL(14, 2) NULL");
+  await ensureCreditApplicationColumn("scoring_annual_charges", "DECIMAL(14, 2) NULL");
+  await ensureCreditApplicationColumn("family_situation", "VARCHAR(80) NULL");
+  await ensureCreditApplicationColumn("contract_type", "VARCHAR(80) NULL");
+  await ensureCreditApplicationColumn("other_monthly_charges", "DECIMAL(14, 2) NULL");
 
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS ${CREDIT_APPLICATION_HISTORY_TABLE} (
@@ -361,6 +402,11 @@ const CREDIT_APPLICATION_SELECT_COLUMNS = `
   ca.personal_contribution_value,
   ca.gross_income_value,
   ca.income_period,
+  ca.scoring_annual_income,
+  ca.scoring_annual_charges,
+  ca.family_situation,
+  ca.contract_type,
+  ca.other_monthly_charges,
   ca.duration_months,
   ca.estimated_monthly_payment,
   ca.estimated_rate,
@@ -446,6 +492,11 @@ export async function createCreditApplication({
   personalContribution,
   grossIncome,
   incomePeriod,
+  revenuAnnuel,
+  chargesImpayees,
+  familySituation,
+  contractType,
+  otherMonthlyCharges,
   durationMonths,
   estimatedMonthlyPayment,
   estimatedRate,
@@ -473,6 +524,11 @@ export async function createCreditApplication({
   const normalizedPersonalContribution = normalizeOptionalNumber(personalContribution);
   const normalizedGrossIncome = normalizeOptionalNumber(grossIncome);
   const normalizedIncomePeriod = normalizeOptionalString(incomePeriod);
+  const normalizedScoringAnnualIncome = normalizeOptionalNumber(revenuAnnuel);
+  const normalizedScoringAnnualCharges = normalizeOptionalNumber(chargesImpayees);
+  const normalizedFamilySituation = normalizeOptionalString(familySituation);
+  const normalizedContractType = normalizeOptionalString(contractType);
+  const normalizedOtherMonthlyCharges = normalizeOptionalNumber(otherMonthlyCharges);
   const normalizedDurationMonths = normalizeOptionalInteger(durationMonths);
   const normalizedEstimatedMonthlyPayment = normalizeOptionalNumber(estimatedMonthlyPayment);
   const normalizedEstimatedRate = normalizeOptionalNumber(estimatedRate);
@@ -536,6 +592,11 @@ export async function createCreditApplication({
         personal_contribution_value,
         gross_income_value,
         income_period,
+        scoring_annual_income,
+        scoring_annual_charges,
+        family_situation,
+        contract_type,
+        other_monthly_charges,
         duration_months,
         estimated_monthly_payment,
         estimated_rate,
@@ -546,7 +607,7 @@ export async function createCreditApplication({
         document_names_json,
         documents_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         normalizedClientUserId,
@@ -566,6 +627,11 @@ export async function createCreditApplication({
         normalizedPersonalContribution,
         normalizedGrossIncome,
         normalizedIncomePeriod,
+        normalizedScoringAnnualIncome,
+        normalizedScoringAnnualCharges,
+        normalizedFamilySituation,
+        normalizedContractType,
+        normalizedOtherMonthlyCharges,
         normalizedDurationMonths,
         normalizedEstimatedMonthlyPayment,
         normalizedEstimatedRate,
@@ -721,6 +787,120 @@ export async function fetchAgentCreditApplicationSummary() {
     REFUSE: Number(row?.REFUSE || 0),
     average_compliance_score: normalizeOptionalInteger(row?.average_compliance_score) || 0,
   };
+}
+
+export async function fetchCreditApplicationById(applicationId) {
+  const normalizedApplicationId = Number(applicationId);
+
+  if (!normalizedApplicationId) {
+    throw httpError(400, "Invalid credit application id");
+  }
+
+  const row = await findCreditApplicationRowById(normalizedApplicationId);
+
+  if (!row) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  return toPublicCreditApplication(row);
+}
+
+export async function updateCreditApplicationScoring(
+  applicationId,
+  { scoringResult, agentUserId, nextStatus }
+) {
+  const normalizedApplicationId = Number(applicationId);
+  const normalizedAgentUserId = Number(agentUserId);
+
+  if (!normalizedApplicationId) {
+    throw httpError(400, "Invalid credit application id");
+  }
+
+  if (!normalizedAgentUserId) {
+    throw httpError(401, "Invalid agent session");
+  }
+
+  const currentRow = await findCreditApplicationRowById(normalizedApplicationId);
+
+  if (!currentRow) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  const scoringRequest = scoringResult?.scoring_request_data || {};
+  const fallbackStatus =
+    scoringResult?.decision === "ACCEPTE"
+      ? "ACCEPTE"
+      : scoringResult?.decision === "REFUSE"
+        ? "REFUSE"
+        : "EN_VERIFICATION";
+  const normalizedNextStatus = normalizeCreditApplicationStatus(
+    nextStatus || fallbackStatus
+  );
+  const currentStatus = normalizeCreditApplicationStatus(currentRow.status);
+  assertValidCreditApplicationStatus(normalizedNextStatus);
+  assertStatusTransition(currentStatus, normalizedNextStatus);
+
+  const reviewedAtValue = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const complianceSummary = normalizeOptionalString(
+    scoringResult?.complianceSummary || scoringResult?.summary || scoringResult?.resume
+  );
+  let connection = null;
+
+  try {
+    connection = await dbPool.getConnection();
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `
+      UPDATE ${CREDIT_APPLICATION_TABLE}
+      SET status = ?,
+          compliance_score = ?,
+          compliance_summary = ?,
+          scoring_annual_income = ?,
+          scoring_annual_charges = ?,
+          family_situation = ?,
+          contract_type = ?,
+          assigned_agent_user_id = ?,
+          reviewed_at = ?
+      WHERE id = ?
+      `,
+      [
+        normalizedNextStatus,
+        normalizeOptionalInteger(scoringResult?.score),
+        complianceSummary,
+        normalizeOptionalNumber(scoringRequest.revenu_annuel),
+        normalizeOptionalNumber(scoringRequest.charges_impayees),
+        normalizeOptionalString(scoringRequest.situation_familiale),
+        normalizeOptionalString(scoringRequest.situation_contractuelle),
+        normalizedAgentUserId,
+        reviewedAtValue,
+        normalizedApplicationId,
+      ]
+    );
+
+    await appendCreditApplicationHistory(connection, {
+      applicationId: normalizedApplicationId,
+      action: "scoring_requested",
+      previousStatus: currentStatus,
+      nextStatus: normalizedNextStatus,
+      comment: complianceSummary || "Dossier transmis à l'agent de scoring.",
+      agentUserId: normalizedAgentUserId,
+    });
+
+    await connection.commit();
+
+    const updatedRow = await findCreditApplicationRowById(normalizedApplicationId);
+    return toPublicCreditApplication(updatedRow);
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    throw error;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
 }
 
 export async function updateCreditApplicationReview(

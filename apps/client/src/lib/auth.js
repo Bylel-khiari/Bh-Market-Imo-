@@ -428,6 +428,13 @@ export async function updateAgentCreditApplicationApi(applicationId, input, toke
   });
 }
 
+export async function scoreAgentCreditApplicationApi(applicationId, token) {
+  return authorizedJsonRequest(`/api/agent/credit-applications/${applicationId}/score`, token, {
+    method: 'POST',
+    body: {},
+  });
+}
+
 export function clearAuthSession() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   notifyAuthSessionChanged(null);
