@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaCalculator, FaHome, FaMoneyCheckAlt, FaPercent, FaUserClock } from 'react-icons/fa';
+import { safeRecordClientActivity } from '../lib/auth';
 import '../styles/CreditSimulation.css';
 
 const MAX_MATURITY_AGE = 75;
@@ -90,6 +91,26 @@ const CreditSimulation = () => {
     return tmm + 2.5;
   };
 
+  const trackClientCreditEvent = (eventType, metadata = {}) => {
+    const propertyId = formData.propertyId ? String(formData.propertyId) : null;
+
+    safeRecordClientActivity({
+      event_type: eventType,
+      page: '/credit-simulation',
+      target_type: propertyId ? 'property' : null,
+      target_id: propertyId,
+      metadata: {
+        funding_type: formData.fundingType,
+        socio_category: formData.socioCategory,
+        property_title: formData.propertyTitle || null,
+        property_price: Number(formData.propertyPrice || 0) || null,
+        credit_amount: Number(formData.creditAmount || 0) || null,
+        duration_months: Number(formData.durationMonths || 0) || null,
+        ...metadata,
+      },
+    });
+  };
+
   const calculateSimulation = () => {
     const amount = Number(formData.creditAmount || 0);
     const durationMonths = Number(formData.durationMonths || 0);
@@ -99,6 +120,10 @@ const CreditSimulation = () => {
 
     if (amount <= 0 || durationMonths <= 0 || monthlyIncome <= 0) {
       setSimulationResult(null);
+      trackClientCreditEvent('credit_simulation_calculate', {
+        valid: false,
+        monthly_income: monthlyIncome > 0 ? monthlyIncome : null,
+      });
       return;
     }
 
@@ -152,6 +177,14 @@ const CreditSimulation = () => {
       checks,
       eligible,
     });
+    trackClientCreditEvent('credit_simulation_calculate', {
+      valid: true,
+      monthly_income: monthlyIncome,
+      monthly_payment: Math.round(mensualite),
+      debt_ratio: Number(debtRatio.toFixed(2)),
+      applied_rate: Number(yearlyRate.toFixed(3)),
+      eligible,
+    });
   };
 
   const formatCurrency = (value) => `${new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(value)} DT`;
@@ -171,6 +204,13 @@ const CreditSimulation = () => {
     if (!simulationResult) {
       return;
     }
+
+    trackClientCreditEvent('credit_request_start', {
+      source: 'simulation_result',
+      monthly_payment: Number(simulationResult.monthlyPayment.toFixed(2)),
+      debt_ratio: Number(simulationResult.debtRatio.toFixed(2)),
+      eligible: simulationResult.eligible,
+    });
 
     const nextParams = new URLSearchParams();
 

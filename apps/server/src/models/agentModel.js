@@ -1,4 +1,5 @@
 import { dbPool } from "../config/db.js";
+import { fetchClientActivityDashboard } from "./clientActivityLogModel.js";
 
 const DEFAULT_MONTH_WINDOW = 12;
 const DEFAULT_ROLE_TOTALS = {
@@ -107,6 +108,7 @@ export async function fetchAgentDashboardSummary() {
     [reportTrendRows],
     [latestUserRows],
     [latestRequestRows],
+    clientActivity,
   ] = await Promise.all([
     dbPool.query("SELECT role, COUNT(*) AS total FROM users GROUP BY role"),
     dbPool.query(`
@@ -191,6 +193,7 @@ export async function fetchAgentDashboardSummary() {
       ORDER BY r.created_at DESC, r.id DESC
       LIMIT 6
     `),
+    fetchClientActivityDashboard({ monthCount: DEFAULT_MONTH_WINDOW, limit: 8 }),
   ]);
 
   const roleTotals = roleRows.reduce(
@@ -281,5 +284,6 @@ export async function fetchAgentDashboardSummary() {
       priority: row.priority,
       created_at: row.created_at,
     })),
+    client_activity: clientActivity,
   };
 }

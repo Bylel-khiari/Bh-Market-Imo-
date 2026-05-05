@@ -1,49 +1,69 @@
 /**
- * Generates a French message based on the application status
+ * Generates a French message based on the application status.
  */
 function getStatusMessage(application) {
   const statusMessages = {
     SOUMIS: "Votre demande a été reçue et sera examinée par notre équipe bancaire.",
     DOCUMENTS_MANQUANTS: "Nous avons besoin de documents supplémentaires pour traiter votre demande.",
-    EN_VERIFICATION: "Votre demande est en cours de vérification par notre agent de scoring.",
+    EN_VERIFICATION: "Votre demande est en cours de vérification par notre équipe bancaire.",
     EN_ETUDE: "Votre demande est en étude approfondie par notre équipe bancaire.",
-    ACCEPTE: "✓ Félicitations! Votre demande de crédit a été ACCEPTÉE.",
-    REFUSE: "✗ Malheureusement, votre demande de crédit a été REFUSÉE.",
+    ACCEPTE: "Votre demande de crédit a été acceptée.",
+    REFUSE: "Votre demande de crédit a été refusée.",
   };
 
   return statusMessages[application?.status] || "Statut de votre demande en cours d'actualisation.";
 }
 
 /**
- * Generates detailed scoring feedback in French
+ * Generates the public client-facing decision text.
  */
-function getScoringFeedback(application) {
-  if (!application?.compliance_summary) {
-    return null;
+function getClientDecisionMessage(application) {
+  if (application?.status === "ACCEPTE") {
+    return "Votre demande a été acceptée après analyse bancaire. Un conseiller BH vous contactera pour les prochaines étapes.";
   }
 
+  if (application?.status === "REFUSE") {
+    return "Votre demande n'a pas été retenue après analyse bancaire. Vous pouvez contacter votre agence pour plus d'informations.";
+  }
+
+  return getStatusMessage(application);
+}
+
+function toClientCreditApplication(application) {
+  if (!application) return null;
+
+  const {
+    assigned_agent_user_id,
+    compliance_score,
+    compliance_level,
+    compliance_summary,
+    agent_note,
+    decision_motif,
+    gross_income_value,
+    income_period,
+    revenu_annuel,
+    charges_impayees,
+    situation_familiale,
+    situation_contractuelle,
+    other_monthly_charges,
+    debt_ratio,
+    ...clientApplication
+  } = application;
+
   return {
-    score: application.compliance_score,
-    level: {
-      75: "Excellent",
-      50: "Acceptable",
-      0: "À revoir",
-    }[application.compliance_score >= 75 ? 75 : application.compliance_score >= 50 ? 50 : 0],
-    summary: application.compliance_summary,
+    ...clientApplication,
+    statusMessage: getStatusMessage(application),
+    client_decision_message: getClientDecisionMessage(application),
   };
 }
 
 export function renderCreatedCreditApplication(res, application) {
   const message = getStatusMessage(application);
-  const feedback = getScoringFeedback(application);
 
   return res.status(201).json({
-    message: feedback
-      ? "Votre demande de crédit a été reçue avec succès. Le score a été calculé et sera vérifié par un agent bancaire."
-      : "Votre demande de crédit a été reçue avec succès.",
+    message: "Votre demande de crédit a été reçue avec succès.",
     statusMessage: message,
-    scoring: feedback,
-    application,
+    application: toClientCreditApplication(application),
   });
 }
 
@@ -51,10 +71,7 @@ export function renderClientCreditApplicationList(res, payload) {
   const applications = Array.isArray(payload?.applications) ? payload.applications : [];
   return res.json({
     count: applications.length,
-    applications: applications.map((app) => ({
-      ...app,
-      statusMessage: getStatusMessage(app),
-    })),
+    applications: applications.map(toClientCreditApplication),
   });
 }
 

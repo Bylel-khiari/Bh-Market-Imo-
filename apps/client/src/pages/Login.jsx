@@ -27,7 +27,7 @@ const Login = () => {
       return '/agent/dashboard';
     }
 
-    return '/';
+    return '/mes-demandes';
   };
 
   const handleSubmit = async (e) => {
@@ -43,6 +43,7 @@ const Login = () => {
 
     try {
       const payload = await loginApi({ email: identifier.trim(), password });
+
       saveAuthSession({ token: payload.token, user: payload.user });
       navigate(resolveDestination(payload.user), { replace: true });
     } catch (error) {
@@ -96,7 +97,7 @@ const Login = () => {
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Connexion</h2>
-            <p>Accédez à votre espace client</p>
+            <p>Accédez à votre espace BH Market Imo</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>

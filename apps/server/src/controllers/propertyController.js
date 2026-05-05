@@ -11,7 +11,11 @@ import {
 } from "../views/propertyView.js";
 
 export async function listProperties(req, res) {
-  const rows = await fetchProperties({ limit: req.query.limit, city: req.query.city });
+  const rows = await fetchProperties({
+    limit: req.query.limit,
+    city: req.query.city,
+    all: req.query.all === "1" || req.query.all === "true",
+  });
   return renderPropertyList(res, rows);
 }
 

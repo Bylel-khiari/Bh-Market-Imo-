@@ -163,9 +163,6 @@ const Properties = () => {
       const city = (property.city || '').toLowerCase();
       const rawLocation = (property.location_raw || '').toLowerCase();
       const source = (property.source || '').toLowerCase();
-      const type = inferTypeFromTitle(property.title);
-      const priceValue = Number(property.price_value);
-      const normalizedPrice = Number.isFinite(priceValue) && priceValue > 0 ? priceValue : null;
 
       const matchesQuery =
         !searchQuery ||

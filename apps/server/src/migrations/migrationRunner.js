@@ -103,6 +103,28 @@ async function createAuditLogTable() {
   `);
 }
 
+async function createClientActivityLogTable() {
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS client_activity_logs (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      client_user_id BIGINT UNSIGNED NOT NULL,
+      event_type VARCHAR(80) NOT NULL,
+      event_label VARCHAR(120) NULL,
+      page VARCHAR(255) NULL,
+      target_type VARCHAR(80) NULL,
+      target_id VARCHAR(120) NULL,
+      ip_address VARCHAR(64) NULL,
+      user_agent VARCHAR(255) NULL,
+      metadata_json LONGTEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_client_activity_logs_client_created_at (client_user_id, created_at),
+      KEY idx_client_activity_logs_event_created_at (event_type, created_at),
+      KEY idx_client_activity_logs_created_at (created_at)
+    )
+  `);
+}
+
 async function createScraperRunTables() {
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS scraper_run_history (
@@ -248,6 +270,11 @@ const migrations = [
     version: "202605030007",
     name: "scraper-run-history",
     up: createScraperRunTables,
+  },
+  {
+    version: "202605030008",
+    name: "client-activity-logs",
+    up: createClientActivityLogTable,
   },
 ];
 

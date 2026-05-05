@@ -8,6 +8,10 @@ import {
   updateCreditApplicationReview,
 } from "../models/creditApplicationModel.js";
 import {
+  CLIENT_ACTIVITY_EVENT_TYPES,
+  recordClientActivityLog,
+} from "../models/clientActivityLogModel.js";
+import {
   renderAgentCreditApplicationList,
   renderClientCreditApplicationList,
   renderCreatedCreditApplication,
@@ -99,6 +103,19 @@ export async function submitCreditApplication(req, res) {
     complianceSummary: applicationStatus?.complianceSummary,
     initialStatus: applicationStatus?.status,
     scoringResult: scoringResult,
+  });
+
+  await recordClientActivityLog(req, {
+    eventType: CLIENT_ACTIVITY_EVENT_TYPES.CREDIT_APPLICATION_SUBMIT,
+    page: "/credit-immobilier-bh",
+    targetType: "credit_application",
+    targetId: application?.id,
+    metadata: {
+      property_id: applicationData.propertyId || null,
+      requested_amount: applicationData.requestedAmount || null,
+      initial_status: application?.status || null,
+      scoring_available: Boolean(scoringResult),
+    },
   });
 
   return renderCreatedCreditApplication(res, application);

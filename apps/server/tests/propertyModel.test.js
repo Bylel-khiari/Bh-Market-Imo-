@@ -16,6 +16,35 @@ beforeEach(() => {
 });
 
 describe("propertyModel admin pagination", () => {
+  it("can fetch all active public properties without a hard limit", async () => {
+    executeMock.mockResolvedValueOnce([
+      [
+        {
+          id: 12,
+          title: "Appartement S+2",
+          price_raw: "320 000 DT",
+          price_value: "320000.00",
+          location_raw: "Tunis",
+          city: "Tunis",
+          governorate: "Tunis",
+          country: "Tunisie",
+          image: null,
+          description: null,
+          source: "admin",
+          url: null,
+          scraped_at: null,
+        },
+      ],
+      [],
+    ]);
+
+    const { fetchProperties } = await import("../src/models/propertyModel.js");
+    const properties = await fetchProperties({ all: true });
+
+    expect(properties).toHaveLength(1);
+    expect(executeMock.mock.calls[0][0]).not.toContain("LIMIT");
+  });
+
   it("applies server-side pagination, status, and search filters", async () => {
     executeMock
       .mockResolvedValueOnce([[{ total: 123 }], []])

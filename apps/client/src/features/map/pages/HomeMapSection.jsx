@@ -19,7 +19,7 @@ export default function HomeMapSection() {
         setError('');
 
         const rows = await fetchPropertyRows({
-          limit: 5000,
+          all: true,
           signal: controller.signal,
         });
 

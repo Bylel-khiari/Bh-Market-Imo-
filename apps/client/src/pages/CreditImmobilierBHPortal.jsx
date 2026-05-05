@@ -7,7 +7,7 @@ import {
   FaFileAlt,
 } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getAuthSession, submitCreditApplicationApi } from '../lib/auth';
+import { getAuthSession, safeRecordClientActivity, submitCreditApplicationApi } from '../lib/auth';
 
 // Document types configuration - must match backend documentTypes.js
 const DOCUMENT_TYPES = {
@@ -226,6 +226,23 @@ export default function CreditImmobilierBHPortal() {
     }));
   };
 
+  const trackCreditApplicationEvent = (eventType, metadata = {}) => {
+    const propertyId = propertyContext.propertyId ? String(propertyContext.propertyId) : null;
+
+    safeRecordClientActivity({
+      event_type: eventType,
+      page: '/credit-immobilier-bh',
+      target_type: propertyId ? 'property' : null,
+      target_id: propertyId,
+      metadata: {
+        property_title: propertyContext.propertyTitle || null,
+        requested_amount: propertyContext.requestedAmount || null,
+        property_price: propertyContext.propertyPrice || null,
+        ...metadata,
+      },
+    });
+  };
+
   const getMissingRequiredDocuments = () => {
     return REQUIRED_DOCUMENT_KEYS.filter(key => !uploadedDocuments[key]);
   };
@@ -234,6 +251,9 @@ export default function CreditImmobilierBHPortal() {
     setSuccessMessage('');
     setErrorMessage('');
     setIsSubmissionOpen(true);
+    trackCreditApplicationEvent('credit_application_form_open', {
+      has_authenticated_client: Boolean(authSession?.token && authSession?.user?.role === 'client'),
+    });
   };
 
   const closeSubmissionModal = () => {
@@ -247,7 +267,9 @@ export default function CreditImmobilierBHPortal() {
     setErrorMessage('');
 
     if (!authSession?.token) {
-      navigate('/login', { state: { from: `/credit-immobilier-bh${location.search}` } });
+      navigate('/login', {
+        state: { from: `/credit-immobilier-bh${location.search}` },
+      });
       return;
     }
 
@@ -866,7 +888,11 @@ export default function CreditImmobilierBHPortal() {
               <button
                 type="button"
                 className="btn btn-outline-primary btn-lg"
-                onClick={() => navigate('/login', { state: { from: `/credit-immobilier-bh${location.search}` } })}
+                onClick={() =>
+                  navigate('/login', {
+                    state: { from: `/credit-immobilier-bh${location.search}` },
+                  })
+                }
               >
                 Se connecter avant le dépôt
               </button>

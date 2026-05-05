@@ -288,8 +288,9 @@ async function getNextAdminPropertyId(connection) {
   return Math.max(maxAdminId, ADMIN_PROPERTY_ID_START - 1) + 1;
 }
 
-export async function fetchProperties({ limit = 24, city = "" } = {}) {
-  const boundedLimit = toBoundedLimit(limit, 24, MAX_PROPERTIES_LIMIT);
+export async function fetchProperties({ limit = 24, city = "", all = false } = {}) {
+  const shouldFetchAll = all === true || all === "1" || all === "true";
+  const boundedLimit = shouldFetchAll ? null : toBoundedLimit(limit, 24, MAX_PROPERTIES_LIMIT);
   const normalizedCity = String(city || "").trim().toLowerCase();
 
   let sql = `
@@ -308,8 +309,11 @@ export async function fetchProperties({ limit = 24, city = "" } = {}) {
 
   sql += `
     ORDER BY COALESCE(p.admin_updated_at, p.manual_scraped_at, p.scraped_at, NOW()) DESC, p.id DESC
-    LIMIT ${boundedLimit}
   `;
+
+  if (boundedLimit !== null) {
+    sql += ` LIMIT ${boundedLimit}`;
+  }
 
   const [rows] = await dbPool.execute(sql, params);
   return rows.map(toPublicProperty);

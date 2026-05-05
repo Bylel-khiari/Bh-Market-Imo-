@@ -778,14 +778,26 @@ export async function fetchAgentCreditApplications({
     const likeValue = `%${normalizedSearch}%`;
     whereClauses.push(`
       (
-        ca.full_name LIKE ?
+        CAST(ca.id AS CHAR) LIKE ?
+        OR ca.full_name LIKE ?
         OR ca.email LIKE ?
         OR ca.phone LIKE ?
         OR ca.cin LIKE ?
+        OR client.name LIKE ?
+        OR client.email LIKE ?
         OR COALESCE(p.manual_title, p.title, ca.property_title_snapshot) LIKE ?
       )
     `);
-    params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
+    params.push(
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue
+    );
   }
 
   const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";

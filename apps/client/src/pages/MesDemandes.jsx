@@ -94,29 +94,32 @@ function formatMoney(value, fallback = 'Non renseigné') {
   return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
 }
 
-function formatPercent(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? `${numeric.toFixed(1)}%` : 'Non renseigné';
-}
-
 function displayValue(value, fallback = 'Non renseigné') {
   if (value === undefined || value === null || value === '') return fallback;
   return String(value);
 }
 
-function getDecisionMotif(application) {
+function getClientBankMessage(application) {
   if (!application) return null;
 
-  return (
-    application.decision_motif ||
-    application.agent_note ||
-    application.compliance_summary ||
-    (application.status === 'ACCEPTE'
-      ? 'Demande acceptée après analyse bancaire.'
-      : application.status === 'REFUSE'
-        ? 'Demande refusée après analyse bancaire.'
-        : null)
-  );
+  if (application.client_decision_message) {
+    return application.client_decision_message;
+  }
+
+  if (application.status === 'ACCEPTE') {
+    return 'Votre demande a été acceptée après analyse bancaire. Un conseiller BH vous contactera pour les prochaines étapes.';
+  }
+
+  if (application.status === 'REFUSE') {
+    return "Votre demande n'a pas été retenue après analyse bancaire. Vous pouvez contacter votre agence pour plus d'informations.";
+  }
+
+  return application.statusMessage || 'Votre dossier est en cours de traitement par la banque.';
+}
+
+function getBankReviewState(application) {
+  if (!application?.status) return 'En cours';
+  return FINAL_STATUSES.has(application.status) ? 'Finalisée' : 'En cours';
 }
 
 function getApplicationTitle(application) {
@@ -231,7 +234,6 @@ const MesDemandes = () => {
 
   const selectedStatus = getStatusMeta(selectedApplication?.status);
   const SelectedStatusIcon = selectedStatus.icon;
-  const decisionMotif = getDecisionMotif(selectedApplication);
   const selectedDocuments = selectedApplication?.typed_documents?.length
     ? selectedApplication.typed_documents
     : (selectedApplication?.documents || []).map((name) => ({ name, type: 'Document' }));
@@ -249,9 +251,6 @@ const MesDemandes = () => {
             <span className="mes-demandes-readonly-pill">
               <FaLock /> Dossiers non modifiables
             </span>
-            <Link to="/credit-immobilier-bh" className="mes-demandes-new-link">
-              Nouvelle demande
-            </Link>
           </div>
         </header>
 
@@ -289,7 +288,7 @@ const MesDemandes = () => {
                 {' '}
                 {getStatusMeta(latestNotification.status).label}
               </h2>
-              <p>{getDecisionMotif(latestNotification)}</p>
+              <p>{getClientBankMessage(latestNotification)}</p>
             </div>
           </section>
         ) : null}
@@ -367,13 +366,8 @@ const MesDemandes = () => {
 
               <div className="mes-demandes-decision-row">
                 <div>
-                  <span>Score bancaire</span>
-                  <strong>
-                    {selectedApplication.compliance_score === null ||
-                    selectedApplication.compliance_score === undefined
-                      ? 'À calculer'
-                      : `${selectedApplication.compliance_score}/100`}
-                  </strong>
+                  <span>Analyse bancaire</span>
+                  <strong>{getBankReviewState(selectedApplication)}</strong>
                 </div>
                 <div>
                   <span>Décision</span>
@@ -388,11 +382,11 @@ const MesDemandes = () => {
               <article className="mes-demandes-motif-card">
                 <div className="mes-demandes-card-title">
                   <FaUniversity />
-                  <h3>Motif bancaire</h3>
+                  <h3>Suivi bancaire</h3>
                 </div>
                 <p>
-                  {decisionMotif ||
-                    'Le motif sera affiché après la décision finale de la banque.'}
+                  {getClientBankMessage(selectedApplication) ||
+                    'Votre dossier est en cours de traitement par la banque.'}
                 </p>
               </article>
 
@@ -427,15 +421,6 @@ const MesDemandes = () => {
                   <DetailItem icon={FaCalendarAlt} label="Durée" value={selectedApplication.duration_months ? `${selectedApplication.duration_months} mois` : 'Non renseigné'} />
                 </article>
 
-                <article>
-                  <div className="mes-demandes-card-title">
-                    <FaClipboardList />
-                    <h3>Scoring</h3>
-                  </div>
-                  <DetailItem icon={FaMoneyBillWave} label="Revenu annuel" value={formatMoney(selectedApplication.revenu_annuel)} />
-                  <DetailItem icon={FaMoneyBillWave} label="Charges annuelles" value={formatMoney(selectedApplication.charges_impayees)} />
-                  <DetailItem icon={FaClipboardList} label="Endettement" value={formatPercent(selectedApplication.debt_ratio)} />
-                </article>
               </div>
 
               <article className="mes-demandes-documents-card">

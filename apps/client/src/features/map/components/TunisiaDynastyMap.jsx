@@ -4,6 +4,7 @@ import {
   groupListingsByGovernorate,
   normalizeGovernorateName,
 } from '../lib/mapDataAdapter';
+import { safeRecordClientActivity } from '../../../lib/auth';
 
 const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
 const FALLBACK_GEOJSON_URL =
@@ -246,6 +247,25 @@ export default function TunisiaDynastyMap({
 
   const totalGovernorates = mapModel?.features.length ?? 24;
 
+  const trackGovernorateSelection = (item) => {
+    if (!item?.normalizedName) return;
+
+    safeRecordClientActivity({
+      event_type: 'map_region_select',
+      page: typeof window !== 'undefined' ? window.location.pathname : '/map',
+      target_type: 'governorate',
+      target_id: item.normalizedName,
+      metadata: {
+        region_name: item.rawName,
+        governorate_name: item.rawName,
+        normalized_region: item.normalizedName,
+        normalized_governorate: item.normalizedName,
+        listings_count: item.count || 0,
+        source: 'tunisia_dynasty_map',
+      },
+    });
+  };
+
   return (
     <div className="dynasty-layout">
       <section className="map-panel">
@@ -313,6 +333,7 @@ export default function TunisiaDynastyMap({
                         if (selectedGovernorateProp == null) {
                           setSelectedGovernorateState(item.normalizedName);
                         }
+                        trackGovernorateSelection(item);
                         onGovernorateSelect?.(item);
                       }}
                     />

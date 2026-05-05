@@ -5,6 +5,7 @@ import {
   groupListingsByGovernorate,
   normalizeGovernorateName,
 } from '../lib/mapDataAdapter';
+import { safeRecordClientActivity } from '../../../lib/auth';
 
 const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
 const FALLBACK_GEOJSON_URL =
@@ -241,6 +242,26 @@ export default function TunisiaMapHome({
     navigate(`/properties?focusId=${encodeURIComponent(listing.id)}`);
   };
 
+  const handleGovernorateSelect = (item) => {
+    if (!item?.normalizedName) return;
+
+    setSelectedGovernorate(item.normalizedName);
+    safeRecordClientActivity({
+      event_type: 'map_region_select',
+      page: typeof window !== 'undefined' ? window.location.pathname : '/',
+      target_type: 'governorate',
+      target_id: item.normalizedName,
+      metadata: {
+        region_name: item.rawName,
+        governorate_name: item.rawName,
+        normalized_region: item.normalizedName,
+        normalized_governorate: item.normalizedName,
+        listings_count: listingsByGovernorate[item.normalizedName]?.length ?? 0,
+        source: 'tunisia_home_map',
+      },
+    });
+  };
+
   return (
     <div className="tn-full-layout">
       <section className="tn-full-map-panel">
@@ -289,7 +310,7 @@ export default function TunisiaMapHome({
                       } ${isSelected ? 'tn-full-path--selected' : ''}`}
                       onMouseEnter={() => setHoveredGovernorate(item.normalizedName)}
                       onMouseLeave={() => setHoveredGovernorate(null)}
-                      onClick={() => setSelectedGovernorate(item.normalizedName)}
+                      onClick={() => handleGovernorateSelect(item)}
                     />
                   </g>
                 );

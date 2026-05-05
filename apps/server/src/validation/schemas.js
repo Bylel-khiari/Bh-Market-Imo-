@@ -3,6 +3,14 @@ import { z } from "zod";
 const adminRole = z.enum(["client", "agent_bancaire", "admin"]);
 const scrapeSiteIntegrationStatus = z.enum(["ready", "pending_spider", "disabled"]);
 const scrapeSiteSuggestionStatus = z.enum(["pending", "accepted", "rejected", "ignored"]);
+const clientActivityEventType = z.enum([
+  "client_login_success",
+  "credit_simulation_calculate",
+  "credit_request_start",
+  "credit_application_form_open",
+  "credit_application_submit",
+  "map_region_select",
+]);
 
 export const authLoginBodySchema = z
   .object({
@@ -104,6 +112,7 @@ export const adminListPropertiesQuerySchema = z
 export const propertyListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(5000).optional(),
+    all: z.enum(["1", "true"]).optional(),
     city: z.string().trim().max(120).optional(),
   })
   .strict();
@@ -297,6 +306,16 @@ export const creditApplicationCreateBodySchema = z
 export const creditApplicationListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const clientActivityLogCreateBodySchema = z
+  .object({
+    event_type: clientActivityEventType,
+    page: z.string().trim().max(255).optional().nullable(),
+    target_type: z.string().trim().max(80).optional().nullable(),
+    target_id: z.union([z.string().trim().max(120), z.number().finite()]).optional().nullable(),
+    metadata: z.record(z.unknown()).optional().nullable(),
   })
   .strict();
 

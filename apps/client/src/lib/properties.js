@@ -16,10 +16,12 @@ export function extractPropertyRows(payload) {
   return [];
 }
 
-export async function fetchPropertyRows({ limit, city, signal } = {}) {
+export async function fetchPropertyRows({ limit, city, all = false, signal } = {}) {
   const params = new URLSearchParams();
 
-  if (limit != null) {
+  if (all) {
+    params.set('all', '1');
+  } else if (limit != null) {
     params.set('limit', String(limit));
   }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
   FaBuilding,
+  FaCalculator,
   FaChartLine,
   FaCheckCircle,
   FaClipboardList,
@@ -19,6 +20,7 @@ import {
   FaPhone,
   FaSearch,
   FaSignOutAlt,
+  FaSignInAlt,
   FaSyncAlt,
   FaUniversity,
   FaUsers,
@@ -88,6 +90,7 @@ const ACTIVITY_COLORS = {
   users: '#0d355a',
   properties: '#c21f3a',
   requests: '#d59a27',
+  clientEvents: '#2c7a4b',
 };
 
 const PIE_COLORS = ['#0d355a', '#c21f3a', '#d59a27', '#4f7b72', '#7886a0'];
@@ -136,6 +139,14 @@ function createEmptyPlatformDashboard() {
     top_sources: [],
     latest_users: [],
     latest_requests: [],
+    client_activity: {
+      summary: {},
+      event_distribution: [],
+      monthly_events: [],
+      top_regions: [],
+      top_clients: [],
+      latest_events: [],
+    },
   };
 }
 
@@ -166,6 +177,13 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('fr-FR');
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('fr-FR');
 }
 
 function formatStatus(status) {
@@ -346,6 +364,37 @@ export default function AgentDashboard() {
     }
   }, [handleAuthFailure]);
 
+  const loadApplicationQueue = useCallback(async ({ status = 'all', searchTerm = '', silent = false } = {}) => {
+    try {
+      const token = requireAuthToken();
+
+      if (!silent) {
+        setLoading(true);
+      }
+
+      setError('');
+
+      const queuePayload = await fetchAgentCreditApplicationsApi(token, {
+        limit: 150,
+        status,
+        search: searchTerm,
+      });
+
+      setApplications(Array.isArray(queuePayload?.applications) ? queuePayload.applications : []);
+      setSummary(queuePayload?.summary || createEmptySummary());
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setError(requestError.message || 'Erreur de chargement des dossiers.');
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [handleAuthFailure]);
+
   useEffect(() => {
     loadDashboard({ status: 'all', searchTerm: '' });
   }, [loadDashboard]);
@@ -436,6 +485,20 @@ export default function AgentDashboard() {
   const topSources = platformDashboard?.top_sources || [];
   const latestUsers = platformDashboard?.latest_users || [];
   const latestRequests = platformDashboard?.latest_requests || [];
+  const clientActivity = platformDashboard?.client_activity || {};
+  const clientActivitySummary = clientActivity.summary || {};
+  const clientActivityDistribution = Array.isArray(clientActivity.event_distribution)
+    ? clientActivity.event_distribution.filter((item) => Number(item.value || 0) > 0)
+    : [];
+  const latestClientEvents = Array.isArray(clientActivity.latest_events) ? clientActivity.latest_events : [];
+  const topClientActivity = Array.isArray(clientActivity.top_clients) ? clientActivity.top_clients : [];
+  const topRegionActivity = Array.isArray(clientActivity.top_regions) ? clientActivity.top_regions : [];
+  const monthlyClientEvents = Array.isArray(clientActivity.monthly_events)
+    ? clientActivity.monthly_events.slice(-periodMonths).map((item) => ({
+        ...item,
+        label: formatMonthLabel(item.month),
+      }))
+    : [];
   const latestActivityPoint = monthlyActivity[monthlyActivity.length - 1] || {
     users: 0,
     properties: 0,
@@ -474,7 +537,7 @@ export default function AgentDashboard() {
   };
 
   const handleRefresh = () => {
-    loadDashboard({ status: statusFilter, searchTerm: search });
+    loadDashboard({ status: statusFilter, searchTerm: search.trim() });
   };
 
   const handleExportPlatformReport = () => {
@@ -486,6 +549,11 @@ export default function AgentDashboard() {
     ['Synthèse', 'Admins', platformSummary.total_admins || 0],
     ['Synthèse', 'Biens immobiliers', platformSummary.total_properties || 0],
     ['Synthèse', 'Biens actifs', platformSummary.active_properties || 0],
+      ['Parcours client', 'Connexions client', clientActivitySummary.client_logins || 0],
+      ['Parcours client', 'Calculs simulation credit', clientActivitySummary.simulation_calculations || 0],
+      ['Parcours client', 'Demandes credit demarrees', clientActivitySummary.credit_request_starts || 0],
+      ['Parcours client', 'Demandes credit deposees', clientActivitySummary.credit_application_submits || 0],
+      ['Parcours client', 'Regions carte selectionnees', clientActivitySummary.map_region_selects || 0],
       ['Synthèse', 'Réclamations assistance', platformSummary.total_reports || 0],
       ['Synthèse', 'Réclamations clôturées', platformSummary.closed_reports || 0],
       ['Synthèse', 'Taux de traitement assistance', `${platformSummary.resolution_rate || 0}%`],
@@ -494,10 +562,26 @@ export default function AgentDashboard() {
         item.label,
         `${item.users}/${item.properties}/${item.requests}`,
       ]),
+      ...monthlyClientEvents.map((item) => ['Logs client mensuels', item.label, item.events]),
       ...topCities.map((item) => ['Top villes', item.city, item.total]),
       ...topSources.map((item) => ['Sources', item.source, item.total]),
+      ...topRegionActivity.map((item) => [
+        'Regions les plus visitees',
+        item.region || item.key,
+        `${item.total} selections - ${item.active_clients} clients`,
+      ]),
+      ...topClientActivity.map((item) => [
+        'Clients actifs',
+        item.name || item.email || `Client #${item.id}`,
+        item.total_events,
+      ]),
       ...latestUsers.map((item) => ['Derniers utilisateurs', item.name || '-', `${item.role_label} - ${item.email || '-'}`]),
       ...latestRequests.map((item) => ['Dernières réclamations', `#${item.id}`, `${item.status_label} - ${item.client_name || '-'}`]),
+      ...latestClientEvents.map((item) => [
+        'Derniers logs client',
+        item.client_name || item.client_email || `Client #${item.client_user_id}`,
+        `${item.event_label} - ${formatDateTime(item.created_at)}`,
+      ]),
     ];
 
     const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n');
@@ -507,12 +591,12 @@ export default function AgentDashboard() {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
-    loadDashboard({ status: statusFilter, searchTerm: search });
+    loadApplicationQueue({ status: statusFilter, searchTerm: search.trim() });
   };
 
   const handleFilterChange = (nextStatus) => {
     setStatusFilter(nextStatus);
-    loadDashboard({ status: nextStatus, searchTerm: search });
+    loadApplicationQueue({ status: nextStatus, searchTerm: search.trim() });
   };
 
   const handleDraftChange = (event) => {
@@ -543,7 +627,7 @@ export default function AgentDashboard() {
       );
 
       setFormMessage('Dossier mis à jour avec succès.');
-      await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
+      await loadApplicationQueue({ status: statusFilter, searchTerm: search.trim(), silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -570,7 +654,7 @@ export default function AgentDashboard() {
       await scoreAgentCreditApplicationApi(selectedApplication.id, token);
 
       setFormMessage("Score calculé. L'agent bancaire garde la décision finale.");
-      await loadDashboard({ status: statusFilter, searchTerm: search, silent: true });
+      await loadApplicationQueue({ status: statusFilter, searchTerm: search.trim(), silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -872,7 +956,7 @@ export default function AgentDashboard() {
                       <input
                         className="admin-search-input"
                         type="search"
-                        placeholder="Client, email, CIN..."
+                        placeholder="Dossier, client, email, CIN..."
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                       />
@@ -1525,6 +1609,48 @@ export default function AgentDashboard() {
                     <p>{activityDelta >= 0 ? `+${formatNumber(activityDelta)}` : formatNumber(activityDelta)}</p>
                   </div>
                 </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaCalculator /></div>
+                  <div>
+                    <h3>Calculs credit</h3>
+                    <p>{formatNumber(clientActivitySummary.simulation_calculations)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaMoneyCheckAlt /></div>
+                  <div>
+                    <h3>Intentions credit</h3>
+                    <p>{formatNumber(clientActivitySummary.credit_request_starts)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaClipboardList /></div>
+                  <div>
+                    <h3>Dossiers deposes</h3>
+                    <p>{formatNumber(clientActivitySummary.credit_application_submits)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaCheckCircle /></div>
+                  <div>
+                    <h3>Conversion depot</h3>
+                    <p>{formatNumber(clientActivitySummary.submit_conversion_rate)}%</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaSignInAlt /></div>
+                  <div>
+                    <h3>Connexions client</h3>
+                    <p>{formatNumber(clientActivitySummary.client_logins)}</p>
+                  </div>
+                </article>
+                <article className="admin-kpi-card">
+                  <div className="icon"><FaMapMarkerAlt /></div>
+                  <div>
+                    <h3>Regions map</h3>
+                    <p>{formatNumber(clientActivitySummary.map_region_selects)}</p>
+                  </div>
+                </article>
               </section>
 
               {hasPowerBiEmbed ? (
@@ -1542,6 +1668,63 @@ export default function AgentDashboard() {
                   </div>
                 </section>
               ) : null}
+
+              <div className="admin-row">
+                <section className="admin-card agent-platform-card--wide">
+                  <h2>Parcours client par mois</h2>
+                  <p className="admin-section-help">
+                    Connexions, calculs et demarrages de demande traces par client connecte.
+                  </p>
+                  {monthlyClientEvents.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={monthlyClientEvents}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Line
+                            type="monotone"
+                            dataKey="events"
+                            stroke={ACTIVITY_COLORS.clientEvents}
+                            strokeWidth={3}
+                            name="Logs client"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="empty">Aucun log client disponible.</p>
+                  )}
+                </section>
+
+                <section className="admin-card">
+                  <h2>Evenements client</h2>
+                  <p className="admin-section-help">Repartition des actions suivies dans le tunnel credit.</p>
+                  {clientActivityDistribution.length ? (
+                    <div className="agent-chart-wrap">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={clientActivityDistribution}
+                            dataKey="value"
+                            nameKey="label"
+                            outerRadius={104}
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {clientActivityDistribution.map((entry, index) => (
+                              <Cell key={entry.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="empty">Aucun evenement client a afficher.</p>
+                  )}
+                </section>
+              </div>
 
               <div className="admin-row">
                 <section className="admin-card agent-platform-card--wide">
@@ -1743,6 +1926,114 @@ export default function AgentDashboard() {
                         ) : (
                           <tr>
                             <td colSpan="4">Aucune réclamation récente à afficher.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+
+              <div className="admin-row">
+                <section className="admin-card">
+                  <h2>Regions les plus visitees</h2>
+                  <p className="admin-section-help">Selections de gouvernorats faites par les clients sur la carte.</p>
+                  <div className="agent-source-list">
+                    {topRegionActivity.length ? (
+                      topRegionActivity.map((region) => (
+                        <div key={region.key || region.region} className="agent-source-item">
+                          <div>
+                            <strong>{region.region || formatTextLabel(region.key)}</strong>
+                            <span>
+                              {formatNumber(region.total)} visites - {formatNumber(region.active_clients)} clients
+                            </span>
+                          </div>
+                          <div className="agent-source-bar">
+                            <span
+                              style={{
+                                width: `${Math.max(
+                                  12,
+                                  Math.round(
+                                    (Number(region.total || 0) /
+                                      Number(topRegionActivity[0]?.total || 1)) *
+                                      100,
+                                  ),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="empty">Aucune region visitee a afficher.</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="admin-card">
+                  <h2>Clients les plus actifs</h2>
+                  <p className="admin-section-help">Gestion rapide des logs regroupes par client.</p>
+                  <div className="agent-source-list">
+                    {topClientActivity.length ? (
+                      topClientActivity.map((client) => (
+                        <div key={client.id} className="agent-source-item">
+                          <div>
+                            <strong>{client.name || client.email || `Client #${client.id}`}</strong>
+                            <span>
+                              {formatNumber(client.total_events)} logs - {formatNumber(client.simulation_calculations)} calculs
+                            </span>
+                          </div>
+                          <div className="agent-source-bar">
+                            <span
+                              style={{
+                                width: `${Math.max(
+                                  12,
+                                  Math.round(
+                                    (Number(client.total_events || 0) /
+                                      Number(topClientActivity[0]?.total_events || 1)) *
+                                      100,
+                                  ),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="empty">Aucun client actif a afficher.</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="admin-card agent-platform-card--wide">
+                  <h2>Derniers logs client</h2>
+                  <p className="admin-section-help">Clics calculer, demandes de credit et connexions client.</p>
+                  <div className="agent-platform-table-wrap">
+                    <table className="agent-platform-table">
+                      <thead>
+                        <tr>
+                          <th>Client</th>
+                          <th>Evenement</th>
+                          <th>Page</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {latestClientEvents.length ? (
+                          latestClientEvents.map((event) => (
+                            <tr key={event.id}>
+                              <td>
+                                <strong>{event.client_name || 'Client'}</strong>
+                                <span>{event.client_email || `#${event.client_user_id}`}</span>
+                              </td>
+                              <td>{event.event_label || formatTextLabel(event.event_type)}</td>
+                              <td>{event.page || '-'}</td>
+                              <td>{formatDateTime(event.created_at)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4">Aucun log client recent a afficher.</td>
                           </tr>
                         )}
                       </tbody>

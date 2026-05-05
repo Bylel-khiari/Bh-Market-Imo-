@@ -169,6 +169,27 @@ export async function submitCreditApplicationApi(input, token) {
   });
 }
 
+export async function recordClientActivityApi(input, token) {
+  return authorizedJsonRequest('/api/client/activity-logs', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function safeRecordClientActivity(input) {
+  const session = getAuthSession();
+
+  if (!session?.token || session?.user?.role !== 'client') {
+    return null;
+  }
+
+  try {
+    return await recordClientActivityApi(input, session.token);
+  } catch {
+    return null;
+  }
+}
+
 export function saveAuthSession(session) {
   const safeSession = {
     ...session,
