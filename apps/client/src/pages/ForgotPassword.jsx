@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaEnvelope, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
+import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
 const ForgotPassword = () => {
@@ -15,6 +16,8 @@ const ForgotPassword = () => {
       <div className="login-left">
         <div className="login-left-content">
           <div className="login-brand">
+            <img src={logo} alt="BH Bank" className="login-logo" />
+            <div className="login-brand-line"></div>
             <h2 className="login-subtitle">Plateforme immobilière</h2>
           </div>
 

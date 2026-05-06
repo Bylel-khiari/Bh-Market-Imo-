@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import { loginApi, saveAuthSession } from '../lib/auth';
+import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -57,6 +58,8 @@ const Login = () => {
       <div className="login-left">
         <div className="login-left-content">
           <div className="login-brand">
+            <img src={logo} alt="BH Bank" className="login-logo" />
+            <div className="login-brand-line"></div>
             <h2 className="login-subtitle">Plateforme immobilière</h2>
           </div>
 
