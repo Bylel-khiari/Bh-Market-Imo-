@@ -245,8 +245,6 @@ export default function TunisiaDynastyMap({
     });
   }, [mapModel, listingsByGovernorate, width, height]);
 
-  const totalGovernorates = mapModel?.features.length ?? 24;
-
   const trackGovernorateSelection = (item) => {
     if (!item?.normalizedName) return;
 
@@ -273,16 +271,6 @@ export default function TunisiaDynastyMap({
           <div>
             <p className="eyebrow">{subtitle}</p>
             <h1>{title}</h1>
-          </div>
-          <div className="stats-row">
-            <div className="stat-card">
-              <span>Gouvernorats</span>
-              <strong>{totalGovernorates}</strong>
-            </div>
-            <div className="stat-card">
-              <span>Annonces chargées</span>
-              <strong>{listings.length}</strong>
-            </div>
           </div>
         </header>
 

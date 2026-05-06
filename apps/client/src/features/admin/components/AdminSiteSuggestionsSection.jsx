@@ -38,8 +38,8 @@ export default function AdminSiteSuggestionsSection({
       </div>
 
       <p className="admin-section-help">
-        L agent de decouverte propose uniquement des domaines candidats. Un site accepte reste
-        inactif avec le statut pending_spider jusqu a l ajout d un spider Scrapy.
+        L’agent de découverte propose uniquement des domaines candidats. Un site accepté reste
+        inactif avec le statut pending_spider jusqu’à l’ajout d’un spider Scrapy.
       </p>
 
       <div className="admin-filter-chips admin-suggestion-filters" aria-label="Filtrer les suggestions">
@@ -86,16 +86,16 @@ export default function AdminSiteSuggestionsSection({
 
                 <div className="admin-site-meta">
                   <span>
-                    <strong>Score:</strong> {Math.round(Number(suggestion.confidence_score || 0))}%
+                    <strong>Score :</strong> {Math.round(Number(suggestion.confidence_score || 0))}%
                   </span>
                   <span>
-                    <strong>Base:</strong> {suggestion.base_url || '-'}
+                    <strong>Base :</strong> {suggestion.base_url || '-'}
                   </span>
                   <span>
-                    <strong>Detecte:</strong> {formatDate(suggestion.discovered_at)}
+                    <strong>Détecté :</strong> {formatDate(suggestion.discovered_at)}
                   </span>
                   <span>
-                    <strong>Mots cles:</strong>{' '}
+                    <strong>Mots clés :</strong>{' '}
                     {formatEvidenceList(suggestion.evidence, 'matched_keywords')}
                   </span>
                   <span>
@@ -105,7 +105,7 @@ export default function AdminSiteSuggestionsSection({
                 </div>
 
                 <p className="admin-site-description">
-                  {suggestion.evidence?.search_snippet || 'Suggestion detectee automatiquement.'}
+                  {suggestion.evidence?.search_snippet || 'Suggestion détectée automatiquement.'}
                 </p>
 
                 {suggestion.sample_url && (

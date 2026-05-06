@@ -79,32 +79,6 @@
   margin-bottom: 6px;
 }
 
-.tn-full-stats-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.tn-full-stat-card {
-  min-width: 112px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(168, 186, 201, 0.46);
-}
-
-.tn-full-stat-card span {
-  display: block;
-  color: var(--map-muted);
-  font-size: 0.75rem;
-  margin-bottom: 4px;
-}
-
-.tn-full-stat-card strong {
-  color: var(--map-text);
-  font-size: 1.1rem;
-}
-
 .tn-full-map-stage {
   position: relative;
   height: var(--map-stage-height);

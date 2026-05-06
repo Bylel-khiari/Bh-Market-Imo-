@@ -32,8 +32,8 @@ export default function AdminScrapeSitesSection({
       </div>
 
       <p className="admin-section-help">
-        Ajoutez, modifiez, supprimez ou activez/desactivez les sites scrapes.
-        L identifiant technique doit correspondre au spider Scrapy pour piloter les prochains lancements.
+        Ajoutez, modifiez, supprimez ou activez/désactivez les sites de collecte.
+        L’identifiant technique doit correspondre au spider Scrapy pour piloter les prochains lancements.
       </p>
 
       <div className="admin-users-toolbar admin-toolbar-row">
@@ -72,7 +72,7 @@ export default function AdminScrapeSitesSection({
           <p>Chargement des sites de collecte...</p>
         </div>
       ) : filteredSites.length === 0 ? (
-        <p className="empty">Aucun site de collecte trouve.</p>
+        <p className="empty">Aucun site de collecte trouvé.</p>
       ) : (
         <div className="admin-sites-grid">
           {filteredSites.map((site) => (
@@ -83,31 +83,31 @@ export default function AdminScrapeSitesSection({
               <div className="admin-site-card-head">
                 <div>
                   <h3>{site.name}</h3>
-                  <p className="admin-site-spider">Spider: {site.spider_name}</p>
+                  <p className="admin-site-spider">Robot de collecte : {site.spider_name}</p>
                 </div>
                 <span className={`admin-site-status ${site.is_active ? 'is-active' : 'is-inactive'}`}>
                   {site.is_active ? <FaCheckCircle /> : <FaBan />}
-                  {site.is_active ? 'Actif' : 'Desactive'}
+                  {site.is_active ? 'Actif' : 'Désactivé'}
                 </span>
               </div>
 
               <div className="admin-site-meta">
                 <span>
-                  <strong>Base:</strong> {site.base_url || '-'}
+                  <strong>Base :</strong> {site.base_url || '-'}
                 </span>
                 <span>
-                  <strong>Depart:</strong> {site.start_url || '-'}
+                  <strong>Départ :</strong> {site.start_url || '-'}
                 </span>
                 <span>
-                  <strong>Integration:</strong> {site.integration_status || 'ready'}
+                  <strong>Intégration :</strong> {site.integration_status || 'ready'}
                 </span>
                 <span>
-                  <strong>Mise a jour:</strong> {formatDate(site.updated_at || site.created_at)}
+                  <strong>Mise à jour :</strong> {formatDate(site.updated_at || site.created_at)}
                 </span>
               </div>
 
               <p className="admin-site-description">
-                {site.description || 'Aucune description renseignee pour ce site.'}
+                {site.description || 'Aucune description renseignée pour ce site.'}
               </p>
 
               <div className="admin-table-actions admin-site-actions">
@@ -117,7 +117,7 @@ export default function AdminScrapeSitesSection({
                   onClick={() => handleToggleSiteStatus(site)}
                   disabled={siteSubmitting || (!site.is_active && (site.integration_status || 'ready') !== 'ready')}
                   aria-pressed={site.is_active}
-                  aria-label={site.is_active ? 'Desactiver ce site scrape' : 'Activer ce site scrape'}
+                  aria-label={site.is_active ? 'Désactiver ce site de collecte' : 'Activer ce site de collecte'}
                 >
                   <span className="admin-toggle-track">
                     <span className="admin-toggle-thumb" />
@@ -126,7 +126,7 @@ export default function AdminScrapeSitesSection({
                     <strong>{site.is_active ? 'Actif' : 'Inactif'}</strong>
                     <small>
                       {site.is_active
-                        ? 'Cliquer pour desactiver'
+                        ? 'Cliquer pour désactiver'
                         : (site.integration_status || 'ready') === 'ready'
                           ? 'Cliquer pour activer'
                           : 'Spider requis'}

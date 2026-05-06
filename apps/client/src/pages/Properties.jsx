@@ -468,7 +468,7 @@ const Properties = () => {
           {reportNotice && <div className="properties-success">{reportNotice}</div>}
           {!loading && favoritesOnly && !authSession?.token && (
             <div className="properties-warning">
-              Connectez-vous pour retrouver vos biens favoris sauvegardes.
+              Connectez-vous pour retrouver vos biens favoris sauvegardés.
             </div>
           )}
           {!loading && favoritesOnly && authSession?.token && currentUserRole !== 'client' && (

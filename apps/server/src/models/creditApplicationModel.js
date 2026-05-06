@@ -468,8 +468,13 @@ const CREDIT_APPLICATION_SELECT_COLUMNS = `
   client.name AS client_name,
   client.email AS client_account_email,
   agent.name AS assigned_agent_name,
-  COALESCE(p.manual_title, p.title, ca.property_title_snapshot) AS property_title,
-  COALESCE(p.manual_location_raw, p.location_raw, p.city, ca.property_location_snapshot) AS property_location,
+  COALESCE(NULLIF(p.manual_title, ''), NULLIF(p.title, ''), ca.property_title_snapshot) AS property_title,
+  COALESCE(
+    NULLIF(p.manual_location_raw, ''),
+    NULLIF(p.location_raw, ''),
+    NULLIF(p.city, ''),
+    ca.property_location_snapshot
+  ) AS property_location,
   COALESCE(p.manual_price_value, p.price_value, ca.property_price_value) AS live_property_price_value,
   COALESCE(p.manual_price_raw, p.price_raw, ca.property_price_raw) AS live_property_price_raw
 `;
@@ -783,12 +788,31 @@ export async function fetchAgentCreditApplications({
         OR ca.email LIKE ?
         OR ca.phone LIKE ?
         OR ca.cin LIKE ?
+        OR ca.rib LIKE ?
         OR client.name LIKE ?
         OR client.email LIKE ?
-        OR COALESCE(p.manual_title, p.title, ca.property_title_snapshot) LIKE ?
+        OR COALESCE(NULLIF(p.manual_title, ''), NULLIF(p.title, ''), ca.property_title_snapshot) LIKE ?
+        OR COALESCE(
+          NULLIF(p.manual_location_raw, ''),
+          NULLIF(p.location_raw, ''),
+          NULLIF(p.city, ''),
+          ca.property_location_snapshot
+        ) LIKE ?
+        OR ca.property_title_snapshot LIKE ?
+        OR ca.property_location_snapshot LIKE ?
+        OR ca.funding_type LIKE ?
+        OR ca.socio_category LIKE ?
+        OR CAST(ca.requested_amount AS CHAR) LIKE ?
       )
     `);
     params.push(
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
+      likeValue,
       likeValue,
       likeValue,
       likeValue,

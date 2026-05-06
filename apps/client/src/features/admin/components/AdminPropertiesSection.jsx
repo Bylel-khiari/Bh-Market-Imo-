@@ -42,13 +42,13 @@ export default function AdminPropertiesSection({
           </div>
 
           <p className="admin-section-help">
-            Ajoutez, modifiez, supprimez ou activez/desactivez les biens immobiliers.
-            Les changements admin restent prioritaires sur les donnees importees.
+            Ajoutez, modifiez, supprimez ou activez/désactivez les biens immobiliers.
+            Les changements administrateur restent prioritaires sur les données importées.
           </p>
 
           {!propertyLoading && propertyPagination.total > 0 && (
             <p className="admin-section-help">
-              Affichage de {propertyVisibleRangeStart} a {propertyVisibleRangeEnd} sur{' '}
+              Affichage de {propertyVisibleRangeStart} à {propertyVisibleRangeEnd} sur{' '}
               {propertyPagination.total} biens.
             </p>
           )}
@@ -91,7 +91,7 @@ export default function AdminPropertiesSection({
               <p>Chargement des biens...</p>
             </div>
           ) : propertyPagination.total === 0 ? (
-            <p className="empty">Aucun bien trouve.</p>
+            <p className="empty">Aucun bien trouvé.</p>
           ) : (
             <>
               <div className="admin-properties-grid">
@@ -116,15 +116,15 @@ export default function AdminPropertiesSection({
                       <div className="admin-property-badges">
                         <span className={`admin-site-status ${property.is_active ? 'is-active' : 'is-inactive'}`}>
                           {property.is_active ? <FaCheckCircle /> : <FaBan />}
-                          {property.is_active ? 'Active' : 'Desactivee'}
+                          {property.is_active ? 'Activée' : 'Désactivée'}
                         </span>
                         {property.created_by_admin && (
                           <span className="admin-property-origin admin-property-origin--created">
-                            Ajoutee par admin
+                            Ajoutée par l’administrateur
                           </span>
                         )}
                         {property.has_manual_changes && !property.created_by_admin && (
-                          <span className="admin-property-origin">Modifiee</span>
+                          <span className="admin-property-origin">Modifiée</span>
                         )}
                       </div>
                       <span className="admin-property-source-badge">
@@ -139,7 +139,7 @@ export default function AdminPropertiesSection({
                       </p>
                       <h3>{property.title || 'Titre non disponible'}</h3>
                       <p className="admin-property-description">
-                        {property.description || 'Aucune description renseignee pour ce bien.'}
+                        {property.description || 'Aucune description renseignée pour ce bien.'}
                       </p>
                       <div className="admin-property-footer-row">
                         <p className="admin-property-price">{formatPropertyPrice(property)}</p>
@@ -147,10 +147,10 @@ export default function AdminPropertiesSection({
                       </div>
                       <div className="admin-property-meta">
                         <span>
-                          <strong>Ville:</strong> {property.city || '-'}
+                          <strong>Ville :</strong> {property.city || '-'}
                         </span>
                         <span>
-                          <strong>Mise a jour:</strong>{' '}
+                          <strong>Mise à jour :</strong>{' '}
                           {formatDate(property.admin_updated_at || property.scraped_at)}
                         </span>
                       </div>
@@ -162,15 +162,15 @@ export default function AdminPropertiesSection({
                           onClick={() => handleTogglePropertyStatus(property)}
                           disabled={propertySubmitting}
                           aria-pressed={property.is_active}
-                          aria-label={property.is_active ? 'Desactiver ce bien' : 'Activer ce bien'}
+                          aria-label={property.is_active ? 'Désactiver ce bien' : 'Activer ce bien'}
                         >
                           <span className="admin-toggle-track">
                             <span className="admin-toggle-thumb" />
                           </span>
                           <span className="admin-toggle-copy">
-                            <strong>{property.is_active ? 'Active' : 'Inactive'}</strong>
+                            <strong>{property.is_active ? 'Activée' : 'Désactivée'}</strong>
                             <small>
-                              {property.is_active ? 'Cliquer pour desactiver' : 'Cliquer pour activer'}
+                              {property.is_active ? 'Cliquer pour désactiver' : 'Cliquer pour activer'}
                             </small>
                           </span>
                         </button>
@@ -204,7 +204,7 @@ export default function AdminPropertiesSection({
                     onClick={() => setCurrentPropertyPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPropertyPage === 1}
                   >
-                    Precedent
+                    Précédent
                   </button>
 
                   <div className="admin-pagination-pages">

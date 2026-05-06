@@ -76,47 +76,47 @@ const STATUS_FILTER_OPTIONS = [
 
 const SITE_SUGGESTION_STATUS_FILTER_OPTIONS = [
   { value: 'pending', label: 'En attente' },
-  { value: 'ignored', label: 'Ignorees' },
-  { value: 'rejected', label: 'Rejetees' },
-  { value: 'accepted', label: 'Acceptees' },
+  { value: 'ignored', label: 'Ignorées' },
+  { value: 'rejected', label: 'Rejetées' },
+  { value: 'accepted', label: 'Acceptées' },
   { value: 'all', label: 'Toutes' },
 ];
 
 const SITE_SUGGESTION_STATUS_LABELS = {
   pending: 'En attente',
-  accepted: 'Acceptee',
-  rejected: 'Rejetee',
-  ignored: 'Ignoree',
+  accepted: 'Acceptée',
+  rejected: 'Rejetée',
+  ignored: 'Ignorée',
 };
 
 const REPORT_STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'Toutes les réclamations' },
   { value: 'unread', label: 'Non lus' },
   { value: 'in_review', label: 'En revue' },
-  { value: 'resolved', label: 'Resolus' },
+  { value: 'resolved', label: 'Résolus' },
   { value: 'rejected', label: 'Rejetées' },
 ];
 
 const REPORT_CATEGORY_LABELS = {
-  cannot_open_site: 'Impossible d ouvrir le site source',
-  bad_owner_experience: 'Mauvaise experience avec le proprietaire',
-  bad_agency_experience: 'Mauvaise experience avec l agence',
-  scam_suspicion: 'Suspicion d arnaque',
+  cannot_open_site: 'Impossible d’ouvrir le site source',
+  bad_owner_experience: 'Mauvaise expérience avec le propriétaire',
+  bad_agency_experience: 'Mauvaise expérience avec l’agence',
+  scam_suspicion: 'Suspicion d’arnaque',
   incorrect_information: 'Informations incorrectes',
-  other: 'Autre probleme',
+  other: 'Autre problème',
 };
 
 const REPORT_STATUS_LABELS = {
   unread: 'Non lu',
   in_review: 'En revue',
-  resolved: 'Resolu',
-  rejected: 'Rejete',
+  resolved: 'Résolu',
+  rejected: 'Rejeté',
 };
 
 const ROLE_LABELS = {
   client: 'Client',
   agent_bancaire: 'Agent bancaire',
-  admin: 'Admin',
+  admin: 'Administrateur',
 };
 
 const ROLE_COLORS = {
@@ -206,11 +206,11 @@ function formatPropertyPrice(property) {
     return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
   }
 
-  return property?.price_raw || 'Prix non communique';
+  return property?.price_raw || 'Prix non communiqué';
 }
 
 function formatReportCategory(category) {
-  return REPORT_CATEGORY_LABELS[category] || category || 'Categorie inconnue';
+  return REPORT_CATEGORY_LABELS[category] || category || 'Catégorie inconnue';
 }
 
 function formatReportStatus(status) {
@@ -232,13 +232,13 @@ function formatScraperStatus(control) {
     case 'running':
       return 'Cycle en cours';
     case 'stopping':
-      return 'Arret en cours';
+      return 'Arrêt en cours';
     case 'error':
-      return control.is_enabled ? 'Erreur, relance planifiee' : 'Erreur';
+      return control.is_enabled ? 'Erreur, relance planifiée' : 'Erreur';
     case 'scheduled':
       return 'Automatique active';
     default:
-      return control.is_enabled ? 'Automatique active' : 'Arrete';
+      return control.is_enabled ? 'Automatique active' : 'Arrêté';
   }
 }
 
@@ -487,7 +487,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur de chargement du controle du scraper.');
+      setScraperControlError(requestError.message || 'Erreur de chargement du contrôle du scraper.');
     } finally {
       if (!silent) {
         setScraperControlLoading(false);
@@ -552,7 +552,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      setReportError(requestError.message || 'Erreur de chargement des reclamations.');
+      setReportError(requestError.message || 'Erreur de chargement des réclamations.');
     } finally {
       if (!silent) {
         setReportLoading(false);
@@ -595,7 +595,7 @@ export default function AdminDashboard() {
         token,
       );
 
-      setReportFormMessage('Reclamation mise a jour.');
+      setReportFormMessage('Réclamation mise à jour.');
 
       if (report.status === 'unread' && nextStatus !== 'unread') {
         setUnreadReportCount((prev) => Math.max(0, prev - 1));
@@ -608,7 +608,7 @@ export default function AdminDashboard() {
       }
 
       setReportFormMessage('');
-      setReportError(requestError.message || 'Erreur pendant la mise a jour de la reclamation.');
+      setReportError(requestError.message || 'Erreur pendant la mise à jour de la réclamation.');
     } finally {
       setReportSubmittingId(null);
     }
@@ -673,7 +673,7 @@ export default function AdminDashboard() {
     event.preventDefault();
 
     if (!formData.name.trim() || !formData.email.trim()) {
-      setFormMessage('Nom et email sont obligatoires.');
+      setFormMessage('Nom et e-mail sont obligatoires.');
       return;
     }
 
@@ -883,7 +883,7 @@ export default function AdminDashboard() {
 
       setSiteFormMessage(
         site.is_active
-          ? 'Site desactive pour les prochains lancements.'
+        ? 'Site désactivé pour les prochains lancements.'
           : 'Site reactive pour les prochains lancements.',
       );
     } catch (requestError) {
@@ -891,7 +891,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      setSiteFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
+      setSiteFormMessage(requestError.message || 'Erreur pendant la mise à jour du statut.');
     } finally {
       setSiteSubmitting(false);
     }
@@ -954,7 +954,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant la mise a jour du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant la mise à jour du scraper.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -979,14 +979,14 @@ export default function AdminDashboard() {
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Cycle de scraping demarre. Les prochains rescrapes suivront cet intervalle.',
+        'Cycle de scraping démarré. Les prochains rescrapes suivront cet intervalle.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant le demarrage du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant le démarrage du scraper.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -1003,14 +1003,14 @@ export default function AdminDashboard() {
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Agent de filtrage demarre. Les annonces nettoyees seront synchronisees apres le filtrage.',
+        'Agent de filtrage démarré. Les annonces nettoyées seront synchronisées après le filtrage.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant le demarrage de l agent.');
+      setScraperControlError(requestError.message || 'Erreur pendant le démarrage de l’agent.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -1027,14 +1027,14 @@ export default function AdminDashboard() {
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Le scraping automatique a ete arrete.',
+        'Le scraping automatique a été arrêté.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant l arret du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant l’arrêt du scraper.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -1052,8 +1052,8 @@ export default function AdminDashboard() {
 
       setSiteSuggestionMessage(
         written > 0
-          ? `${written} nouvelle(s) suggestion(s) detectee(s).`
-          : 'Recherche terminee: aucune nouvelle suggestion.',
+          ? `${written} nouvelle(s) suggestion(s) détectée(s).`
+          : 'Recherche terminée : aucune nouvelle suggestion.',
       );
       await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
     } catch (requestError) {
@@ -1075,14 +1075,14 @@ export default function AdminDashboard() {
       setSiteSuggestionMessage('');
 
       await updateAdminScrapeSiteSuggestionApi(suggestion.id, { status }, token);
-      setSiteSuggestionMessage('Suggestion mise a jour.');
+      setSiteSuggestionMessage('Suggestion mise à jour.');
       await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setSiteSuggestionError(requestError.message || 'Erreur pendant la mise a jour de la suggestion.');
+      setSiteSuggestionError(requestError.message || 'Erreur pendant la mise à jour de la suggestion.');
     } finally {
       setSiteSuggestionSubmittingId(null);
     }
@@ -1097,7 +1097,7 @@ export default function AdminDashboard() {
 
       await acceptAdminScrapeSiteSuggestionApi(suggestion.id, {}, token);
       setSiteSuggestionMessage(
-        'Suggestion acceptee. Le site est ajoute en attente de spider et reste inactif.',
+        'Suggestion acceptée. Le site est ajouté en attente de spider et reste inactif.',
       );
       await Promise.all([
         fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),
@@ -1190,7 +1190,7 @@ export default function AdminDashboard() {
 
     const rawPriceValue = String(propertyFormData.price_value || '').trim();
     if (rawPriceValue && Number.isNaN(Number(rawPriceValue))) {
-      setPropertyFormMessage('Le prix numerique doit etre un nombre valide.');
+      setPropertyFormMessage('Le prix numérique doit être un nombre valide.');
       return;
     }
 
@@ -1281,7 +1281,7 @@ export default function AdminDashboard() {
 
       setPropertyFormMessage(
         property.is_active
-          ? 'Bien desactive pour l espace client.'
+        ? 'Bien désactivé pour l’espace client.'
           : 'Bien reactive pour l espace client.',
       );
     } catch (requestError) {
@@ -1289,7 +1289,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      setPropertyFormMessage(requestError.message || 'Erreur pendant la mise a jour du statut.');
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la mise à jour du statut.');
     } finally {
       setPropertySubmitting(false);
     }
@@ -1438,7 +1438,7 @@ export default function AdminDashboard() {
       [
         { key: 'client', name: 'Clients', value: roleTotals.client || 0 },
         { key: 'agent_bancaire', name: 'Agents bancaires', value: roleTotals.agent_bancaire || 0 },
-        { key: 'admin', name: 'Admins', value: roleTotals.admin || 0 },
+        { key: 'admin', name: 'Administrateurs', value: roleTotals.admin || 0 },
       ].filter((item) => item.value > 0),
     [roleTotals],
   );
@@ -1447,7 +1447,7 @@ export default function AdminDashboard() {
     () => [
       { role: 'Clients', total: roleTotals.client || 0 },
       { role: 'Agents', total: roleTotals.agent_bancaire || 0 },
-      { role: 'Admins', total: roleTotals.admin || 0 },
+      { role: 'Administrateurs', total: roleTotals.admin || 0 },
     ],
     [roleTotals],
   );
@@ -1703,7 +1703,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                   <div className="admin-card">
-                    <h2>Etat des biens immobiliers</h2>
+                    <h2>État des biens immobiliers</h2>
                     <ul className="admin-settings-list">
                       <li>Total des biens visibles en admin : {propertyTotals.total}</li>
                       <li>Biens actifs côté client : {propertyTotals.active}</li>
@@ -1850,7 +1850,7 @@ export default function AdminDashboard() {
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
                 <div className="admin-card">
-                  <h2>Dernieres activites utilisateurs</h2>
+                      <h2>Dernières activités utilisateurs</h2>
                   <div className="admin-activity-list">
                     {recentUsers.length === 0 && <p className="empty">Aucune activite.</p>}
                     {recentUsers.map((user) => (
@@ -1893,7 +1893,7 @@ export default function AdminDashboard() {
                     </ResponsiveContainer>
                   </div>
                   <div className="admin-card">
-                    <h2>Volume par role</h2>
+                    <h2>Volume par rôle</h2>
                     <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={barData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -2402,7 +2402,7 @@ export default function AdminDashboard() {
                 >
                   <option value="ready">Spider pret</option>
                   <option value="pending_spider">En attente de spider</option>
-                  <option value="disabled">Desactive techniquement</option>
+                      <option value="disabled">Désactivé techniquement</option>
                 </select>
               </div>
               <label className="admin-checkbox-row">

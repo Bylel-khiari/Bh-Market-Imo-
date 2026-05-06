@@ -291,7 +291,7 @@ const CreditSimulation = () => {
           </div>
 
           <div className="simulation-card full">
-            <h2><FaMoneyCheckAlt /> Donnees de simulation</h2>
+          <h2><FaMoneyCheckAlt /> Données de simulation</h2>
             <div className="simulation-form-grid">
               <div className="form-group">
                 <label>Type de financement</label>

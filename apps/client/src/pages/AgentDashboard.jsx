@@ -61,20 +61,20 @@ const POWER_BI_AGENT_DASHBOARD_TITLE = String(
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous' },
   { value: 'SOUMIS', label: 'Soumis' },
-  { value: 'EN_VERIFICATION', label: 'En verification' },
+  { value: 'EN_VERIFICATION', label: 'En vérification' },
   { value: 'DOCUMENTS_MANQUANTS', label: 'Pièces manquantes' },
   { value: 'EN_ETUDE', label: 'En étude' },
-  { value: 'ACCEPTE', label: 'Acceptes' },
-  { value: 'REFUSE', label: 'Refuses' },
+  { value: 'ACCEPTE', label: 'Acceptés' },
+  { value: 'REFUSE', label: 'Refusés' },
 ];
 
 const STATUS_LABELS = {
   SOUMIS: 'Dossier soumis',
-  EN_VERIFICATION: 'En verification',
-  DOCUMENTS_MANQUANTS: 'Pieces manquantes',
-  EN_ETUDE: 'En etude',
-  ACCEPTE: 'Accepte',
-  REFUSE: 'Refuse',
+  EN_VERIFICATION: 'En vérification',
+  DOCUMENTS_MANQUANTS: 'Pièces manquantes',
+  EN_ETUDE: 'En étude',
+  ACCEPTE: 'Accepté',
+  REFUSE: 'Refusé',
 };
 
 const STATUS_COLORS = {
@@ -157,7 +157,7 @@ function formatNumber(value) {
 function formatCurrency(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return 'Non renseigne';
+    return 'Non renseigné';
   }
 
   return `${new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(Math.round(amount))} DT`;
@@ -550,10 +550,10 @@ export default function AgentDashboard() {
     ['Synthèse', 'Biens immobiliers', platformSummary.total_properties || 0],
     ['Synthèse', 'Biens actifs', platformSummary.active_properties || 0],
       ['Parcours client', 'Connexions client', clientActivitySummary.client_logins || 0],
-      ['Parcours client', 'Calculs simulation credit', clientActivitySummary.simulation_calculations || 0],
-      ['Parcours client', 'Demandes credit demarrees', clientActivitySummary.credit_request_starts || 0],
-      ['Parcours client', 'Demandes credit deposees', clientActivitySummary.credit_application_submits || 0],
-      ['Parcours client', 'Regions carte selectionnees', clientActivitySummary.map_region_selects || 0],
+      ['Parcours client', 'Calculs de simulation crédit', clientActivitySummary.simulation_calculations || 0],
+      ['Parcours client', 'Demandes de crédit démarrées', clientActivitySummary.credit_request_starts || 0],
+      ['Parcours client', 'Demandes de crédit déposées', clientActivitySummary.credit_application_submits || 0],
+      ['Parcours client', 'Régions de carte sélectionnées', clientActivitySummary.map_region_selects || 0],
       ['Synthèse', 'Réclamations assistance', platformSummary.total_reports || 0],
       ['Synthèse', 'Réclamations clôturées', platformSummary.closed_reports || 0],
       ['Synthèse', 'Taux de traitement assistance', `${platformSummary.resolution_rate || 0}%`],
@@ -566,9 +566,9 @@ export default function AgentDashboard() {
       ...topCities.map((item) => ['Top villes', item.city, item.total]),
       ...topSources.map((item) => ['Sources', item.source, item.total]),
       ...topRegionActivity.map((item) => [
-        'Regions les plus visitees',
+        'Régions les plus visitées',
         item.region || item.key,
-        `${item.total} selections - ${item.active_clients} clients`,
+        `${item.total} sélections - ${item.active_clients} clients`,
       ]),
       ...topClientActivity.map((item) => [
         'Clients actifs',
@@ -944,7 +944,7 @@ export default function AgentDashboard() {
                     <div>
                       <h2>File de dossiers</h2>
                       <p className="admin-section-help">
-                        Selection rapide du dossier a traiter.
+                        Sélection rapide du dossier à traiter.
                       </p>
                     </div>
                     <span className="admin-users-count">{applications.length}</span>
@@ -956,7 +956,7 @@ export default function AgentDashboard() {
                       <input
                         className="admin-search-input"
                         type="search"
-                        placeholder="Dossier, client, email, CIN..."
+                        placeholder="Dossier, client, e-mail, CIN..."
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                       />
@@ -964,6 +964,7 @@ export default function AgentDashboard() {
                     <button
                       type="submit"
                       className="admin-secondary agent-queue-search-button"
+                      onClick={handleSearchSubmit}
                       aria-label="Rechercher"
                       title="Rechercher"
                     >
@@ -1110,7 +1111,7 @@ export default function AgentDashboard() {
                           onClick={() => setActiveApplicationPanel('decision')}
                         >
                           <FaFileSignature />
-                          <span>Decision</span>
+                          <span>Décision</span>
                         </button>
                       </div>
 
@@ -1119,7 +1120,7 @@ export default function AgentDashboard() {
                           <>
                             <div className="agent-panel-head">
                               <h3>Informations client</h3>
-                              <p>Coordonnees, identite et elements financiers principaux.</p>
+                              <p>Coordonnées, identité et éléments financiers principaux.</p>
                             </div>
                             <div className="agent-info-grid">
                               <span><FaEnvelope /> {selectedApplication.email}</span>
@@ -1157,7 +1158,7 @@ export default function AgentDashboard() {
                           <>
                             <div className="agent-panel-head">
                               <h3>Variables de scoring</h3>
-                              <p>Donnees utilisees pour calculer le score bancaire du dossier.</p>
+                              <p>Données utilisées pour calculer le score bancaire du dossier.</p>
                             </div>
                             <div className="agent-scoring-grid">
                               <div className="agent-finance-card">
@@ -1170,11 +1171,11 @@ export default function AgentDashboard() {
                               </div>
                               <div className="agent-finance-card">
                                 <strong>Situation familiale</strong>
-                                <span>{selectedApplication.situation_familiale || 'A verifier'}</span>
+                                <span>{selectedApplication.situation_familiale || 'À vérifier'}</span>
                               </div>
                               <div className="agent-finance-card">
                                 <strong>Situation contractuelle</strong>
-                                <span>{selectedApplication.situation_contractuelle || 'A verifier'}</span>
+                                <span>{selectedApplication.situation_contractuelle || 'À vérifier'}</span>
                               </div>
                             </div>
 
@@ -1193,8 +1194,8 @@ export default function AgentDashboard() {
                         {activeApplicationPanel === 'documents' && (
                           <div className="agent-document-block">
                             <div className="agent-panel-head">
-                              <h3>Pieces du dossier</h3>
-                              <p>Documents declares par le client pour l'etude du credit.</p>
+                              <h3>Pièces du dossier</h3>
+                              <p>Documents déclarés par le client pour l’étude du crédit.</p>
                             </div>
                             {selectedApplication.documents?.length ? (
                               <div className="agent-document-list">
@@ -1205,7 +1206,7 @@ export default function AgentDashboard() {
                                 ))}
                               </div>
                             ) : (
-                              <p className="admin-section-help">Aucun document n'a ete declare dans le portail.</p>
+                              <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>
                             )}
                           </div>
                         )}
@@ -1213,12 +1214,12 @@ export default function AgentDashboard() {
                         {activeApplicationPanel === 'decision' && (
                           <>
                             <div className="agent-panel-head">
-                              <h3>Decision agent</h3>
-                              <p>Mise a jour du statut, note interne et decision finale.</p>
+                              <h3>Décision agent</h3>
+                              <p>Mise à jour du statut, note interne et décision finale.</p>
                             </div>
                             <div className="agent-review-form">
                               <label className="admin-field-block">
-                                <span className="admin-field-label">Etat du dossier</span>
+                                <span className="admin-field-label">État du dossier</span>
                                 <select name="status" value={draft.status} onChange={handleDraftChange} disabled={submitting}>
                                   {STATUS_OPTIONS.slice(1).map((option) => (
                                     <option key={option.value} value={option.value}>
@@ -1229,7 +1230,7 @@ export default function AgentDashboard() {
                               </label>
 
                               <label className="admin-field-block">
-                                <span className="admin-field-label">Score de conformite</span>
+                                <span className="admin-field-label">Score de conformité</span>
                                 <input
                                   name="compliance_score"
                                   type="number"
@@ -1243,14 +1244,14 @@ export default function AgentDashboard() {
                               </label>
 
                               <label className="admin-field-block">
-                                <span className="admin-field-label">Synthese conformite</span>
+                                <span className="admin-field-label">Synthèse conformité</span>
                                 <textarea
                                   name="compliance_summary"
                                   rows={4}
                                   value={draft.compliance_summary}
                                   onChange={handleDraftChange}
                                   disabled={submitting}
-                                  placeholder="Resume des controles, anomalies et conformites observees."
+                                  placeholder="Résumé des contrôles, anomalies et conformités observées."
                                 />
                               </label>
 
@@ -1262,7 +1263,7 @@ export default function AgentDashboard() {
                                   value={draft.agent_note}
                                   onChange={handleDraftChange}
                                   disabled={submitting}
-                                  placeholder="Elements a transmettre au client ou au back-office."
+                                  placeholder="Éléments à transmettre au client ou au back-office."
                                 />
                               </label>
                             </div>
@@ -1274,7 +1275,7 @@ export default function AgentDashboard() {
                                 onClick={() => handleReviewSubmit('EN_VERIFICATION')}
                                 disabled={submitting}
                               >
-                                Verifier les documents
+                                Vérifier les documents
                               </button>
                               <button
                                 type="button"
@@ -1282,7 +1283,7 @@ export default function AgentDashboard() {
                                 onClick={() => handleReviewSubmit('DOCUMENTS_MANQUANTS')}
                                 disabled={submitting}
                               >
-                                Demander les pieces
+                                Demander les pièces
                               </button>
                               <button
                                 type="button"
@@ -1290,7 +1291,7 @@ export default function AgentDashboard() {
                                 onClick={() => handleReviewSubmit('EN_ETUDE')}
                                 disabled={submitting}
                               >
-                                Passer en etude
+                                Passer en étude
                               </button>
                               <button
                                 type="button"
@@ -1328,7 +1329,7 @@ export default function AgentDashboard() {
                         <details className="agent-detail-section" open>
                           <summary>
                             <FaIdCard />
-                            <span>Resume client</span>
+                            <span>Résumé client</span>
                           </summary>
 
                       <div className="agent-info-grid">
@@ -1380,11 +1381,11 @@ export default function AgentDashboard() {
                         </div>
                         <div className="agent-finance-card">
                           <strong>Situation familiale</strong>
-                          <span>{selectedApplication.situation_familiale || 'A verifier'}</span>
+                          <span>{selectedApplication.situation_familiale || 'À vérifier'}</span>
                         </div>
                         <div className="agent-finance-card">
                           <strong>Situation contractuelle</strong>
-                          <span>{selectedApplication.situation_contractuelle || 'A verifier'}</span>
+                          <span>{selectedApplication.situation_contractuelle || 'À vérifier'}</span>
                         </div>
                       </div>
 
@@ -1425,7 +1426,7 @@ export default function AgentDashboard() {
                         <details className="agent-detail-section">
                           <summary>
                             <FaFileSignature />
-                            <span>Decision</span>
+                            <span>Décision</span>
                           </summary>
 
                       <div className="agent-review-form">
@@ -1673,7 +1674,7 @@ export default function AgentDashboard() {
                 <section className="admin-card agent-platform-card--wide">
                   <h2>Parcours client par mois</h2>
                   <p className="admin-section-help">
-                    Connexions, calculs et demarrages de demande traces par client connecte.
+                    Connexions, calculs et démarrages de demande tracés par client connecté.
                   </p>
                   {monthlyClientEvents.length ? (
                     <div className="agent-chart-wrap">
@@ -1699,7 +1700,7 @@ export default function AgentDashboard() {
                 </section>
 
                 <section className="admin-card">
-                  <h2>Evenements client</h2>
+                  <h2>Événements client</h2>
                   <p className="admin-section-help">Repartition des actions suivies dans le tunnel credit.</p>
                   {clientActivityDistribution.length ? (
                     <div className="agent-chart-wrap">
@@ -1721,7 +1722,7 @@ export default function AgentDashboard() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="empty">Aucun evenement client a afficher.</p>
+                    <p className="empty">Aucun événement client à afficher.</p>
                   )}
                 </section>
               </div>
@@ -1757,7 +1758,7 @@ export default function AgentDashboard() {
 
                 <section className="admin-card">
                   <h2>Répartition des rôles</h2>
-                  <p className="admin-section-help">Population active selon les trois roles autorises.</p>
+                  <p className="admin-section-help">Population active selon les trois rôles autorisés.</p>
                   {roleDistribution.length ? (
                     <div className="agent-chart-wrap">
                       <ResponsiveContainer width="100%" height={320}>
@@ -1868,7 +1869,7 @@ export default function AgentDashboard() {
                       <thead>
                         <tr>
                           <th>Utilisateur</th>
-                          <th>Role</th>
+                          <th>Rôle</th>
                           <th>Creation</th>
                         </tr>
                       </thead>
@@ -1936,8 +1937,8 @@ export default function AgentDashboard() {
 
               <div className="admin-row">
                 <section className="admin-card">
-                  <h2>Regions les plus visitees</h2>
-                  <p className="admin-section-help">Selections de gouvernorats faites par les clients sur la carte.</p>
+                  <h2>Régions les plus visitées</h2>
+                  <p className="admin-section-help">Sélections de gouvernorats faites par les clients sur la carte.</p>
                   <div className="agent-source-list">
                     {topRegionActivity.length ? (
                       topRegionActivity.map((region) => (
@@ -1965,7 +1966,7 @@ export default function AgentDashboard() {
                         </div>
                       ))
                     ) : (
-                      <p className="empty">Aucune region visitee a afficher.</p>
+                      <p className="empty">Aucune région visitée à afficher.</p>
                     )}
                   </div>
                 </section>
@@ -2000,7 +2001,7 @@ export default function AgentDashboard() {
                         </div>
                       ))
                     ) : (
-                      <p className="empty">Aucun client actif a afficher.</p>
+                      <p className="empty">Aucun client actif à afficher.</p>
                     )}
                   </div>
                 </section>
@@ -2033,7 +2034,7 @@ export default function AgentDashboard() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4">Aucun log client recent a afficher.</td>
+                            <td colSpan="4">Aucun log client récent à afficher.</td>
                           </tr>
                         )}
                       </tbody>

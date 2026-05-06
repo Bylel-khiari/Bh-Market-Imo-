@@ -58,7 +58,7 @@ const Home = () => {
             <div className="service-card">
               <div className="service-icon"><FaHome /></div>
               <div className="service-text">
-                <h3>Marketplace immobilière</h3>
+                <h3>Plateforme immobilière</h3>
                 <p>Consultez des milliers de biens immobiliers actualisés quotidiennement sur tout le territoire</p>
               </div>
               <Link to="/properties" className="service-action"><FaArrowRight /></Link>

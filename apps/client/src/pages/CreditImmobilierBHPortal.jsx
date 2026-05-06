@@ -21,7 +21,7 @@ const DOCUMENT_TYPES = {
   },
   ID_COPY: {
     key: "ID_COPY",
-    label: "Piece d'identite",
+    label: "Pièce d’identité",
     description: "Copie CIN ou passeport",
     required: true,
     downloadUrl: null,
@@ -934,7 +934,7 @@ export default function CreditImmobilierBHPortal() {
                     </span>
                     <span>
                       <strong>Dette</strong>
-                      <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseignee'}</small>
+                      <small>{propertyContext.debtRatio ? `${propertyContext.debtRatio.toFixed(1)}%` : 'Non renseignée'}</small>
                     </span>
                     <span>
                       <strong>Projet</strong>
@@ -946,7 +946,7 @@ export default function CreditImmobilierBHPortal() {
 
               <form key={formResetKey} onSubmit={handleSubmit} noValidate>
                 <div className="bh-progress-strip">
-                  <span>1. Identite client</span>
+                  <span>1. Identité client</span>
                   <span>2. Variables de scoring</span>
                   <span>3. Pieces justificatives</span>
                 </div>
@@ -966,7 +966,7 @@ export default function CreditImmobilierBHPortal() {
                   </div>
 
                   <div className="col-12 col-md-6">
-                    <label htmlFor="email" className="form-label fw-semibold">Adresse email</label>
+                    <label htmlFor="email" className="form-label fw-semibold">Adresse e-mail</label>
                     <input
                       id="email"
                       name="email"
@@ -1110,7 +1110,7 @@ export default function CreditImmobilierBHPortal() {
 
                         <div className="col-12">
                           <div className="bh-form-note">
-                            Si une valeur reste vide, l'agent de scoring utilisera les donnees de simulation, les engagements declares et les pieces jointes disponibles.
+                            Si une valeur reste vide, l’agent de scoring utilisera les données de simulation, les engagements déclarés et les pièces jointes disponibles.
                           </div>
                         </div>
                       </div>

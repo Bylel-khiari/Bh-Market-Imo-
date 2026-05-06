@@ -30,7 +30,11 @@ describe("creditApplicationModel agent search", () => {
     expect(sql).toContain("CAST(ca.id AS CHAR) LIKE ?");
     expect(sql).toContain("client.name LIKE ?");
     expect(sql).toContain("client.email LIKE ?");
+    expect(sql).toContain("ca.rib LIKE ?");
+    expect(sql).toContain("ca.property_location_snapshot LIKE ?");
+    expect(sql).toContain("CAST(ca.requested_amount AS CHAR) LIKE ?");
     expect(sql).toContain("LIMIT 150");
-    expect(params).toEqual(["%3%", "%3%", "%3%", "%3%", "%3%", "%3%", "%3%", "%3%"]);
+    expect(sql.match(/\?/g)).toHaveLength(params.length);
+    expect(params).toEqual(Array(15).fill("%3%"));
   });
 });

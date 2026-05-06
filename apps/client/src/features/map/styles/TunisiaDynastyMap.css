@@ -102,32 +102,6 @@
   line-height: 1.55;
 }
 
-.dynasty-layout .stats-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.dynasty-layout .stat-card {
-  min-width: 120px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: var(--map-panel-soft);
-  border: 1px solid rgba(110, 243, 255, 0.1);
-}
-
-.dynasty-layout .stat-card span {
-  display: block;
-  color: var(--map-muted);
-  font-size: 0.78rem;
-  margin-bottom: 6px;
-}
-
-.dynasty-layout .stat-card strong {
-  color: var(--map-text);
-  font-size: 1.2rem;
-}
-
 .dynasty-layout .map-stage {
   position: relative;
   height: min(70vh, 720px);

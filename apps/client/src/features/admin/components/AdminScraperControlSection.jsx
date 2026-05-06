@@ -45,11 +45,11 @@ export default function AdminScraperControlSection({
     <div className="admin-card admin-scraper-control-card">
       <div className="admin-scraper-control-head">
         <div className="admin-scraper-title-block">
-          <span className="admin-scraper-kicker">Mission controle</span>
+          <span className="admin-scraper-kicker">Mission de contrôle</span>
           <h2>Automatisation du scraping</h2>
           <p className="admin-section-help">
-            Demarrer lance un cycle de collecte complet. Agent de filtrage execute uniquement
-            le nettoyage des annonces deja collectees puis synchronise les biens visibles.
+            Démarrer lance un cycle de collecte complet. L’agent de filtrage exécute uniquement
+            le nettoyage des annonces déjà collectées puis synchronise les biens visibles.
           </p>
         </div>
         <div className="admin-scraper-top-meta">
@@ -76,7 +76,7 @@ export default function AdminScraperControlSection({
       {scraperControlLoading ? (
         <div className="admin-state admin-state--inline">
           <FaSyncAlt className="spin" />
-          <p>Chargement du controle du scraper...</p>
+              <p>Chargement du contrôle du scraper...</p>
         </div>
       ) : (
         <>
@@ -90,10 +90,10 @@ export default function AdminScraperControlSection({
                   </div>
                   <div className="admin-scraper-mini-card">
                     <span>Mode</span>
-                    <strong>{scraperIsRunning ? 'Cycle en direct' : scraperIsEnabled ? 'Planifie' : 'Arrete'}</strong>
+                    <strong>{scraperIsRunning ? 'Cycle en direct' : scraperIsEnabled ? 'Planifié' : 'Arrêté'}</strong>
                   </div>
                   <div className="admin-scraper-mini-card">
-                    <span>Run courant</span>
+                    <span>Exécution courante</span>
                     <strong>{scraperRunTypeLabel}</strong>
                   </div>
                   <div className="admin-scraper-mini-card">
@@ -125,7 +125,7 @@ export default function AdminScraperControlSection({
                       Intervalle de rescrape automatique
                     </label>
                     <p className="admin-scraper-field-help">
-                      Definissez dans combien de jours le prochain cycle doit etre relance automatiquement.
+                      Définissez dans combien de jours le prochain cycle doit être relancé automatiquement.
                     </p>
                     <div className="admin-inline-control">
                       <input
@@ -158,7 +158,7 @@ export default function AdminScraperControlSection({
                       disabled={scraperSubmitting || scraperIsRunning}
                     >
                       <FaPlay />
-                      {scraperIsEnabled ? 'Relancer maintenant' : 'Demarrer'}
+                      {scraperIsEnabled ? 'Relancer maintenant' : 'Démarrer'}
                     </button>
                     <button
                       type="button"
@@ -176,7 +176,7 @@ export default function AdminScraperControlSection({
                       disabled={scraperSubmitting || (!scraperIsEnabled && !scraperIsRunning)}
                     >
                       <FaStop />
-                      Arreter
+                      Arrêter
                     </button>
                     <button
                       type="button"
@@ -193,11 +193,11 @@ export default function AdminScraperControlSection({
             </div>
 
             <div className="admin-scraper-stats">
-              <ScraperStat icon={<FaCog />} label="Etat courant" value={scraperStatusLabel} detail={scraperControl?.current_step || 'Aucun cycle actif.'} />
-              <ScraperStat icon={<FaGlobe />} label="Spider courant" value={scraperControl?.current_spider_name || '-'} detail={scraperCurrentCommandLabel} />
-              <ScraperStat icon={<FaClock />} label="Temps estime" value={scraperEtaLabel} detail={`Progression: ${Math.round(scraperProgressPercent)}% (${scraperProgressSteps})`} />
-              <ScraperStat icon={<FaCheckCircle />} label="Dernier succes" value={formatDateTime(scraperControl?.last_success_at)} detail={`Dernier lancement: ${formatDateTime(scraperControl?.last_started_at)}`} />
-              <ScraperStat icon={<FaSyncAlt />} label="Prochain rescrape" value={scraperIsEnabled ? formatDateTime(scraperControl?.next_run_at) : 'Desactive'} detail={`Sites actifs: ${siteTotals.active} / ${siteTotals.total}`} />
+              <ScraperStat icon={<FaCog />} label="État courant" value={scraperStatusLabel} detail={scraperControl?.current_step || 'Aucun cycle actif.'} />
+              <ScraperStat icon={<FaGlobe />} label="Robot courant" value={scraperControl?.current_spider_name || '-'} detail={scraperCurrentCommandLabel} />
+              <ScraperStat icon={<FaClock />} label="Temps estimé" value={scraperEtaLabel} detail={`Progression : ${Math.round(scraperProgressPercent)}% (${scraperProgressSteps})`} />
+              <ScraperStat icon={<FaCheckCircle />} label="Dernier succès" value={formatDateTime(scraperControl?.last_success_at)} detail={`Dernier lancement : ${formatDateTime(scraperControl?.last_started_at)}`} />
+              <ScraperStat icon={<FaSyncAlt />} label="Prochaine collecte" value={scraperIsEnabled ? formatDateTime(scraperControl?.next_run_at) : 'Désactivé'} detail={`Sites actifs : ${siteTotals.active} / ${siteTotals.total}`} />
             </div>
           </div>
 
@@ -207,7 +207,7 @@ export default function AdminScraperControlSection({
                 <FaExclamationTriangle />
               </div>
               <div>
-                <strong>Derniere erreur detectee</strong>
+                <strong>Dernière erreur détectée</strong>
                 <p>{scraperControl.last_error}</p>
               </div>
             </div>
@@ -216,9 +216,9 @@ export default function AdminScraperControlSection({
           <div className="admin-scraper-log-panel">
             <div className="admin-scraper-log-head">
               <h3>
-                <FaTerminal /> Logs scraping et agent
+                <FaTerminal /> Journaux de collecte et agent
               </h3>
-              <span>{scraperIsRunning ? 'Suivi live' : 'Dernier run'}</span>
+              <span>{scraperIsRunning ? 'Suivi en direct' : 'Dernière exécution'}</span>
             </div>
             {scraperRecentLog ? (
               <pre>{scraperRecentLog}</pre>
@@ -229,7 +229,7 @@ export default function AdminScraperControlSection({
 
           <div className="admin-scraper-history-grid">
             <RunHistoryPanel
-              title="Historique des runs"
+              title="Historique des exécutions"
               count={scraperControl?.recent_runs?.length || 0}
               rows={scraperControl?.recent_runs || []}
               emptyLabel="Aucun historique disponible."
@@ -238,10 +238,10 @@ export default function AdminScraperControlSection({
               getDuration={(run) => formatDuration(run.duration_seconds)}
             />
             <RunHistoryPanel
-              title="Metriques par spider"
+              title="Métriques par robot"
               count={scraperControl?.spider_metrics?.length || 0}
               rows={scraperControl?.spider_metrics || []}
-              emptyLabel="Aucune metrique spider disponible."
+              emptyLabel="Aucune métrique spider disponible."
               getTitle={(metric) => metric.site_name || metric.spider_name}
               getDate={(metric) => formatDateTime(metric.started_at)}
               getDuration={(metric) => formatDuration(metric.duration_seconds)}
@@ -266,6 +266,21 @@ function ScraperStat({ icon, label, value, detail }) {
   );
 }
 
+function formatRunStatus(status) {
+  switch (status) {
+    case 'running':
+      return 'En cours';
+    case 'success':
+      return 'Réussi';
+    case 'error':
+      return 'Erreur';
+    case 'stopped':
+      return 'Arrêté';
+    default:
+      return status || 'Inconnu';
+  }
+}
+
 function RunHistoryPanel({ title, count, rows, emptyLabel, getTitle, getDate, getDuration }) {
   return (
     <div className="admin-scraper-log-panel">
@@ -278,7 +293,7 @@ function RunHistoryPanel({ title, count, rows, emptyLabel, getTitle, getDate, ge
           {rows.map((row) => (
             <div key={row.id} className={`admin-run-history-row status-${row.status}`}>
               <span>{getTitle(row)}</span>
-              <strong>{row.status}</strong>
+              <strong>{formatRunStatus(row.status)}</strong>
               <small>{getDate(row)}</small>
               <small>{getDuration(row)}</small>
             </div>

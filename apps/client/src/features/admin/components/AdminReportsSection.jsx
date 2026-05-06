@@ -20,19 +20,19 @@ export default function AdminReportsSection({
       <section className="admin-analytics-column">
         <div className="admin-card admin-reports-card">
           <div className="admin-users-header">
-            <h2>Mail reclamations</h2>
+            <h2>Réclamations</h2>
             <div className="admin-users-header-actions">
               <span className="admin-users-count">{adminReports.length}</span>
             </div>
           </div>
 
           <p className="admin-section-help">
-            Cette boite regroupe les reclamations envoyees par les clients depuis les biens.
-            Traitez chaque message pour suivre l incident et garder un historique clair.
+            Cette boîte regroupe les réclamations envoyées par les clients depuis les biens.
+            Traitez chaque message pour suivre l’incident et garder un historique clair.
           </p>
 
           <div className="admin-users-toolbar admin-toolbar-row">
-            <div className="admin-filter-chips" aria-label="Filtrer les reclamations par statut">
+            <div className="admin-filter-chips" aria-label="Filtrer les réclamations par statut">
               {reportStatusFilterOptions.map((option) => (
                 <button
                   key={option.value}
@@ -52,10 +52,10 @@ export default function AdminReportsSection({
           {reportLoading ? (
             <div className="admin-state admin-state--inline">
               <FaSyncAlt className="spin" />
-              <p>Chargement des reclamations...</p>
+              <p>Chargement des réclamations...</p>
             </div>
           ) : adminReports.length === 0 ? (
-            <p className="empty">Aucune reclamation trouvee.</p>
+            <p className="empty">Aucune réclamation trouvée.</p>
           ) : (
             <div className="admin-reports-list">
               {adminReports.map((report) => {
@@ -70,7 +70,7 @@ export default function AdminReportsSection({
                       <div>
                         <h3>{report.property_title || `Bien #${report.property_id}`}</h3>
                         <p className="admin-report-meta">
-                          Reclamation #{report.id} - Bien #{report.property_id}
+                          Réclamation #{report.id} - Bien #{report.property_id}
                         </p>
                       </div>
                       <span className={`admin-report-status-pill status-${report.status}`}>
@@ -83,17 +83,17 @@ export default function AdminReportsSection({
 
                     <div className="admin-report-footnote">
                       <span>
-                        <strong>Client:</strong>{' '}
+                        <strong>Client :</strong>{' '}
                         {report.reporter_name || report.reporter_email || `#${report.reporter_user_id}`}
                       </span>
                       <span>
-                        <strong>Date:</strong> {formatDate(report.created_at)}
+                        <strong>Date :</strong> {formatDate(report.created_at)}
                       </span>
                     </div>
 
                     {report.property_url && (
                       <div className="admin-property-link-row">
-                        <span className="admin-property-link-label">Source:</span>
+                        <span className="admin-property-link-label">Source :</span>
                         <a
                           href={report.property_url}
                           className="admin-property-link"
@@ -107,7 +107,7 @@ export default function AdminReportsSection({
 
                     {report.admin_note && (
                       <p className="admin-report-note">
-                        <strong>Note admin:</strong> {report.admin_note}
+                        <strong>Note administrateur :</strong> {report.admin_note}
                       </p>
                     )}
 
@@ -126,7 +126,7 @@ export default function AdminReportsSection({
                         onClick={() => handleReportStatusUpdate(report, 'resolved')}
                         disabled={!canMoveToResolved || isSubmitting}
                       >
-                        Resolu
+                        Résolu
                       </button>
                       <button
                         type="button"
@@ -134,7 +134,7 @@ export default function AdminReportsSection({
                         onClick={() => handleReportStatusUpdate(report, 'rejected')}
                         disabled={!canMoveToRejected || isSubmitting}
                       >
-                        Rejete
+                        Rejeté
                       </button>
                     </div>
                   </article>

@@ -235,8 +235,6 @@ export default function TunisiaMapHome({
       .filter((item) => item.count > 0 && item.x != null && item.y != null);
   }, [governorateLabels, listingsByGovernorate]);
 
-  const totalGovernorates = governorateLabels.length || 24;
-
   const handleListingClick = (listing) => {
     if (!listing?.id) return;
     navigate(`/properties?focusId=${encodeURIComponent(listing.id)}`);
@@ -269,16 +267,6 @@ export default function TunisiaMapHome({
           <div>
             <p className="tn-full-eyebrow">Vue interactive</p>
             <h3>Carte immobilière de la Tunisie</h3>
-          </div>
-          <div className="tn-full-stats-row">
-            <div className="tn-full-stat-card">
-              <span>Gouvernorats</span>
-              <strong>{totalGovernorates}</strong>
-            </div>
-            <div className="tn-full-stat-card">
-              <span>Annonces chargées</span>
-              <strong>{listings.length}</strong>
-            </div>
           </div>
         </header>
 

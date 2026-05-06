@@ -10,9 +10,9 @@ const Footer = () => {
       <div className="container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3>Marketplace immobilière BH</h3>
+            <h3>Plateforme immobilière BH</h3>
             <p>
-              Marketplace immobilière BH Bank pour rechercher un bien, simuler un crédit habitat
+              Plateforme immobilière BH Bank pour rechercher un bien, simuler un crédit habitat
               et déposer votre demande avec un parcours clair.
             </p>
           </div>
@@ -43,7 +43,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; {year} BH Bank - Marketplace immobilière. Tous droits réservés.</p>
+          <p>&copy; {year} BH Bank - Plateforme immobilière. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
-import logo from '../assets/favicon.ico';
 import { loginApi, saveAuthSession } from '../lib/auth';
 import '../styles/Login.css';
 
@@ -34,7 +33,7 @@ const Login = () => {
     e.preventDefault();
 
     if (!identifier.trim() || !password.trim()) {
-      setErrorMessage('Veuillez saisir votre email et votre mot de passe.');
+      setErrorMessage('Veuillez saisir votre e-mail et votre mot de passe.');
       return;
     }
 
@@ -58,13 +57,11 @@ const Login = () => {
       <div className="login-left">
         <div className="login-left-content">
           <div className="login-brand">
-            <img src={logo} alt="BH Bank" className="login-logo" />
-            <div className="login-brand-line"></div>
-            <h2 className="login-subtitle">MARKETPLACE IMMOBILIÈRE</h2>
+            <h2 className="login-subtitle">Plateforme immobilière</h2>
           </div>
 
           <p className="login-tagline">
-            La marketplace digitale de référence pour vos investissements immobiliers en Tunisie
+            La plateforme numérique de référence pour vos investissements immobiliers en Tunisie
           </p>
 
           <div className="login-features">
@@ -107,7 +104,7 @@ const Login = () => {
               </div>
               <input
                 type="email"
-                placeholder="Adresse email"
+                placeholder="Adresse e-mail"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
               />

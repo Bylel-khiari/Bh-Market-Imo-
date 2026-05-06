@@ -96,7 +96,7 @@ const PropertyCarousel = () => {
           <div className="section-header">
             <span className="section-tag">À la une</span>
             <h2 className="section-title">Biens immobiliers sélectionnés</h2>
-            <p className="section-desc">{error || 'Aucun bien n est disponible pour le moment.'}</p>
+            <p className="section-desc">{error || "Aucun bien n'est disponible pour le moment."}</p>
             <Link to="/properties" className="btn btn-primary">Voir le catalogue complet</Link>
           </div>
         </div>

@@ -29,7 +29,7 @@ export default function AdminUsersSection({
           <div className="admin-users-toolbar">
             <input
               className="admin-search-input"
-              placeholder="Rechercher par nom, e-mail ou role"
+              placeholder="Rechercher par nom, e-mail ou rôle"
               value={userSearch}
               onChange={(event) => setUserSearch(event.target.value)}
             />
@@ -38,12 +38,12 @@ export default function AdminUsersSection({
           <div className="admin-users-table">
             <div className="admin-user-row admin-user-row-head">
               <span>Utilisateur</span>
-              <span>Role</span>
+              <span>Rôle</span>
               <span>Date</span>
               <span>Actions</span>
             </div>
 
-            {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouve.</p>}
+            {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouvé.</p>}
 
             {filteredUsers.map((user) => (
               <article
