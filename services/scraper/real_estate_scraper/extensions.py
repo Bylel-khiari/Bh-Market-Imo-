@@ -14,7 +14,7 @@ class ActiveScrapeSiteGuardExtension:
             {
                 "host": os.getenv("SCRAPER_DB_HOST", os.getenv("MYSQL_HOST", "localhost")),
                 "user": os.getenv("SCRAPER_DB_USER", os.getenv("MYSQL_USER", "root")),
-                "password": os.getenv("SCRAPER_DB_PASSWORD", os.getenv("MYSQL_PASSWORD", "")),
+                "password": os.getenv("SCRAPER_DB_PASSWORD") or os.getenv("MYSQL_PASSWORD") or "root",
                 "database": os.getenv("SCRAPER_DB_NAME", os.getenv("MYSQL_DATABASE", "database")),
             }
         )

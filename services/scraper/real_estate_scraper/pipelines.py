@@ -63,7 +63,7 @@ class RawPipeline:
         self.conn = mysql.connector.connect(
             host=os.getenv("SCRAPER_DB_HOST", "localhost"),
             user=os.getenv("SCRAPER_DB_USER", "root"),
-            password=os.getenv("SCRAPER_DB_PASSWORD", ""),
+            password=os.getenv("SCRAPER_DB_PASSWORD") or "root",
             database=os.getenv("SCRAPER_DB_NAME", "database"),
             autocommit=False,
         )

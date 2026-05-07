@@ -153,7 +153,7 @@ async function main() {
     host: getEnv("MYSQL_HOST", "127.0.0.1"),
     port: Number(getEnv("MYSQL_PORT", "3306")),
     user: getEnv("MYSQL_USER", "root"),
-    password: process.env.MYSQL_PASSWORD,
+    password: getEnv("MYSQL_PASSWORD", "root"),
     database: getEnv("MYSQL_DATABASE", "database"),
   });
 

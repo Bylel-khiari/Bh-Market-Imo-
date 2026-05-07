@@ -108,6 +108,39 @@
   display: block;
 }
 
+.agent-powerbi-dock {
+  min-width: 0;
+}
+
+.agent-powerbi-dock-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.agent-powerbi-action-row,
+.agent-powerbi-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-powerbi-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 280px) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agent-powerbi-empty {
+  min-height: 240px;
+}
+
 .agent-source-list {
   display: grid;
   gap: 14px;
@@ -948,6 +981,10 @@
   .agent-case-metrics {
     grid-template-columns: 1fr 1fr;
   }
+
+  .agent-powerbi-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -994,5 +1031,15 @@
 
   .agent-quick-actions > * {
     width: 100%;
+  }
+
+  .agent-powerbi-action-row > *,
+  .agent-powerbi-form-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .agent-powerbi-frame {
+    height: 420px;
   }
 }

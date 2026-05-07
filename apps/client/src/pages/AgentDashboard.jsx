@@ -50,6 +50,7 @@ import {
   scoreAgentCreditApplicationApi,
   updateAgentCreditApplicationApi,
 } from '../lib/auth';
+import PowerBiDashboardDock from '../features/agent/components/PowerBiDashboardDock';
 import '../styles/AdminDashboard.css';
 import '../styles/AgentDashboard.css';
 
@@ -113,6 +114,10 @@ const SECTION_COPY = {
   platform: {
     title: 'KPI plateforme',
     subtitle: 'Lecture des biens, clients, réclamations d’assistance et sources techniques utiles au traitement.',
+  },
+  powerbi: {
+    title: 'Dashboard Power BI',
+    subtitle: 'Espace dedie au dashboard Power BI agent bancaire.',
   },
 };
 
@@ -714,6 +719,14 @@ export default function AgentDashboard() {
             >
               <FaChartLine />
               <span>KPI plateforme</span>
+            </button>
+            <button
+              type="button"
+              className={`menu-item ${activeSection === 'powerbi' ? 'is-active' : ''}`}
+              onClick={() => setActiveSection('powerbi')}
+            >
+              <FaDownload />
+              <span>Power BI</span>
             </button>
           </div>
 
@@ -2004,6 +2017,16 @@ export default function AgentDashboard() {
                   </div>
                 </section>
               </div>
+            </div>
+          )}
+
+          {activeSection === 'powerbi' && (
+            <div className="admin-content-grid agent-platform-grid">
+              <PowerBiDashboardDock
+                defaultEmbedUrl={POWER_BI_AGENT_DASHBOARD_URL}
+                defaultTitle={POWER_BI_AGENT_DASHBOARD_TITLE}
+                onExportPlatformReport={handleExportPlatformReport}
+              />
             </div>
           )}
         </div>
