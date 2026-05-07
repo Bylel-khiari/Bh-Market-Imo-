@@ -449,7 +449,6 @@ export default function AgentDashboard() {
   const approvalRate = summary.total > 0 ? Math.round((summary.ACCEPTE / summary.total) * 100) : 0;
   const pendingCount =
     summary.SOUMIS + summary.EN_VERIFICATION + summary.DOCUMENTS_MANQUANTS + summary.EN_ETUDE;
-  const hasPowerBiEmbed = /^https?:\/\//i.test(POWER_BI_AGENT_DASHBOARD_URL);
   const platformSummary = platformDashboard?.summary || {};
   const periodMonths =
     PERIOD_OPTIONS.find((option) => option.value === selectedPeriod)?.months || PERIOD_OPTIONS[1].months;
@@ -476,12 +475,6 @@ export default function AgentDashboard() {
   const roleDistribution = useMemo(() => {
     return Array.isArray(platformDashboard?.role_distribution)
       ? platformDashboard.role_distribution.filter((item) => Number(item.value || 0) > 0)
-      : [];
-  }, [platformDashboard]);
-
-  const reportStatusDistribution = useMemo(() => {
-    return Array.isArray(platformDashboard?.report_status_distribution)
-      ? platformDashboard.report_status_distribution.filter((item) => Number(item.value || 0) > 0)
       : [];
   }, [platformDashboard]);
 
@@ -1614,22 +1607,6 @@ export default function AgentDashboard() {
                 </article>
               </section>
 
-              {hasPowerBiEmbed ? (
-                <section className="admin-card agent-platform-card--wide">
-                  <h2>KPI Power BI</h2>
-                  <p className="admin-section-help">Tableau Power BI intégré à l’espace agent bancaire.</p>
-                  <div className="agent-powerbi-frame-wrap">
-                    <iframe
-                      src={POWER_BI_AGENT_DASHBOARD_URL}
-                      title={POWER_BI_AGENT_DASHBOARD_TITLE}
-                      className="agent-powerbi-frame"
-                      loading="lazy"
-                      allowFullScreen
-                    />
-                  </div>
-                </section>
-              ) : null}
-
               <div className="admin-row">
                 <section className="admin-card agent-platform-card--wide">
                   <h2>Parcours client par mois</h2>
@@ -1763,245 +1740,8 @@ export default function AgentDashboard() {
                   )}
                 </section>
 
-                <section className="admin-card">
-                  <h2>Statut des réclamations</h2>
-                  <p className="admin-section-help">Les réclamations restent un module d’assistance distinct du flux crédit.</p>
-                  {reportStatusDistribution.length ? (
-                    <div className="agent-chart-wrap">
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={reportStatusDistribution}
-                            dataKey="value"
-                            nameKey="label"
-                            outerRadius={104}
-                            label={({ name, value }) => `${name}: ${value}`}
-                          >
-                            {reportStatusDistribution.map((entry, index) => (
-                              <Cell key={entry.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <p className="empty">Aucune réclamation à afficher.</p>
-                  )}
-                </section>
-
-                <section className="admin-card">
-                  <h2>Sources techniques</h2>
-                  <p className="admin-section-help">Origine des biens valides apres import depuis les sources de scraping.</p>
-                  <div className="agent-source-list">
-                    {topSources.length ? (
-                      topSources.map((item, index) => (
-                        <div key={`${item.source}-${index}`} className="agent-source-item">
-                          <div>
-                            <strong>{formatTextLabel(item.source)}</strong>
-                            <span>{formatNumber(item.total)} biens</span>
-                          </div>
-                          <div className="agent-source-bar">
-                            <span
-                              style={{
-                                width: `${Math.max(
-                                  12,
-                                  Math.round((Number(item.total || 0) / Number(topSources[0]?.total || 1)) * 100),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="empty">Aucune source à afficher.</p>
-                    )}
-                  </div>
-                </section>
               </div>
 
-              <div className="admin-row">
-                <section className="admin-card">
-                  <h2>Derniers utilisateurs</h2>
-                  <p className="admin-section-help">Consultation rapide des profils clients, agents et admins.</p>
-                  <div className="agent-platform-table-wrap">
-                    <table className="agent-platform-table">
-                      <thead>
-                        <tr>
-                          <th>Utilisateur</th>
-                          <th>Rôle</th>
-                          <th>Creation</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {latestUsers.length ? (
-                          latestUsers.map((user) => (
-                            <tr key={user.id}>
-                              <td>
-                                <strong>{user.name || 'Utilisateur'}</strong>
-                                <span>{user.email || '-'}</span>
-                              </td>
-                              <td>{user.role_label || formatTextLabel(user.role)}</td>
-                              <td>{formatDate(user.created_at)}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="3">Aucun utilisateur récent à afficher.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-
-                <section className="admin-card">
-                  <h2>Dernières réclamations</h2>
-                  <p className="admin-section-help">Vue compacte de l’assistance, séparée du traitement des dossiers de crédit.</p>
-                  <div className="agent-platform-table-wrap">
-                    <table className="agent-platform-table">
-                      <thead>
-                        <tr>
-                          <th>Réclamation</th>
-                          <th>Client</th>
-                          <th>Statut</th>
-                          <th>Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {latestRequests.length ? (
-                          latestRequests.map((request) => (
-                            <tr key={request.id}>
-                              <td>
-                                <strong>#{request.id}</strong>
-                                <span>{formatTextLabel(request.type)}</span>
-                              </td>
-                              <td>
-                                <strong>{request.client_name || 'Client'}</strong>
-                                <span>{request.client_email || '-'}</span>
-                              </td>
-                              <td>{request.status_label || formatTextLabel(request.status)}</td>
-                              <td>{formatDate(request.created_at)}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="4">Aucune réclamation récente à afficher.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
-
-              <div className="admin-row">
-                <section className="admin-card">
-                  <h2>Régions les plus visitées</h2>
-                  <p className="admin-section-help">Sélections de gouvernorats faites par les clients sur la carte.</p>
-                  <div className="agent-source-list">
-                    {topRegionActivity.length ? (
-                      topRegionActivity.map((region) => (
-                        <div key={region.key || region.region} className="agent-source-item">
-                          <div>
-                            <strong>{region.region || formatTextLabel(region.key)}</strong>
-                            <span>
-                              {formatNumber(region.total)} visites - {formatNumber(region.active_clients)} clients
-                            </span>
-                          </div>
-                          <div className="agent-source-bar">
-                            <span
-                              style={{
-                                width: `${Math.max(
-                                  12,
-                                  Math.round(
-                                    (Number(region.total || 0) /
-                                      Number(topRegionActivity[0]?.total || 1)) *
-                                      100,
-                                  ),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="empty">Aucune région visitée à afficher.</p>
-                    )}
-                  </div>
-                </section>
-
-                <section className="admin-card">
-                  <h2>Clients les plus actifs</h2>
-                  <p className="admin-section-help">Gestion rapide des logs regroupes par client.</p>
-                  <div className="agent-source-list">
-                    {topClientActivity.length ? (
-                      topClientActivity.map((client) => (
-                        <div key={client.id} className="agent-source-item">
-                          <div>
-                            <strong>{client.name || client.email || `Client #${client.id}`}</strong>
-                            <span>
-                              {formatNumber(client.total_events)} logs - {formatNumber(client.simulation_calculations)} calculs
-                            </span>
-                          </div>
-                          <div className="agent-source-bar">
-                            <span
-                              style={{
-                                width: `${Math.max(
-                                  12,
-                                  Math.round(
-                                    (Number(client.total_events || 0) /
-                                      Number(topClientActivity[0]?.total_events || 1)) *
-                                      100,
-                                  ),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="empty">Aucun client actif à afficher.</p>
-                    )}
-                  </div>
-                </section>
-
-                <section className="admin-card agent-platform-card--wide">
-                  <h2>Derniers logs client</h2>
-                  <p className="admin-section-help">Clics calculer, demandes de credit et connexions client.</p>
-                  <div className="agent-platform-table-wrap">
-                    <table className="agent-platform-table">
-                      <thead>
-                        <tr>
-                          <th>Client</th>
-                          <th>Evenement</th>
-                          <th>Page</th>
-                          <th>Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {latestClientEvents.length ? (
-                          latestClientEvents.map((event) => (
-                            <tr key={event.id}>
-                              <td>
-                                <strong>{event.client_name || 'Client'}</strong>
-                                <span>{event.client_email || `#${event.client_user_id}`}</span>
-                              </td>
-                              <td>{event.event_label || formatTextLabel(event.event_type)}</td>
-                              <td>{event.page || '-'}</td>
-                              <td>{formatDateTime(event.created_at)}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="4">Aucun log client récent à afficher.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
             </div>
           )}
 
