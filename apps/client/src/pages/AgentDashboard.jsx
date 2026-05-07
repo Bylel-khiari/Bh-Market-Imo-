@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaBan,
-  FaBuilding,
   FaCalculator,
   FaChartLine,
   FaCheckCircle,
@@ -1550,20 +1549,6 @@ export default function AgentDashboard() {
               </section>
 
               <section className="admin-kpi-grid">
-                <article className="admin-kpi-card">
-                  <div className="icon"><FaUsers /></div>
-                  <div>
-                    <h3>Utilisateurs</h3>
-                    <p>{formatNumber(platformSummary.total_users)}</p>
-                  </div>
-                </article>
-                <article className="admin-kpi-card">
-                  <div className="icon"><FaBuilding /></div>
-                  <div>
-                    <h3>Biens actifs</h3>
-                    <p>{formatNumber(platformSummary.active_properties)}</p>
-                  </div>
-                </article>
                 <article className="admin-kpi-card">
                   <div className="icon"><FaClipboardList /></div>
                   <div>
