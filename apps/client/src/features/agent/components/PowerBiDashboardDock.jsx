@@ -4,46 +4,7 @@ import {
   FaClipboard,
   FaDownload,
   FaExternalLinkAlt,
-  FaSave,
-  FaTrash,
 } from 'react-icons/fa';
-
-const POWER_BI_URL_STORAGE_KEY = 'bh_market_powerbi_dashboard_url';
-const POWER_BI_TITLE_STORAGE_KEY = 'bh_market_powerbi_dashboard_title';
-
-function getStoredValue(key, fallback = '') {
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  try {
-    return window.localStorage.getItem(key) || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function setStoredValue(key, value) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    if (value) {
-      window.localStorage.setItem(key, value);
-    } else {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // Local storage is a convenience here; the preview can still work in memory.
-  }
-}
-
-function normalizePowerBiInput(value) {
-  const raw = String(value || '').trim();
-  const iframeSrc = raw.match(/\ssrc=["']([^"']+)["']/i)?.[1];
-  return (iframeSrc || raw).replace(/&amp;/g, '&').trim();
-}
 
 function isHttpUrl(value) {
   try {
@@ -59,53 +20,15 @@ export default function PowerBiDashboardDock({
   defaultTitle = 'Power BI',
   onExportPlatformReport,
 }) {
-  const initialUrl = getStoredValue(POWER_BI_URL_STORAGE_KEY, defaultEmbedUrl);
-  const initialTitle = getStoredValue(POWER_BI_TITLE_STORAGE_KEY, defaultTitle);
-
-  const [embedUrl, setEmbedUrl] = useState(initialUrl);
-  const [embedTitle, setEmbedTitle] = useState(initialTitle);
-  const [draftUrl, setDraftUrl] = useState(initialUrl);
-  const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [message, setMessage] = useState('');
 
+  const embedUrl = String(defaultEmbedUrl || '').trim();
+  const embedTitle = String(defaultTitle || 'Power BI').trim();
   const canPreview = useMemo(() => isHttpUrl(embedUrl), [embedUrl]);
-
-  const handleSave = (event) => {
-    event.preventDefault();
-
-    const nextUrl = normalizePowerBiInput(draftUrl);
-    const nextTitle = String(draftTitle || '').trim() || defaultTitle;
-
-    if (!isHttpUrl(nextUrl)) {
-      setMessage('Lien Power BI invalide.');
-      return;
-    }
-
-    setEmbedUrl(nextUrl);
-    setEmbedTitle(nextTitle);
-    setDraftUrl(nextUrl);
-    setDraftTitle(nextTitle);
-    setStoredValue(POWER_BI_URL_STORAGE_KEY, nextUrl);
-    setStoredValue(POWER_BI_TITLE_STORAGE_KEY, nextTitle);
-    setMessage('Dashboard Power BI enregistre.');
-  };
-
-  const handleClear = () => {
-    const fallbackUrl = normalizePowerBiInput(defaultEmbedUrl);
-    const fallbackTitle = defaultTitle || 'Power BI';
-
-    setStoredValue(POWER_BI_URL_STORAGE_KEY, '');
-    setStoredValue(POWER_BI_TITLE_STORAGE_KEY, '');
-    setEmbedUrl(fallbackUrl);
-    setEmbedTitle(fallbackTitle);
-    setDraftUrl(fallbackUrl);
-    setDraftTitle(fallbackTitle);
-    setMessage(fallbackUrl ? 'Lien local retire.' : 'Espace Power BI vide.');
-  };
 
   const handleOpen = () => {
     if (!canPreview) {
-      setMessage('Ajoutez un lien Power BI valide.');
+      setMessage('Aucun lien Power BI configure.');
       return;
     }
 
@@ -148,37 +71,6 @@ export default function PowerBiDashboardDock({
           </button>
         </div>
       </div>
-
-      <form className="agent-powerbi-form" onSubmit={handleSave}>
-        <label className="admin-field-block agent-powerbi-url-field">
-          <span className="admin-field-label">Lien ou iframe Power BI</span>
-          <input
-            type="text"
-            value={draftUrl}
-            onChange={(event) => setDraftUrl(event.target.value)}
-            placeholder="https://app.powerbi.com/reportEmbed?..."
-          />
-        </label>
-        <label className="admin-field-block agent-powerbi-title-field">
-          <span className="admin-field-label">Titre</span>
-          <input
-            type="text"
-            value={draftTitle}
-            onChange={(event) => setDraftTitle(event.target.value)}
-            placeholder="Dashboard Power BI"
-          />
-        </label>
-        <div className="agent-powerbi-form-actions">
-          <button type="submit" className="admin-refresh">
-            <FaSave />
-            <span>Enregistrer</span>
-          </button>
-          <button type="button" className="admin-danger" onClick={handleClear}>
-            <FaTrash />
-            <span>Retirer</span>
-          </button>
-        </div>
-      </form>
 
       {message && <p className="admin-form-message">{message}</p>}
 
