@@ -885,44 +885,6 @@ export default function AgentDashboard() {
               </div>
 
               <aside className="admin-crud-column">
-                <section className="admin-card agent-focus-card">
-                  <h2>Dossier à la une</h2>
-                  {selectedApplication ? (
-                    <>
-                      <p className="agent-focus-title">
-                        {selectedApplication.property_title || `Demande #${selectedApplication.id}`}
-                      </p>
-                      <div className="agent-focus-grid">
-                        <span>
-                          <strong>Client</strong>
-                          <small>{selectedApplication.full_name}</small>
-                        </span>
-                        <span>
-                          <strong>Montant</strong>
-                          <small>{formatCurrency(selectedApplication.requested_amount)}</small>
-                        </span>
-                        <span>
-                          <strong>Dette</strong>
-                          <small>{formatPercent(selectedApplication.debt_ratio)}</small>
-                        </span>
-                        <span>
-                          <strong>Score</strong>
-                          <small>{formatComplianceScore(selectedApplication)}</small>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="admin-refresh"
-                        onClick={() => setActiveSection('applications')}
-                      >
-                        Traiter ce dossier
-                      </button>
-                    </>
-                  ) : (
-                    <p className="admin-section-help">Aucun dossier sélectionné.</p>
-                  )}
-                </section>
-
                 <section className="admin-card agent-guide-card">
                   <h2>Points de contrôle</h2>
                   <ul className="agent-guide-list">

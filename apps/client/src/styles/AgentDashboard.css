@@ -205,8 +205,7 @@
   box-shadow: 0 12px 26px rgba(10, 34, 64, 0.08);
 }
 
-.agent-overview-item strong,
-.agent-focus-title {
+.agent-overview-item strong {
   display: block;
   color: #0a2240;
   font-size: 16px;
@@ -228,36 +227,8 @@
   color: #61758a;
 }
 
-.agent-focus-card,
 .agent-guide-card {
   margin-bottom: 18px;
-}
-
-.agent-focus-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 16px 0;
-}
-
-.agent-focus-grid span {
-  border-radius: 14px;
-  background: rgba(10, 34, 64, 0.04);
-  padding: 12px;
-  display: grid;
-  gap: 3px;
-}
-
-.agent-focus-grid strong {
-  color: #0a2240;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.agent-focus-grid small {
-  color: #435d79;
-  font-size: 13px;
 }
 
 .agent-guide-list {
@@ -972,7 +943,6 @@
     padding-right: 0;
   }
 
-  .agent-focus-grid,
   .agent-finance-grid,
   .agent-scoring-grid,
   .agent-case-metrics {
@@ -997,7 +967,6 @@
     justify-items: start;
   }
 
-  .agent-focus-grid,
   .agent-finance-grid,
   .agent-scoring-grid,
   .agent-case-metrics {
