@@ -330,6 +330,66 @@
   gap: 12px;
 }
 
+.admin-dashboard-status-card {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-dashboard-status-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.admin-dashboard-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.admin-dashboard-status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(10, 34, 64, 0.08);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(244, 248, 252, 0.86);
+}
+
+.admin-dashboard-status-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--primary);
+  background: rgba(10, 34, 64, 0.06);
+}
+
+.admin-dashboard-status-item div {
+  min-width: 0;
+}
+
+.admin-dashboard-status-item span:not(.admin-dashboard-status-icon) {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-dashboard-status-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1;
+}
+
 .admin-card {
   background: var(--surface);
   border-radius: 16px;

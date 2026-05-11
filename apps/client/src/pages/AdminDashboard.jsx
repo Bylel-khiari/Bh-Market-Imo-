@@ -32,6 +32,7 @@ import {
 import {
   clearAuthSession,
   acceptAdminScrapeSiteSuggestionApi,
+  fetchAdminDashboardApi,
   createAdminPropertyApi,
   createAdminScrapeSiteApi,
   createAdminUserApi,
@@ -68,6 +69,108 @@ import useAdminPropertiesPagination from '../features/admin/hooks/useAdminProper
 import '../styles/AdminDashboard.css';
 
 const ADMIN_PROPERTIES_PER_PAGE = 50;
+const DASHBOARD_ROLE_KEYS = ['client', 'agent_bancaire', 'admin'];
+const DASHBOARD_SUGGESTION_STATUS_KEYS = ['pending', 'accepted', 'rejected', 'ignored'];
+
+function createEmptyDashboardSummary() {
+  return {
+    users: {
+      total: 0,
+      roles: {
+        client: 0,
+        agent_bancaire: 0,
+        admin: 0,
+      },
+    },
+    properties: {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      adminCreated: 0,
+      manualChanges: 0,
+    },
+    scrapeSites: {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      pendingSpider: 0,
+    },
+    scrapeSiteSuggestions: {
+      total: 0,
+      pending: 0,
+      accepted: 0,
+      rejected: 0,
+      ignored: 0,
+    },
+    reports: {
+      total: 0,
+      unread: 0,
+      inReview: 0,
+      resolved: 0,
+      rejected: 0,
+    },
+  };
+}
+
+function toDashboardNumber(value) {
+  return Number(value || 0);
+}
+
+function normalizeDashboardSummary(summary = {}) {
+  const empty = createEmptyDashboardSummary();
+
+  return {
+    ...empty,
+    users: {
+      ...empty.users,
+      ...summary.users,
+      total: toDashboardNumber(summary.users?.total),
+      roles: DASHBOARD_ROLE_KEYS.reduce(
+        (acc, key) => ({
+          ...acc,
+          [key]: toDashboardNumber(summary.users?.roles?.[key]),
+        }),
+        empty.users.roles,
+      ),
+    },
+    properties: {
+      ...empty.properties,
+      ...summary.properties,
+      total: toDashboardNumber(summary.properties?.total),
+      active: toDashboardNumber(summary.properties?.active),
+      inactive: toDashboardNumber(summary.properties?.inactive),
+      adminCreated: toDashboardNumber(summary.properties?.adminCreated),
+      manualChanges: toDashboardNumber(summary.properties?.manualChanges),
+    },
+    scrapeSites: {
+      ...empty.scrapeSites,
+      ...summary.scrapeSites,
+      total: toDashboardNumber(summary.scrapeSites?.total),
+      active: toDashboardNumber(summary.scrapeSites?.active),
+      inactive: toDashboardNumber(summary.scrapeSites?.inactive),
+      pendingSpider: toDashboardNumber(summary.scrapeSites?.pendingSpider),
+    },
+    scrapeSiteSuggestions: DASHBOARD_SUGGESTION_STATUS_KEYS.reduce(
+      (acc, key) => ({
+        ...acc,
+        [key]: toDashboardNumber(summary.scrapeSiteSuggestions?.[key]),
+      }),
+      {
+        total: toDashboardNumber(summary.scrapeSiteSuggestions?.total),
+      },
+    ),
+    reports: {
+      ...empty.reports,
+      ...summary.reports,
+      total: toDashboardNumber(summary.reports?.total),
+      unread: toDashboardNumber(summary.reports?.unread),
+      inReview: toDashboardNumber(summary.reports?.inReview),
+      resolved: toDashboardNumber(summary.reports?.resolved),
+      rejected: toDashboardNumber(summary.reports?.rejected),
+    },
+  };
+}
+
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'Tous' },
   { value: 'active', label: 'Actifs' },
@@ -297,6 +400,7 @@ function formatDuration(secondsLike) {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [dashboardSummary, setDashboardSummary] = useState(createEmptyDashboardSummary);
   const [users, setUsers] = useState([]);
   const [scrapeSites, setScrapeSites] = useState([]);
   const [adminProperties, setAdminProperties] = useState([]);
@@ -401,6 +505,24 @@ export default function AdminDashboard() {
     redirectToLogin();
     return true;
   }, [redirectToLogin]);
+
+  const fetchDashboardSummary = useCallback(async ({ silent = false } = {}) => {
+    try {
+      const token = requireAuthToken();
+      const payload = await fetchAdminDashboardApi(token);
+      const nextSummary = normalizeDashboardSummary(payload?.summary);
+      setDashboardSummary(nextSummary);
+      setUnreadReportCount(nextSummary.reports.unread);
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      if (!silent) {
+        setError(requestError.message || 'Erreur de chargement du tableau de bord.');
+      }
+    }
+  }, [handleAuthFailure]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -546,7 +668,15 @@ export default function AdminDashboard() {
       });
 
       setAdminReports(Array.isArray(payload?.reports) ? payload.reports : []);
-      setUnreadReportCount(Number(payload?.unreadCount || 0));
+      const nextUnreadReportCount = Number(payload?.unreadCount || 0);
+      setUnreadReportCount(nextUnreadReportCount);
+      setDashboardSummary((prev) => ({
+        ...prev,
+        reports: {
+          ...prev.reports,
+          unread: nextUnreadReportCount,
+        },
+      }));
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -562,6 +692,7 @@ export default function AdminDashboard() {
 
   const refreshDashboardData = useCallback(async () => {
     await Promise.all([
+      fetchDashboardSummary(),
       fetchUsers(),
       fetchScrapeSites(),
       fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter }),
@@ -572,6 +703,7 @@ export default function AdminDashboard() {
   }, [
     fetchAdminProperties,
     fetchAdminReports,
+    fetchDashboardSummary,
     fetchScrapeSiteSuggestions,
     fetchScrapeSites,
     fetchScraperControl,
@@ -601,7 +733,10 @@ export default function AdminDashboard() {
         setUnreadReportCount((prev) => Math.max(0, prev - 1));
       }
 
-      await fetchAdminReports({ status: reportStatusFilter, silent: true });
+      await Promise.all([
+        fetchAdminReports({ status: reportStatusFilter, silent: true }),
+        fetchDashboardSummary({ silent: true }),
+      ]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -695,7 +830,7 @@ export default function AdminDashboard() {
 
       setFormMessage(formMode === 'create' ? 'Utilisateur créé.' : 'Utilisateur mis à jour.');
       resetForm();
-      await fetchUsers();
+      await Promise.all([fetchUsers(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -731,7 +866,7 @@ export default function AdminDashboard() {
 
       setFormMessage('Utilisateur supprime.');
       closeDeleteConfirm();
-      await fetchUsers();
+      await Promise.all([fetchUsers(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -813,7 +948,7 @@ export default function AdminDashboard() {
 
       setSiteFormMessage(siteFormMode === 'create' ? 'Site ajoute.' : 'Site mis a jour.');
       resetSiteForm();
-      await fetchScrapeSites();
+      await Promise.all([fetchScrapeSites(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -848,7 +983,7 @@ export default function AdminDashboard() {
 
       setSiteFormMessage('Site supprime.');
       closeDeleteSiteConfirm();
-      await fetchScrapeSites();
+      await Promise.all([fetchScrapeSites(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -886,6 +1021,7 @@ export default function AdminDashboard() {
         ? 'Site désactivé pour les prochains lancements.'
           : 'Site reactive pour les prochains lancements.',
       );
+      await fetchDashboardSummary({ silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1056,6 +1192,7 @@ export default function AdminDashboard() {
           : 'Recherche terminée : aucune nouvelle suggestion.',
       );
       await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
+      await fetchDashboardSummary({ silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1076,7 +1213,10 @@ export default function AdminDashboard() {
 
       await updateAdminScrapeSiteSuggestionApi(suggestion.id, { status }, token);
       setSiteSuggestionMessage('Suggestion mise à jour.');
-      await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
+      await Promise.all([
+        fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),
+        fetchDashboardSummary({ silent: true }),
+      ]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1102,6 +1242,7 @@ export default function AdminDashboard() {
       await Promise.all([
         fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),
         fetchScrapeSites(),
+        fetchDashboardSummary({ silent: true }),
       ]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -1209,7 +1350,7 @@ export default function AdminDashboard() {
         propertyFormMode === 'create' ? 'Bien ajoute.' : 'Bien mis a jour.',
       );
       resetPropertyForm();
-      await fetchAdminProperties();
+      await Promise.all([fetchAdminProperties(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1244,7 +1385,7 @@ export default function AdminDashboard() {
 
       setPropertyFormMessage('Bien supprime.');
       closeDeletePropertyConfirm();
-      await fetchAdminProperties();
+      await Promise.all([fetchAdminProperties(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1284,6 +1425,7 @@ export default function AdminDashboard() {
         ? 'Bien désactivé pour l’espace client.'
           : 'Bien reactive pour l espace client.',
       );
+      await fetchDashboardSummary({ silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -1296,6 +1438,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    fetchDashboardSummary();
     fetchUsers();
     fetchScrapeSites();
     fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter });
@@ -1303,6 +1446,7 @@ export default function AdminDashboard() {
     fetchAdminProperties();
   }, [
     fetchAdminProperties,
+    fetchDashboardSummary,
     fetchScrapeSiteSuggestions,
     fetchScrapeSites,
     fetchScraperControl,
@@ -1345,42 +1489,16 @@ export default function AdminDashboard() {
   }, [activeSection, fetchScraperControl, scraperControl?.is_enabled, scraperControl?.is_running, scraperControl?.status]);
 
   const roleTotals = useMemo(() => {
-    return users.reduce(
-      (acc, user) => {
-        const role = user?.role || 'unknown';
-        acc[role] = (acc[role] || 0) + 1;
-        return acc;
-      },
-      { client: 0, agent_bancaire: 0, admin: 0 },
-    );
-  }, [users]);
+    return dashboardSummary.users.roles;
+  }, [dashboardSummary.users.roles]);
 
   const siteTotals = useMemo(() => {
-    return scrapeSites.reduce(
-      (acc, site) => {
-        acc.total += 1;
-        if (site?.is_active) {
-          acc.active += 1;
-        } else {
-          acc.inactive += 1;
-        }
-        return acc;
-      },
-      { total: 0, active: 0, inactive: 0 },
-    );
-  }, [scrapeSites]);
+    return dashboardSummary.scrapeSites;
+  }, [dashboardSummary.scrapeSites]);
 
   const siteSuggestionTotals = useMemo(() => {
-    return siteSuggestions.reduce(
-      (acc, suggestion) => {
-        const status = suggestion?.status || 'pending';
-        acc.total += 1;
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      },
-      { total: 0, pending: 0, accepted: 0, rejected: 0, ignored: 0 },
-    );
-  }, [siteSuggestions]);
+    return dashboardSummary.scrapeSiteSuggestions;
+  }, [dashboardSummary.scrapeSiteSuggestions]);
 
   const scraperIsRunning = Boolean(scraperControl?.is_running) || scraperControl?.status === 'running';
   const scraperIsEnabled = Boolean(scraperControl?.is_enabled);
@@ -1416,22 +1534,8 @@ export default function AdminDashboard() {
   const scraperRecentLog = String(scraperControl?.recent_log || '').trim();
 
   const propertyTotals = useMemo(() => {
-    return adminProperties.reduce(
-      (acc, property) => {
-        acc.total += 1;
-        if (property?.is_active) {
-          acc.active += 1;
-        } else {
-          acc.inactive += 1;
-        }
-        if (property?.created_by_admin) {
-          acc.adminCreated += 1;
-        }
-        return acc;
-      },
-      { total: 0, active: 0, inactive: 0, adminCreated: 0 },
-    );
-  }, [adminProperties]);
+    return dashboardSummary.properties;
+  }, [dashboardSummary.properties]);
 
   const pieData = useMemo(
     () =>
@@ -1635,7 +1739,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3>Utilisateurs</h3>
-                      <p>{users.length}</p>
+                      <p>{dashboardSummary.users.total}</p>
                     </div>
                   </div>
                   <div className="admin-kpi-card">
@@ -1689,28 +1793,66 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3>Réclamations non lues</h3>
-                      <p>{unreadReportCount}</p>
+                      <p>{dashboardSummary.reports.unread}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="admin-row">
-                  <div className="admin-card">
-                    <h2>Bienvenue</h2>
-                    <p className="admin-section-help">
-                      Utilisez le menu gauche pour gérer les comptes, les biens et les sites
-                      scrapés depuis un seul tableau de bord admin en français.
-                    </p>
+                <div className="admin-card admin-dashboard-status-card">
+                  <div className="admin-dashboard-status-head">
+                    <div>
+                      <h2>État des biens immobiliers</h2>
+                      <p className="admin-section-help">
+                        Synthèse des biens visibles, actifs et collectés sur la plateforme.
+                      </p>
+                    </div>
                   </div>
-                  <div className="admin-card">
-                    <h2>État des biens immobiliers</h2>
-                    <ul className="admin-settings-list">
-                      <li>Total des biens visibles en admin : {propertyTotals.total}</li>
-                      <li>Biens actifs côté client : {propertyTotals.active}</li>
-                      <li>Biens désactivés : {propertyTotals.inactive}</li>
-                      <li>Biens ajoutés par admin : {propertyTotals.adminCreated}</li>
-                      <li>Sites de collecte actifs : {siteTotals.active}</li>
-                    </ul>
+                  <div className="admin-dashboard-status-grid">
+                    <article className="admin-dashboard-status-item">
+                      <span className="admin-dashboard-status-icon">
+                        <FaBuilding />
+                      </span>
+                      <div>
+                        <span>Total admin</span>
+                        <strong>{propertyTotals.total}</strong>
+                      </div>
+                    </article>
+                    <article className="admin-dashboard-status-item">
+                      <span className="admin-dashboard-status-icon">
+                        <FaChartLine />
+                      </span>
+                      <div>
+                        <span>Actifs côté client</span>
+                        <strong>{propertyTotals.active}</strong>
+                      </div>
+                    </article>
+                    <article className="admin-dashboard-status-item">
+                      <span className="admin-dashboard-status-icon">
+                        <FaTimes />
+                      </span>
+                      <div>
+                        <span>Désactivés</span>
+                        <strong>{propertyTotals.inactive}</strong>
+                      </div>
+                    </article>
+                    <article className="admin-dashboard-status-item">
+                      <span className="admin-dashboard-status-icon">
+                        <FaListAlt />
+                      </span>
+                      <div>
+                        <span>Ajoutés par admin</span>
+                        <strong>{propertyTotals.adminCreated}</strong>
+                      </div>
+                    </article>
+                    <article className="admin-dashboard-status-item">
+                      <span className="admin-dashboard-status-icon">
+                        <FaGlobe />
+                      </span>
+                      <div>
+                        <span>Sites actifs</span>
+                        <strong>{siteTotals.active}</strong>
+                      </div>
+                    </article>
                   </div>
                 </div>
               </section>
@@ -1919,10 +2061,10 @@ export default function AdminDashboard() {
                   </p>
                   <ul className="admin-settings-list">
                     <li>API: {apiBaseUrl}</li>
-                    <li>Utilisateurs chargés : {users.length}</li>
-                    <li>Biens chargés : {adminProperties.length} / {propertyPagination.total}</li>
-                    <li>Réclamations non lues : {unreadReportCount}</li>
-                    <li>Sites de collecte chargés : {scrapeSites.length}</li>
+                    <li>Utilisateurs en base : {dashboardSummary.users.total}</li>
+                    <li>Biens en base : {propertyTotals.total}</li>
+                    <li>Réclamations non lues : {dashboardSummary.reports.unread}</li>
+                    <li>Sites de collecte en base : {siteTotals.total}</li>
                     <li>Mode édition utilisateur : {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode édition bien : {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
                     <li>Mode édition site : {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>

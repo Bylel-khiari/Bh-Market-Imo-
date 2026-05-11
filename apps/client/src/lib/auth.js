@@ -251,6 +251,10 @@ export async function fetchAdminUsersApi(token, limit = 100) {
   return authorizedJsonRequest(`/api/admin/users?limit=${limit}`, token);
 }
 
+export async function fetchAdminDashboardApi(token) {
+  return authorizedJsonRequest('/api/admin/dashboard', token);
+}
+
 export async function createAdminUserApi(input, token) {
   return authorizedJsonRequest('/api/admin/users', token, {
     method: 'POST',

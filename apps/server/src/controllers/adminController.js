@@ -4,6 +4,7 @@ import {
   fetchAdminPropertiesPage,
   updatePropertyByAdmin,
 } from "../models/propertyModel.js";
+import { fetchAdminDashboardSummary } from "../models/adminDashboardModel.js";
 import {
   createUserByAdmin,
   deleteUserByAdmin,
@@ -26,6 +27,7 @@ import {
 import { startSiteDiscoveryRun } from "../services/siteDiscoveryService.js";
 import { recordAdminAuditLog } from "../models/adminAuditLogModel.js";
 import {
+  renderAdminDashboardSummary,
   renderAdminPropertiesList,
   renderAcceptedScrapeSiteSuggestion,
   renderCreatedAdminProperty,
@@ -44,6 +46,11 @@ import {
   renderUpdatedScrapeSite,
   renderUsersList,
 } from "../views/adminView.js";
+
+export async function getDashboardSummaryByAdmin(req, res) {
+  const summary = await fetchAdminDashboardSummary();
+  return renderAdminDashboardSummary(res, summary);
+}
 
 export async function listUsers(req, res) {
   const rows = await fetchUsers({ limit: req.query.limit });

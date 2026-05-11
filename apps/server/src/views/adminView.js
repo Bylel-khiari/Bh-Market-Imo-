@@ -2,6 +2,10 @@ export function renderUsersList(res, users) {
   return res.json({ count: users.length, users });
 }
 
+export function renderAdminDashboardSummary(res, summary) {
+  return res.json({ summary });
+}
+
 export function renderCreatedUser(res, user) {
   return res.status(201).json({ user });
 }

@@ -6,6 +6,7 @@ import {
 	deleteProperty,
 	deleteScrapeSiteByAdmin,
 	deleteUser,
+	getDashboardSummaryByAdmin,
 	getScraperControlByAdmin,
 	acceptScrapeSiteSuggestionByAdmin,
 	listPropertiesByAdmin,
@@ -45,6 +46,12 @@ import {
 
 const router = Router();
 
+router.get(
+	"/api/admin/dashboard",
+	requireAuth,
+	requireRoles("admin"),
+	getDashboardSummaryByAdmin
+);
 router.get(
 	"/api/admin/users",
 	requireAuth,

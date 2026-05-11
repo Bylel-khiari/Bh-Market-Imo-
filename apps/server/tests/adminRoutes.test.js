@@ -3,6 +3,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = {
+  getDashboardSummaryByAdmin: vi.fn((req, res) => res.json({ summary: {} })),
   listUsers: vi.fn((req, res) => res.json({ users: [] })),
   createUser: vi.fn((req, res) => res.status(201).json({ user: {} })),
   updateUser: vi.fn((req, res) => res.json({ user: {} })),
@@ -58,6 +59,16 @@ beforeEach(() => {
 });
 
 describe("adminRoutes", () => {
+  it("routes dashboard summary to the admin controller", async () => {
+    const app = await buildApp();
+
+    const response = await request(app).get("/api/admin/dashboard");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ summary: {} });
+    expect(handlers.getDashboardSummaryByAdmin).toHaveBeenCalledTimes(1);
+  });
+
   it("enforces admin role on scraper site routes", async () => {
     const app = await buildApp();
 
