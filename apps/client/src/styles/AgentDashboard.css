@@ -260,19 +260,6 @@
   color: #61758a;
 }
 
-.agent-guide-card {
-  margin-bottom: 18px;
-}
-
-.agent-guide-list {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 10px;
-  color: #233e5d;
-  line-height: 1.6;
-}
-
 .agent-dossier-workbench {
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: 16px;

@@ -751,7 +751,7 @@ export default function AgentDashboard() {
           </header>
 
           {activeSection === 'overview' && (
-            <div className="admin-content-grid">
+            <div className="admin-content-grid admin-content-single">
               <div className="admin-analytics-column">
                 <section className="admin-kpi-grid">
                   <article className="admin-kpi-card">
@@ -889,17 +889,6 @@ export default function AgentDashboard() {
                 </section>
               </div>
 
-              <aside className="admin-crud-column">
-                <section className="admin-card agent-guide-card">
-                  <h2>Points de contrôle</h2>
-                  <ul className="agent-guide-list">
-                    <li>Vérifier la capacité de remboursement et le taux d’endettement.</li>
-                    <li>Contrôler la cohérence des pièces transmises et du CIN.</li>
-                    <li>Mettre à jour l’état du dossier pour informer le client.</li>
-                    <li>Tracer une note claire avant acceptation ou refus.</li>
-                  </ul>
-                </section>
-              </aside>
             </div>
           )}
 
