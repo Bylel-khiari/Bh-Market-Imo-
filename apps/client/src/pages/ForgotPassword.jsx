@@ -1,14 +1,37 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaEnvelope, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
+import { requestPasswordResetApi } from '../lib/auth';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!email.trim()) {
+      setErrorMessage('Veuillez saisir votre adresse e-mail.');
+      setSuccessMessage('');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      await requestPasswordResetApi({ email: email.trim() });
+      setSuccessMessage("Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d'être envoyé.");
+    } catch (error) {
+      setErrorMessage(error.message || "Impossible d'envoyer le lien de réinitialisation.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,12 +93,18 @@ const ForgotPassword = () => {
                 placeholder="Adresse e-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                disabled={isSubmitting}
+                required
               />
             </div>
 
-            <button type="submit" className="login-submit-btn">
-              Envoyer le lien
+            <button type="submit" className="login-submit-btn" disabled={isSubmitting}>
+              {isSubmitting ? 'Envoi en cours...' : 'Envoyer le lien'}
             </button>
+
+            {errorMessage && <p className="login-error-message">{errorMessage}</p>}
+            {successMessage && <p className="login-success-message">{successMessage}</p>}
 
             <div className="login-divider">
               <span>ou</span>

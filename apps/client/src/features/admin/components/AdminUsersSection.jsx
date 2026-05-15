@@ -43,54 +43,56 @@ export default function AdminUsersSection({
               <span>Actions</span>
             </div>
 
-            {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouvé.</p>}
+            <div className="admin-users-table-body">
+              {filteredUsers.length === 0 && <p className="empty">Aucun utilisateur trouvé.</p>}
 
-            {filteredUsers.map((user) => (
-              <article
-                key={user.id}
-                className={`admin-user-row ${editingUserId === user.id ? 'is-editing' : ''}`}
-              >
-                <div className="admin-user-cell user-cell-main">
-                  <div className="admin-user-avatar">
-                    {getInitials(user.name || user.email)}
+              {filteredUsers.map((user) => (
+                <article
+                  key={user.id}
+                  className={`admin-user-row ${editingUserId === user.id ? 'is-editing' : ''}`}
+                >
+                  <div className="admin-user-cell user-cell-main">
+                    <div className="admin-user-avatar">
+                      {getInitials(user.name || user.email)}
+                    </div>
+                    <div>
+                      <p className="admin-user-name">{user.name || '-'}</p>
+                      <p className="admin-user-email">{user.email || '-'}</p>
+                      <p className="admin-user-id">ID #{user.id}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="admin-user-name">{user.name || '-'}</p>
-                    <p className="admin-user-email">{user.email || '-'}</p>
-                    <p className="admin-user-id">ID #{user.id}</p>
+
+                  <div className="admin-user-cell">
+                    <span className={`role-pill role-${user.role || 'unknown'}`}>
+                      {formatRole(user.role)}
+                    </span>
                   </div>
-                </div>
 
-                <div className="admin-user-cell">
-                  <span className={`role-pill role-${user.role || 'unknown'}`}>
-                    {formatRole(user.role)}
-                  </span>
-                </div>
-
-                <div className="admin-user-cell admin-user-date">
-                  {formatDate(user.created_at)}
-                </div>
-
-                <div className="admin-user-cell">
-                  <div className="admin-table-actions">
-                    <button
-                      type="button"
-                      className="admin-secondary"
-                      onClick={() => startEdit(user)}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-danger"
-                      onClick={() => requestDelete(user)}
-                    >
-                      Supprimer
-                    </button>
+                  <div className="admin-user-cell admin-user-date">
+                    {formatDate(user.created_at)}
                   </div>
-                </div>
-              </article>
-            ))}
+
+                  <div className="admin-user-cell">
+                    <div className="admin-table-actions">
+                      <button
+                        type="button"
+                        className="admin-secondary"
+                        onClick={() => startEdit(user)}
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-danger"
+                        onClick={() => requestDelete(user)}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>

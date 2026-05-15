@@ -94,9 +94,10 @@ export default function AdminPropertiesSection({
             <p className="empty">Aucun bien trouvé.</p>
           ) : (
             <>
-              <div className="admin-properties-grid">
-                {paginatedAdminProperties.map((property) => (
-                  <article
+              <div className="admin-properties-scroll">
+                <div className="admin-properties-grid">
+                  {paginatedAdminProperties.map((property) => (
+                    <article
                     key={property.id}
                     className={`admin-property-card ${property.is_active ? 'is-active' : 'is-inactive'} ${editingPropertyId === property.id ? 'is-editing' : ''}`}
                   >
@@ -192,8 +193,9 @@ export default function AdminPropertiesSection({
                         </button>
                       </div>
                     </div>
-                  </article>
-                ))}
+                    </article>
+                  ))}
+                </div>
               </div>
 
               {propertyTotalPages > 1 && (

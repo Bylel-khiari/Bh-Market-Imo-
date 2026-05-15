@@ -131,6 +131,20 @@ export async function changePasswordApi(input, token) {
   });
 }
 
+export async function requestPasswordResetApi(input) {
+  return jsonRequest('/api/auth/forgot-password', {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export async function resetPasswordApi(input) {
+  return jsonRequest('/api/auth/reset-password', {
+    method: 'POST',
+    body: input,
+  });
+}
+
 export async function fetchAgentDashboardApi(token) {
   return authorizedJsonRequest('/api/agent/dashboard', token);
 }

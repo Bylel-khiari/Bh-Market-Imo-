@@ -1,4 +1,10 @@
-import { changeUserPassword, getUserById, loginUser } from "../models/authModel.js";
+import {
+  changeUserPassword,
+  getUserById,
+  loginUser,
+  requestPasswordReset,
+  resetUserPassword,
+} from "../models/authModel.js";
 import {
   CLIENT_ACTIVITY_EVENT_TYPES,
   recordClientActivityLog,
@@ -45,6 +51,25 @@ export async function updatePassword(req, res) {
 
   return res.json({
     message: "Mot de passe mis a jour avec succes.",
+    user,
+  });
+}
+
+export async function forgotPassword(req, res) {
+  const result = await requestPasswordReset(req.body || {}, {
+    origin: req.get("origin"),
+  });
+
+  return res.status(202).json({
+    message: result.message,
+  });
+}
+
+export async function resetPassword(req, res) {
+  const user = await resetUserPassword(req.body || {});
+
+  return res.json({
+    message: "Mot de passe reinitialise avec succes. Vous pouvez vous connecter.",
     user,
   });
 }

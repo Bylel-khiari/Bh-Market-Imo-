@@ -35,6 +35,24 @@ export const authChangePasswordBodySchema = z
     path: ["new_password"],
   });
 
+export const authForgotPasswordBodySchema = z
+  .object({
+    email: z.string().trim().email().max(190),
+  })
+  .strict();
+
+export const authResetPasswordBodySchema = z
+  .object({
+    token: z.string().trim().regex(/^[a-f0-9]{64}$/i, "Invalid reset token"),
+    new_password: z.string().min(6).max(128),
+    confirm_password: z.string().min(6).max(128),
+  })
+  .strict()
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: "Password confirmation does not match",
+    path: ["confirm_password"],
+  });
+
 export const idParamSchema = z
   .object({
     id: z.coerce.number().int().positive(),

@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
 import MesDemandes from './pages/MesDemandes';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Contact from './pages/Contact';
 import CreditImmobilierBHPortal from './pages/CreditImmobilierBHPortal';
 import LaBanque from './pages/LaBanque';
@@ -23,7 +24,7 @@ import './App.css';
 function App() {
   const location = useLocation();
   const fullscreenRoutes = ['/admin/dashboard', '/agent/dashboard'];
-  const hideNavFooter = ['/login', '/forgot-password', ...fullscreenRoutes].includes(location.pathname);
+  const hideNavFooter = ['/login', '/forgot-password', '/reset-password', ...fullscreenRoutes].includes(location.pathname);
   const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;
 
@@ -45,6 +46,7 @@ function App() {
           />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/la-banque" element={<LaBanque />} />
           <Route path="/credit-immobilier-bh" element={<CreditImmobilierBHPortal />} />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaBuilding,
   FaChartLine,
+  FaChevronDown,
   FaCog,
   FaEnvelope,
   FaExclamationTriangle,
@@ -16,19 +17,6 @@ import {
   FaUserTie,
   FaUsers,
 } from 'react-icons/fa';
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
 import {
   clearAuthSession,
   acceptAdminScrapeSiteSuggestionApi,
@@ -222,12 +210,6 @@ const ROLE_LABELS = {
   admin: 'Administrateur',
 };
 
-const ROLE_COLORS = {
-  client: '#0a4d8c',
-  agent_bancaire: '#ef7d00',
-  admin: '#cc0000',
-};
-
 function createEmptyUserForm() {
   return {
     name: '',
@@ -405,6 +387,7 @@ export default function AdminDashboard() {
   const [scrapeSites, setScrapeSites] = useState([]);
   const [adminProperties, setAdminProperties] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [isParameterMenuOpen, setIsParameterMenuOpen] = useState(true);
   const [userSearch, setUserSearch] = useState('');
   const [siteSearch, setSiteSearch] = useState('');
   const [siteStatusFilter, setSiteStatusFilter] = useState('all');
@@ -1537,25 +1520,6 @@ export default function AdminDashboard() {
     return dashboardSummary.properties;
   }, [dashboardSummary.properties]);
 
-  const pieData = useMemo(
-    () =>
-      [
-        { key: 'client', name: 'Clients', value: roleTotals.client || 0 },
-        { key: 'agent_bancaire', name: 'Agents bancaires', value: roleTotals.agent_bancaire || 0 },
-        { key: 'admin', name: 'Administrateurs', value: roleTotals.admin || 0 },
-      ].filter((item) => item.value > 0),
-    [roleTotals],
-  );
-
-  const barData = useMemo(
-    () => [
-      { role: 'Clients', total: roleTotals.client || 0 },
-      { role: 'Agents', total: roleTotals.agent_bancaire || 0 },
-      { role: 'Administrateurs', total: roleTotals.admin || 0 },
-    ],
-    [roleTotals],
-  );
-
   const usersSorted = useMemo(() => {
     return [...users].sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0));
   }, [users]);
@@ -1605,26 +1569,28 @@ export default function AdminDashboard() {
   const filteredAdminProperties = adminPropertiesSorted;
   const paginatedAdminProperties = filteredAdminProperties;
 
-  const menuItems = [
-    { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
+  const parameterMenuItems = [
     { key: 'users', label: 'Utilisateurs', icon: FaUsers },
     { key: 'properties', label: 'Biens', icon: FaBuilding },
-    { key: 'mail', label: 'Mail', icon: FaEnvelope },
     { key: 'sites', label: 'Sites scrapés', icon: FaGlobe },
-    { key: 'activities', label: 'Activités', icon: FaListAlt },
-    { key: 'stats', label: 'Statistiques', icon: FaChartLine },
-    { key: 'settings', label: 'Paramètres', icon: FaCog },
   ];
+
+  const menuItems = [
+    { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
+    { key: 'mail', label: 'Réclamation', icon: FaEnvelope },
+    { key: 'activities', label: 'Activités', icon: FaListAlt },
+    { key: 'settings', label: 'Configuration', icon: FaCog },
+  ];
+  const isParameterSectionActive = parameterMenuItems.some((item) => item.key === activeSection);
 
   const sectionTitles = {
     dashboard: 'Tableau de bord',
     users: 'Gestion des utilisateurs',
     properties: 'Gestion des biens immobiliers',
-    mail: 'Boîte mail réclamations',
+    mail: 'Réclamation',
     sites: 'Gestion des sites scrapés',
     activities: 'Activités récentes',
-    stats: 'Statistiques',
-    settings: 'Paramètres',
+    settings: 'Configuration',
   };
 
   if (loading) {
@@ -1664,7 +1630,49 @@ export default function AdminDashboard() {
             </div>
           </div>
           <nav className="admin-sidebar-menu">
-            {menuItems.map((item) => {
+            {menuItems.slice(0, 1).map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`menu-item ${activeSection === item.key ? 'is-active' : ''}`}
+                  onClick={() => setActiveSection(item.key)}
+                >
+                  <Icon /> {item.label}
+                </button>
+              );
+            })}
+            <div className={`menu-section ${isParameterSectionActive ? 'is-active' : ''} ${isParameterMenuOpen ? 'is-open' : ''}`}>
+              <button
+                type="button"
+                className="menu-section-title"
+                onClick={() => setIsParameterMenuOpen((isOpen) => !isOpen)}
+                aria-expanded={isParameterMenuOpen}
+              >
+                <FaCog />
+                <span>Paramètre</span>
+                <FaChevronDown className="menu-section-chevron" />
+              </button>
+              {isParameterMenuOpen && (
+                <div className="menu-section-list">
+                  {parameterMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`menu-item menu-item--nested ${activeSection === item.key ? 'is-active' : ''}`}
+                        onClick={() => setActiveSection(item.key)}
+                      >
+                        <Icon /> {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {menuItems.slice(1).map((item) => {
               const Icon = item.icon;
               return (
                 <button
@@ -1692,7 +1700,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 className="admin-icon-btn admin-icon-btn--notification"
-                aria-label="Mail réclamations"
+                aria-label="Réclamations"
                 onClick={() => setActiveSection('mail')}
               >
                 <FaEnvelope />
@@ -2008,54 +2016,11 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeSection === 'stats' && (
-            <div className="admin-content-grid admin-content-single">
-              <section className="admin-analytics-column">
-                <div className="admin-row">
-                  <div className="admin-card">
-                    <h2>Répartition des rôles</h2>
-                    <ResponsiveContainer width="100%" height={320}>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={100}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {pieData.map((entry) => (
-                            <Cell key={entry.key} fill={ROLE_COLORS[entry.key] || '#003366'} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="admin-card">
-                    <h2>Volume par rôle</h2>
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={barData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="role" />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Bar dataKey="total" fill="#0b5fa8" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </section>
-            </div>
-          )}
-
           {activeSection === 'settings' && (
             <div className="admin-content-grid admin-content-single">
               <section className="admin-analytics-column">
                 <div className="admin-card">
-                  <h2>Paramètres du module admin</h2>
+                  <h2>Configuration du module admin</h2>
                   <p className="admin-section-help">
                     Configuration actuelle du tableau de bord admin.
                   </p>

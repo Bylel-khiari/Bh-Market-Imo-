@@ -138,11 +138,14 @@ function createEmptyPlatformDashboard() {
     summary: {},
     role_distribution: [],
     report_status_distribution: [],
+    credit_application_summary: {},
+    credit_application_status_distribution: [],
     monthly_activity: [],
     top_cities: [],
     top_sources: [],
     latest_users: [],
     latest_requests: [],
+    latest_credit_applications: [],
     client_activity: {
       summary: {},
       event_distribution: [],
@@ -446,10 +449,33 @@ export default function AgentDashboard() {
   }, [selectedApplication]);
 
   const pageCopy = SECTION_COPY[activeSection] || SECTION_COPY.overview;
-  const approvalRate = summary.total > 0 ? Math.round((summary.ACCEPTE / summary.total) * 100) : 0;
-  const pendingCount =
-    summary.SOUMIS + summary.EN_VERIFICATION + summary.DOCUMENTS_MANQUANTS + summary.EN_ETUDE;
   const platformSummary = platformDashboard?.summary || {};
+  const creditApplicationSummary = platformDashboard?.credit_application_summary || {};
+  const totalCreditApplications = Number(
+    creditApplicationSummary.total ?? platformSummary.total_credit_applications ?? summary.total ?? 0,
+  );
+  const pendingCount = Number(
+    creditApplicationSummary.pending ??
+      platformSummary.pending_credit_applications ??
+      summary.SOUMIS + summary.EN_VERIFICATION + summary.DOCUMENTS_MANQUANTS + summary.EN_ETUDE,
+  );
+  const acceptedCreditApplications = Number(
+    creditApplicationSummary.accepted ?? platformSummary.accepted_credit_applications ?? summary.ACCEPTE ?? 0,
+  );
+  const refusedCreditApplications = Number(
+    creditApplicationSummary.refused ?? platformSummary.refused_credit_applications ?? summary.REFUSE ?? 0,
+  );
+  const approvalRate = Number(
+    creditApplicationSummary.approval_rate ??
+      platformSummary.credit_approval_rate ??
+      (totalCreditApplications > 0 ? Math.round((acceptedCreditApplications / totalCreditApplications) * 100) : 0),
+  );
+  const averageComplianceScore = Number(
+    creditApplicationSummary.average_compliance_score ??
+      platformSummary.average_compliance_score ??
+      summary.average_compliance_score ??
+      0,
+  );
   const periodMonths =
     PERIOD_OPTIONS.find((option) => option.value === selectedPeriod)?.months || PERIOD_OPTIONS[1].months;
 
@@ -469,6 +495,7 @@ export default function AgentDashboard() {
     return series.slice(-periodMonths).map((item) => ({
       ...item,
       label: formatMonthLabel(item.month),
+      creditApplications: Number(item.credit_applications || 0),
     }));
   }, [platformDashboard, periodMonths]);
 
@@ -478,12 +505,26 @@ export default function AgentDashboard() {
       : [];
   }, [platformDashboard]);
 
+  const creditStatusDistribution = useMemo(() => {
+    return Array.isArray(platformDashboard?.credit_application_status_distribution)
+      ? platformDashboard.credit_application_status_distribution
+      : [];
+  }, [platformDashboard]);
+
   const topCities = platformDashboard?.top_cities || [];
   const topSources = platformDashboard?.top_sources || [];
   const latestUsers = platformDashboard?.latest_users || [];
   const latestRequests = platformDashboard?.latest_requests || [];
+  const latestCreditApplications = useMemo(() => {
+    return Array.isArray(platformDashboard?.latest_credit_applications)
+      ? platformDashboard.latest_credit_applications
+      : [];
+  }, [platformDashboard]);
   const clientActivity = platformDashboard?.client_activity || {};
   const clientActivitySummary = clientActivity.summary || {};
+  const creditSubmitConversionRate = Number(
+    creditApplicationSummary.submit_conversion_rate ?? platformSummary.credit_submit_conversion_rate ?? 0,
+  );
   const clientActivityDistribution = Array.isArray(clientActivity.event_distribution)
     ? clientActivity.event_distribution.filter((item) => Number(item.value || 0) > 0)
     : [];
@@ -496,23 +537,35 @@ export default function AgentDashboard() {
         label: formatMonthLabel(item.month),
       }))
     : [];
-  const latestActivityPoint = monthlyActivity[monthlyActivity.length - 1] || {
-    users: 0,
-    properties: 0,
-    requests: 0,
-  };
-  const previousActivityPoint = monthlyActivity[monthlyActivity.length - 2] || {
-    users: 0,
-    properties: 0,
-    requests: 0,
-  };
-  const activityDelta =
-    latestActivityPoint.users +
-    latestActivityPoint.properties +
-    latestActivityPoint.requests -
-    (previousActivityPoint.users + previousActivityPoint.properties + previousActivityPoint.requests);
+  const platformActivityTotal =
+    monthlyActivity.reduce(
+      (total, item) =>
+        total +
+        Number(item.users || 0) +
+        Number(item.properties || 0) +
+        Number(item.requests || 0) +
+        Number(item.creditApplications || 0),
+      0,
+    ) +
+    monthlyClientEvents.reduce((total, item) => total + Number(item.events || 0), 0);
 
   const pieData = useMemo(() => {
+    const dbStatusData = creditStatusDistribution
+      .map((item) => {
+        const option = STATUS_OPTIONS.find((candidate) => candidate.value === item.key);
+
+        return {
+          name: option?.label || item.label || item.key,
+          value: Number(item.value || 0),
+          color: STATUS_COLORS[item.key] || '#0d355a',
+        };
+      })
+      .filter((item) => item.value > 0);
+
+    if (dbStatusData.length) {
+      return dbStatusData;
+    }
+
     return STATUS_OPTIONS.slice(1)
       .map((option) => ({
         name: option.label,
@@ -520,14 +573,16 @@ export default function AgentDashboard() {
         color: STATUS_COLORS[option.value],
       }))
       .filter((item) => item.value > 0);
-  }, [summary]);
+  }, [creditStatusDistribution, summary]);
 
   const complianceData = useMemo(() => {
-    return applications.slice(0, 6).map((application) => ({
+    const source = latestCreditApplications.length ? latestCreditApplications : applications;
+
+    return source.slice(0, 6).map((application) => ({
       name: `#${application.id}`,
       score: Number(application.compliance_score || 0),
     }));
-  }, [applications]);
+  }, [applications, latestCreditApplications]);
 
   const handleLogout = () => {
     redirectToLogin();
@@ -549,15 +604,16 @@ export default function AgentDashboard() {
       ['Parcours client', 'Connexions client', clientActivitySummary.client_logins || 0],
       ['Parcours client', 'Calculs de simulation crédit', clientActivitySummary.simulation_calculations || 0],
       ['Parcours client', 'Demandes de crédit démarrées', clientActivitySummary.credit_request_starts || 0],
-      ['Parcours client', 'Demandes de crédit déposées', clientActivitySummary.credit_application_submits || 0],
+      ['Parcours client', 'Demandes de crédit déposées', totalCreditApplications],
       ['Parcours client', 'Régions de carte sélectionnées', clientActivitySummary.map_region_selects || 0],
       ['Synthèse', 'Réclamations assistance', platformSummary.total_reports || 0],
       ['Synthèse', 'Réclamations clôturées', platformSummary.closed_reports || 0],
       ['Synthèse', 'Taux de traitement assistance', `${platformSummary.resolution_rate || 0}%`],
+      ['Synthèse', 'Conversion dépôt crédit', `${creditSubmitConversionRate}%`],
       ...monthlyActivity.map((item) => [
         'Activite mensuelle',
         item.label,
-        `${item.users}/${item.properties}/${item.requests}`,
+        `${item.users}/${item.properties}/${item.requests}/${item.creditApplications}`,
       ]),
       ...monthlyClientEvents.map((item) => ['Logs client mensuels', item.label, item.events]),
       ...topCities.map((item) => ['Top villes', item.city, item.total]),
@@ -574,6 +630,11 @@ export default function AgentDashboard() {
       ]),
       ...latestUsers.map((item) => ['Derniers utilisateurs', item.name || '-', `${item.role_label} - ${item.email || '-'}`]),
       ...latestRequests.map((item) => ['Dernières réclamations', `#${item.id}`, `${item.status_label} - ${item.client_name || '-'}`]),
+      ...latestCreditApplications.map((item) => [
+        'Derniers dossiers crédit',
+        `#${item.id}`,
+        `${item.status_label} - ${item.full_name || item.email || '-'}`,
+      ]),
       ...latestClientEvents.map((item) => [
         'Derniers logs client',
         item.client_name || item.client_email || `Client #${item.client_user_id}`,
@@ -725,7 +786,7 @@ export default function AgentDashboard() {
           <div className="agent-sidebar-note">
             <p className="agent-sidebar-kicker">File active</p>
             <strong>{pendingCount} dossiers à suivre</strong>
-            <span>{summary.ACCEPTE} accordés et {summary.REFUSE} refusés à date.</span>
+            <span>{acceptedCreditApplications} accordés et {refusedCreditApplications} refusés à date.</span>
           </div>
         </aside>
 
@@ -758,7 +819,7 @@ export default function AgentDashboard() {
                     <div className="icon"><FaFolderOpen /></div>
                     <div>
                       <h3>Dossiers total</h3>
-                      <p>{summary.total}</p>
+                      <p>{formatNumber(totalCreditApplications)}</p>
                     </div>
                   </article>
                   <article className="admin-kpi-card">
@@ -779,7 +840,7 @@ export default function AgentDashboard() {
                     <div className="icon"><FaFileSignature /></div>
                     <div>
                       <h3>Score moyen</h3>
-                      <p>{summary.average_compliance_score || 0}</p>
+                      <p>{formatNumber(averageComplianceScore)}</p>
                     </div>
                   </article>
                 </section>
@@ -1549,7 +1610,7 @@ export default function AgentDashboard() {
                   <div className="icon"><FaChartLine /></div>
                   <div>
                     <h3>Activite</h3>
-                    <p>{activityDelta >= 0 ? `+${formatNumber(activityDelta)}` : formatNumber(activityDelta)}</p>
+                    <p>{formatNumber(platformActivityTotal)}</p>
                   </div>
                 </article>
                 <article className="admin-kpi-card">
@@ -1570,14 +1631,14 @@ export default function AgentDashboard() {
                   <div className="icon"><FaClipboardList /></div>
                   <div>
                     <h3>Dossiers deposes</h3>
-                    <p>{formatNumber(clientActivitySummary.credit_application_submits)}</p>
+                    <p>{formatNumber(totalCreditApplications)}</p>
                   </div>
                 </article>
                 <article className="admin-kpi-card">
                   <div className="icon"><FaCheckCircle /></div>
                   <div>
                     <h3>Conversion depot</h3>
-                    <p>{formatNumber(clientActivitySummary.submit_conversion_rate)}%</p>
+                    <p>{formatNumber(creditSubmitConversionRate)}%</p>
                   </div>
                 </article>
                 <article className="admin-kpi-card">
@@ -1657,7 +1718,7 @@ export default function AgentDashboard() {
                 <section className="admin-card agent-platform-card--wide">
                   <h2>Activite plateforme par mois</h2>
                   <p className="admin-section-help">
-                    Inscriptions, biens valides et reclamations support sur la periode selectionnee.
+                    Inscriptions, biens valides, reclamations support et dossiers credit sur la periode selectionnee.
                   </p>
                   {monthlyActivity.length ? (
                     <div className="agent-chart-wrap">
@@ -1671,6 +1732,7 @@ export default function AgentDashboard() {
                           <Line type="monotone" dataKey="users" stroke={ACTIVITY_COLORS.users} strokeWidth={3} name="Utilisateurs" />
                           <Line type="monotone" dataKey="properties" stroke={ACTIVITY_COLORS.properties} strokeWidth={3} name="Biens" />
                           <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="Réclamations" />
+                          <Line type="monotone" dataKey="creditApplications" stroke={ACTIVITY_COLORS.clientEvents} strokeWidth={3} name="Dossiers crédit" />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>

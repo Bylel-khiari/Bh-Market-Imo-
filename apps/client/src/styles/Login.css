@@ -392,6 +392,8 @@
 }
 
 .login-submit-btn:hover::before {
+  left: 100%;
+}
 
 .login-error-message {
   margin: 14px 0 0;
@@ -399,7 +401,24 @@
   font-size: 13px;
   font-weight: 500;
 }
-  left: 100%;
+
+.login-success-message {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #bde5ce;
+  border-radius: 8px;
+  background: #f2fbf6;
+  color: #246b43;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.login-submit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
 }
 
 .login-submit-btn:active {

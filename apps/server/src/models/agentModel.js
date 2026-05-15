@@ -13,6 +13,14 @@ const DEFAULT_REPORT_TOTALS = {
   RESOLU: 0,
   REJETE: 0,
 };
+const DEFAULT_CREDIT_STATUS_TOTALS = {
+  SOUMIS: 0,
+  EN_VERIFICATION: 0,
+  DOCUMENTS_MANQUANTS: 0,
+  EN_ETUDE: 0,
+  ACCEPTE: 0,
+  REFUSE: 0,
+};
 
 function toCount(value) {
   return Number(value || 0);
@@ -30,6 +38,16 @@ function formatReportStatusLabel(status) {
   if (status === "EN_COURS") return "En cours";
   if (status === "RESOLU") return "Resolues";
   if (status === "REJETE") return "Rejetees";
+  return status || "Inconnu";
+}
+
+function formatCreditStatusLabel(status) {
+  if (status === "SOUMIS") return "Soumis";
+  if (status === "EN_VERIFICATION") return "En verification";
+  if (status === "DOCUMENTS_MANQUANTS") return "Pieces manquantes";
+  if (status === "EN_ETUDE") return "En etude";
+  if (status === "ACCEPTE") return "Acceptes";
+  if (status === "REFUSE") return "Refuses";
   return status || "Inconnu";
 }
 
@@ -58,16 +76,18 @@ function buildCountMap(rows = []) {
   }, new Map());
 }
 
-function buildMonthlyActivity(monthKeys, userRows, propertyRows, reportRows) {
+function buildMonthlyActivity(monthKeys, userRows, propertyRows, reportRows, creditRows) {
   const userMap = buildCountMap(userRows);
   const propertyMap = buildCountMap(propertyRows);
   const reportMap = buildCountMap(reportRows);
+  const creditMap = buildCountMap(creditRows);
 
   return monthKeys.map((month) => ({
     month,
     users: userMap.get(month) || 0,
     properties: propertyMap.get(month) || 0,
     requests: reportMap.get(month) || 0,
+    credit_applications: creditMap.get(month) || 0,
   }));
 }
 
@@ -100,14 +120,18 @@ export async function fetchAgentDashboardSummary() {
     [roleRows],
     [[propertyRow]],
     [[reportRow]],
+    [[creditApplicationRow]],
     [reportStatusRows],
+    [creditStatusRows],
     [topCityRows],
     [topSourceRows],
     [userTrendRows],
     [propertyTrendRows],
     [reportTrendRows],
+    [creditTrendRows],
     [latestUserRows],
     [latestRequestRows],
+    [latestCreditApplicationRows],
     clientActivity,
   ] = await Promise.all([
     dbPool.query("SELECT role, COUNT(*) AS total FROM users GROUP BY role"),
@@ -120,7 +144,18 @@ export async function fetchAgentDashboardSummary() {
       WHERE COALESCE(is_deleted, 0) = 0
     `),
     dbPool.query("SELECT COUNT(*) AS total_reports FROM reclamations"),
+    dbPool.query(`
+      SELECT
+        COUNT(*) AS total_credit_applications,
+        SUM(CASE WHEN status IN ('SOUMIS', 'EN_VERIFICATION', 'DOCUMENTS_MANQUANTS', 'EN_ETUDE') THEN 1 ELSE 0 END)
+          AS pending_credit_applications,
+        SUM(CASE WHEN status = 'ACCEPTE' THEN 1 ELSE 0 END) AS accepted_credit_applications,
+        SUM(CASE WHEN status = 'REFUSE' THEN 1 ELSE 0 END) AS refused_credit_applications,
+        ROUND(AVG(compliance_score), 0) AS average_compliance_score
+      FROM credit_applications
+    `),
     dbPool.query("SELECT statut AS status, COUNT(*) AS total FROM reclamations GROUP BY statut"),
+    dbPool.query("SELECT status, COUNT(*) AS total FROM credit_applications GROUP BY status"),
     dbPool.query(`
       SELECT
         COALESCE(NULLIF(COALESCE(manual_city, city), ''), 'Non renseignee') AS city,
@@ -172,6 +207,16 @@ export async function fetchAgentDashboardSummary() {
       `,
       [fromMonthStart]
     ),
+    dbPool.query(
+      `
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS total
+      FROM credit_applications
+      WHERE created_at >= ?
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month ASC
+      `,
+      [fromMonthStart]
+    ),
     dbPool.query(`
       SELECT id, name, email, role, created_at
       FROM users
@@ -191,6 +236,18 @@ export async function fetchAgentDashboardSummary() {
       FROM reclamations r
       LEFT JOIN users reporter ON reporter.id = r.client_id
       ORDER BY r.created_at DESC, r.id DESC
+      LIMIT 6
+    `),
+    dbPool.query(`
+      SELECT
+        id,
+        full_name,
+        email,
+        status,
+        compliance_score,
+        created_at
+      FROM credit_applications
+      ORDER BY created_at DESC, id DESC
       LIMIT 6
     `),
     fetchClientActivityDashboard({ monthCount: DEFAULT_MONTH_WINDOW, limit: 8 }),
@@ -219,14 +276,40 @@ export async function fetchAgentDashboardSummary() {
     },
     { ...DEFAULT_REPORT_TOTALS }
   );
+  const creditStatusTotals = creditStatusRows.reduce(
+    (acc, row) => {
+      const status = row?.status;
+      if (status) {
+        acc[status] = toCount(row.total);
+      }
+
+      return acc;
+    },
+    { ...DEFAULT_CREDIT_STATUS_TOTALS }
+  );
 
   const totalReports = toCount(reportRow?.total_reports);
   const closedReports = reportStatusTotals.RESOLU + reportStatusTotals.REJETE;
+  const totalCreditApplications = toCount(creditApplicationRow?.total_credit_applications);
+  const pendingCreditApplications = toCount(creditApplicationRow?.pending_credit_applications);
+  const acceptedCreditApplications = toCount(creditApplicationRow?.accepted_credit_applications);
+  const refusedCreditApplications = toCount(creditApplicationRow?.refused_credit_applications);
+  const averageComplianceScore = toCount(creditApplicationRow?.average_compliance_score);
+  const creditRequestStarts = toCount(clientActivity?.summary?.credit_request_starts);
+  const creditApprovalRate =
+    totalCreditApplications > 0
+      ? Math.round((acceptedCreditApplications / totalCreditApplications) * 100)
+      : 0;
+  const creditSubmitConversionRate =
+    creditRequestStarts > 0
+      ? Math.round((totalCreditApplications / creditRequestStarts) * 100)
+      : 0;
   const monthlyActivity = buildMonthlyActivity(
     monthKeys,
     userTrendRows,
     propertyTrendRows,
-    reportTrendRows
+    reportTrendRows,
+    creditTrendRows
   );
 
   return {
@@ -245,6 +328,22 @@ export async function fetchAgentDashboardSummary() {
       rejected_reports: reportStatusTotals.REJETE,
       closed_reports: closedReports,
       resolution_rate: totalReports > 0 ? Math.round((closedReports / totalReports) * 100) : 0,
+      total_credit_applications: totalCreditApplications,
+      pending_credit_applications: pendingCreditApplications,
+      accepted_credit_applications: acceptedCreditApplications,
+      refused_credit_applications: refusedCreditApplications,
+      average_compliance_score: averageComplianceScore,
+      credit_approval_rate: creditApprovalRate,
+      credit_submit_conversion_rate: creditSubmitConversionRate,
+    },
+    credit_application_summary: {
+      total: totalCreditApplications,
+      pending: pendingCreditApplications,
+      accepted: acceptedCreditApplications,
+      refused: refusedCreditApplications,
+      average_compliance_score: averageComplianceScore,
+      approval_rate: creditApprovalRate,
+      submit_conversion_rate: creditSubmitConversionRate,
     },
     role_distribution: [
       { key: "client", label: formatRoleLabel("client"), value: roleTotals.client },
@@ -256,6 +355,14 @@ export async function fetchAgentDashboardSummary() {
       { key: "EN_COURS", label: formatReportStatusLabel("EN_COURS"), value: reportStatusTotals.EN_COURS },
       { key: "RESOLU", label: formatReportStatusLabel("RESOLU"), value: reportStatusTotals.RESOLU },
       { key: "REJETE", label: formatReportStatusLabel("REJETE"), value: reportStatusTotals.REJETE },
+    ],
+    credit_application_status_distribution: [
+      { key: "SOUMIS", label: formatCreditStatusLabel("SOUMIS"), value: creditStatusTotals.SOUMIS },
+      { key: "EN_VERIFICATION", label: formatCreditStatusLabel("EN_VERIFICATION"), value: creditStatusTotals.EN_VERIFICATION },
+      { key: "DOCUMENTS_MANQUANTS", label: formatCreditStatusLabel("DOCUMENTS_MANQUANTS"), value: creditStatusTotals.DOCUMENTS_MANQUANTS },
+      { key: "EN_ETUDE", label: formatCreditStatusLabel("EN_ETUDE"), value: creditStatusTotals.EN_ETUDE },
+      { key: "ACCEPTE", label: formatCreditStatusLabel("ACCEPTE"), value: creditStatusTotals.ACCEPTE },
+      { key: "REFUSE", label: formatCreditStatusLabel("REFUSE"), value: creditStatusTotals.REFUSE },
     ],
     monthly_activity: monthlyActivity,
     top_cities: topCityRows.map((row) => ({
@@ -282,6 +389,15 @@ export async function fetchAgentDashboardSummary() {
       status: row.status,
       status_label: formatReportStatusLabel(row.status),
       priority: row.priority,
+      created_at: row.created_at,
+    })),
+    latest_credit_applications: latestCreditApplicationRows.map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      email: row.email,
+      status: row.status,
+      status_label: formatCreditStatusLabel(row.status),
+      compliance_score: row.compliance_score,
       created_at: row.created_at,
     })),
     client_activity: clientActivity,
