@@ -145,8 +145,15 @@ export async function resetPasswordApi(input) {
   });
 }
 
-export async function fetchAgentDashboardApi(token) {
-  return authorizedJsonRequest('/api/agent/dashboard', token);
+export async function fetchAgentDashboardApi(token, { month = 'all' } = {}) {
+  const params = new URLSearchParams();
+
+  if (month && month !== 'all') {
+    params.set('month', month);
+  }
+
+  const query = params.toString();
+  return authorizedJsonRequest(`/api/agent/dashboard${query ? `?${query}` : ''}`, token);
 }
 
 export async function fetchAgentProfileApi(token) {

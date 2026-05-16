@@ -22,7 +22,6 @@ import {
   FaSignInAlt,
   FaSyncAlt,
   FaUniversity,
-  FaUsers,
 } from 'react-icons/fa';
 import {
   ResponsiveContainer,
@@ -94,12 +93,6 @@ const ACTIVITY_COLORS = {
 };
 
 const PIE_COLORS = ['#0d355a', '#c21f3a', '#d59a27', '#4f7b72', '#7886a0'];
-
-const PERIOD_OPTIONS = [
-  { value: '3m', label: '3 derniers mois', months: 3 },
-  { value: '6m', label: '6 derniers mois', months: 6 },
-  { value: '12m', label: '12 derniers mois', months: 12 },
-];
 
 const SECTION_COPY = {
   overview: {
@@ -304,7 +297,7 @@ export default function AgentDashboard() {
   const [applications, setApplications] = useState([]);
   const [summary, setSummary] = useState(createEmptySummary());
   const [platformDashboard, setPlatformDashboard] = useState(createEmptyPlatformDashboard());
-  const [selectedPeriod, setSelectedPeriod] = useState('6m');
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState(null);
@@ -334,7 +327,7 @@ export default function AgentDashboard() {
     return true;
   }, [redirectToLogin]);
 
-  const loadDashboard = useCallback(async ({ status = 'all', searchTerm = '', silent = false } = {}) => {
+  const loadDashboard = useCallback(async ({ status = 'all', searchTerm = '', month = 'all', silent = false } = {}) => {
     try {
       const token = requireAuthToken();
 
@@ -351,7 +344,7 @@ export default function AgentDashboard() {
           status,
           search: searchTerm,
         }),
-        fetchAgentDashboardApi(token),
+        fetchAgentDashboardApi(token, { month }),
       ]);
 
       setProfile(profilePayload?.profile || null);
@@ -476,9 +469,6 @@ export default function AgentDashboard() {
       summary.average_compliance_score ??
       0,
   );
-  const periodMonths =
-    PERIOD_OPTIONS.find((option) => option.value === selectedPeriod)?.months || PERIOD_OPTIONS[1].months;
-
   const overviewApplications = useMemo(() => {
     const ranked = applications.filter((application) =>
       ['SOUMIS', 'DOCUMENTS_MANQUANTS', 'EN_VERIFICATION', 'EN_ETUDE'].includes(application.status),
@@ -491,19 +481,16 @@ export default function AgentDashboard() {
     const series = Array.isArray(platformDashboard?.monthly_activity)
       ? platformDashboard.monthly_activity
       : [];
+    const filteredSeries = selectedMonth === 'all'
+      ? series
+      : series.filter((item) => item.month === selectedMonth);
 
-    return series.slice(-periodMonths).map((item) => ({
+    return filteredSeries.map((item) => ({
       ...item,
       label: formatMonthLabel(item.month),
       creditApplications: Number(item.credit_applications || 0),
     }));
-  }, [platformDashboard, periodMonths]);
-
-  const roleDistribution = useMemo(() => {
-    return Array.isArray(platformDashboard?.role_distribution)
-      ? platformDashboard.role_distribution.filter((item) => Number(item.value || 0) > 0)
-      : [];
-  }, [platformDashboard]);
+  }, [platformDashboard, selectedMonth]);
 
   const creditStatusDistribution = useMemo(() => {
     return Array.isArray(platformDashboard?.credit_application_status_distribution)
@@ -532,11 +519,43 @@ export default function AgentDashboard() {
   const topClientActivity = Array.isArray(clientActivity.top_clients) ? clientActivity.top_clients : [];
   const topRegionActivity = Array.isArray(clientActivity.top_regions) ? clientActivity.top_regions : [];
   const monthlyClientEvents = Array.isArray(clientActivity.monthly_events)
-    ? clientActivity.monthly_events.slice(-periodMonths).map((item) => ({
-        ...item,
-        label: formatMonthLabel(item.month),
-      }))
+    ? clientActivity.monthly_events
+        .filter((item) => selectedMonth === 'all' || item.month === selectedMonth)
+        .map((item) => ({
+          ...item,
+          label: formatMonthLabel(item.month),
+        }))
     : [];
+  const dashboardMonthOptions = useMemo(() => {
+    const months = new Set();
+
+    if (Array.isArray(platformDashboard?.monthly_activity)) {
+      platformDashboard.monthly_activity.forEach((item) => {
+        if (item?.month) {
+          months.add(item.month);
+        }
+      });
+    }
+
+    if (Array.isArray(clientActivity.monthly_events)) {
+      clientActivity.monthly_events.forEach((item) => {
+        if (item?.month) {
+          months.add(item.month);
+        }
+      });
+    }
+
+    return [
+      { value: 'all', label: 'Tous les mois' },
+      ...Array.from(months)
+        .sort()
+        .reverse()
+        .map((month) => ({
+          value: month,
+          label: formatMonthLabel(month),
+        })),
+    ];
+  }, [clientActivity.monthly_events, platformDashboard]);
   const platformActivityTotal =
     monthlyActivity.reduce(
       (total, item) =>
@@ -575,26 +594,24 @@ export default function AgentDashboard() {
       .filter((item) => item.value > 0);
   }, [creditStatusDistribution, summary]);
 
-  const complianceData = useMemo(() => {
-    const source = latestCreditApplications.length ? latestCreditApplications : applications;
-
-    return source.slice(0, 6).map((application) => ({
-      name: `#${application.id}`,
-      score: Number(application.compliance_score || 0),
-    }));
-  }, [applications, latestCreditApplications]);
-
   const handleLogout = () => {
     redirectToLogin();
   };
 
   const handleRefresh = () => {
-    loadDashboard({ status: statusFilter, searchTerm: search.trim() });
+    loadDashboard({ status: statusFilter, searchTerm: search.trim(), month: selectedMonth });
+  };
+
+  const handleMonthChange = (event) => {
+    const nextMonth = event.target.value;
+    setSelectedMonth(nextMonth);
+    loadDashboard({ status: statusFilter, searchTerm: search.trim(), month: nextMonth });
   };
 
   const handleExportPlatformReport = () => {
     const rows = [
       ['Section', 'Indicateur', 'Valeur'],
+      ['Filtre', 'Mois observe', selectedMonth === 'all' ? 'Tous les mois' : formatMonthLabel(selectedMonth)],
     ['Synthèse', 'Utilisateurs', platformSummary.total_users || 0],
     ['Synthèse', 'Clients', platformSummary.total_clients || 0],
     ['Synthèse', 'Agents bancaires', platformSummary.total_agents || 0],
@@ -846,7 +863,7 @@ export default function AgentDashboard() {
                 </section>
 
                 <div className="admin-row">
-                  <section className="admin-card">
+                  <section className="admin-card agent-platform-card--wide">
                     <h2>Répartition des statuts</h2>
                     <p className="admin-section-help">
                       Vue rapide pour identifier les dossiers à relancer, analyser ou clôturer.
@@ -880,30 +897,6 @@ export default function AgentDashboard() {
                     )}
                   </section>
 
-                  <section className="admin-card">
-                    <h2>Lecture conformité</h2>
-                    <p className="admin-section-help">
-                      Les premiers dossiers de la file montrent ici leur score de conformité.
-                    </p>
-                    {complianceData.length ? (
-                      <div className="agent-chart-wrap">
-                        <ResponsiveContainer width="100%" height={260}>
-                          <BarChart data={complianceData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" />
-                            <YAxis domain={[0, 100]} />
-                            <Tooltip />
-                            <Bar dataKey="score" radius={[8, 8, 0, 0]} fill="#0a4d8c" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="admin-state admin-state--inline">
-                        <FaFileSignature />
-                        <p>Le score de conformité apparaîtra après la première revue.</p>
-                      </div>
-                    )}
-                  </section>
                 </div>
 
                 <section className="admin-card">
@@ -1575,9 +1568,9 @@ export default function AgentDashboard() {
                 </div>
                 <div className="agent-platform-actions">
                   <label className="admin-field-block agent-period-field">
-                    <span className="admin-field-label">Période observée</span>
-                    <select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>
-                      {PERIOD_OPTIONS.map((option) => (
+                    <span className="admin-field-label">Mois observe</span>
+                    <select value={selectedMonth} onChange={handleMonthChange}>
+                      {dashboardMonthOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -1591,7 +1584,7 @@ export default function AgentDashboard() {
                 </div>
               </section>
 
-              <section className="admin-kpi-grid">
+              <section className="admin-kpi-grid agent-platform-kpi-grid">
                 <article className="admin-kpi-card">
                   <div className="icon"><FaClipboardList /></div>
                   <div>
@@ -1743,31 +1736,6 @@ export default function AgentDashboard() {
                     </div>
                   )}
                 </section>
-
-                <section className="admin-card">
-                  <h2>Répartition des rôles</h2>
-                  <p className="admin-section-help">Population active selon les trois rôles autorisés.</p>
-                  {roleDistribution.length ? (
-                    <div className="agent-chart-wrap">
-                      <ResponsiveContainer width="100%" height={320}>
-                        <PieChart>
-                          <Pie data={roleDistribution} dataKey="value" nameKey="label" innerRadius={62} outerRadius={104} paddingAngle={4}>
-                            {roleDistribution.map((entry, index) => (
-                              <Cell key={entry.key} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="admin-state admin-state--inline">
-                      <FaUsers />
-                      <p>Aucune repartition disponible.</p>
-                    </div>
-                  )}
-                </section>
               </div>
 
               <div className="admin-row">
@@ -1797,7 +1765,7 @@ export default function AgentDashboard() {
           )}
 
           {activeSection === 'powerbi' && (
-            <div className="admin-content-grid agent-platform-grid">
+            <div className="admin-content-grid agent-platform-grid agent-powerbi-grid">
               <PowerBiDashboardDock
                 defaultEmbedUrl={POWER_BI_AGENT_DASHBOARD_URL}
                 defaultTitle={POWER_BI_AGENT_DASHBOARD_TITLE}

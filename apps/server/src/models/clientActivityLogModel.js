@@ -87,6 +87,12 @@ function getRecentMonthKeys(monthCount = 12) {
   return keys;
 }
 
+function normalizeMonthKey(value) {
+  const month = String(value || "").trim();
+
+  return /^\d{4}-\d{2}$/.test(month) ? month : null;
+}
+
 function buildMonthlyEvents(monthKeys, rows = []) {
   const eventMap = rows.reduce((acc, row) => {
     if (row?.month) {
@@ -162,10 +168,20 @@ export async function recordClientActivityLog(req, {
   }
 }
 
-export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8 } = {}) {
+export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8, month = null } = {}) {
   const monthKeys = getRecentMonthKeys(monthCount);
   const fromMonthStart = `${monthKeys[0]}-01`;
   const normalizedLimit = Math.min(Math.max(Number(limit) || 8, 1), 50);
+  const selectedMonth = normalizeMonthKey(month);
+  const selectedMonthStart = selectedMonth ? `${selectedMonth}-01` : null;
+  const clientActivityMonthFilter = selectedMonth
+    ? "WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 MONTH)"
+    : "";
+  const clientActivityMonthParams = selectedMonth ? [selectedMonthStart, selectedMonthStart] : [];
+  const aliasedClientActivityMonthFilter = selectedMonth
+    ? "WHERE l.created_at >= ? AND l.created_at < DATE_ADD(?, INTERVAL 1 MONTH)"
+    : "";
+  const aliasedClientActivityMonthParams = selectedMonth ? [selectedMonthStart, selectedMonthStart] : [];
 
   const [
     [[summaryRow]],
@@ -186,16 +202,18 @@ export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8 
         SUM(CASE WHEN event_type = 'credit_application_submit' THEN 1 ELSE 0 END) AS credit_application_submits,
         SUM(CASE WHEN event_type = 'map_region_select' THEN 1 ELSE 0 END) AS map_region_selects
       FROM client_activity_logs
-    `),
+      ${clientActivityMonthFilter}
+    `, clientActivityMonthParams),
     dbPool.query(`
       SELECT
         event_type,
         COALESCE(NULLIF(event_label, ''), event_type) AS label,
         COUNT(*) AS total
       FROM client_activity_logs
+      ${clientActivityMonthFilter}
       GROUP BY event_type, COALESCE(NULLIF(event_label, ''), event_type)
       ORDER BY total DESC, label ASC
-    `),
+    `, clientActivityMonthParams),
     dbPool.query(
       `
       SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS total
@@ -226,10 +244,12 @@ export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8 
         MAX(created_at) AS last_selected_at
       FROM client_activity_logs
       WHERE event_type = 'map_region_select'
+        ${selectedMonth ? "AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 MONTH)" : ""}
       GROUP BY region, key_name
       ORDER BY total DESC, active_clients DESC, region ASC
       LIMIT ${normalizedLimit}
-      `
+      `,
+      clientActivityMonthParams
     ),
     dbPool.query(
       `
@@ -245,10 +265,12 @@ export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8 
         MAX(l.created_at) AS last_event_at
       FROM client_activity_logs l
       LEFT JOIN users u ON u.id = l.client_user_id
+      ${aliasedClientActivityMonthFilter}
       GROUP BY l.client_user_id, u.name, u.email
       ORDER BY total_events DESC, last_event_at DESC
       LIMIT ${normalizedLimit}
-      `
+      `,
+      aliasedClientActivityMonthParams
     ),
     dbPool.query(
       `
@@ -265,9 +287,11 @@ export async function fetchClientActivityDashboard({ monthCount = 12, limit = 8 
         l.created_at
       FROM client_activity_logs l
       LEFT JOIN users u ON u.id = l.client_user_id
+      ${aliasedClientActivityMonthFilter}
       ORDER BY l.created_at DESC, l.id DESC
       LIMIT ${normalizedLimit}
-      `
+      `,
+      aliasedClientActivityMonthParams
     ),
   ]);
 

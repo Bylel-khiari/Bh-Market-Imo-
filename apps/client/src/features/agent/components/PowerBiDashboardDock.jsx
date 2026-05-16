@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FaChartLine,
   FaClipboard,
+  FaCompress,
   FaDownload,
   FaExternalLinkAlt,
+  FaExpand,
 } from 'react-icons/fa';
 
 function isHttpUrl(value) {
@@ -21,10 +23,33 @@ export default function PowerBiDashboardDock({
   onExportPlatformReport,
 }) {
   const [message, setMessage] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const embedUrl = String(defaultEmbedUrl || '').trim();
   const embedTitle = String(defaultTitle || 'Power BI').trim();
   const canPreview = useMemo(() => isHttpUrl(embedUrl), [embedUrl]);
+
+  useEffect(() => {
+    if (!isExpanded) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsExpanded(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isExpanded]);
 
   const handleOpen = () => {
     if (!canPreview) {
@@ -50,7 +75,7 @@ export default function PowerBiDashboardDock({
   };
 
   return (
-    <section className="admin-card agent-powerbi-dock">
+    <section className={`admin-card agent-powerbi-dock${isExpanded ? ' is-expanded' : ''}`}>
       <div className="agent-powerbi-dock-head">
         <div>
           <h2>Power BI</h2>
@@ -64,6 +89,10 @@ export default function PowerBiDashboardDock({
           <button type="button" className="admin-secondary" onClick={handleCopy}>
             <FaClipboard />
             <span>Copier</span>
+          </button>
+          <button type="button" className="admin-secondary" onClick={() => setIsExpanded((current) => !current)}>
+            {isExpanded ? <FaCompress /> : <FaExpand />}
+            <span>{isExpanded ? 'Reduire' : 'Agrandir'}</span>
           </button>
           <button type="button" className="admin-refresh" onClick={handleOpen}>
             <FaExternalLinkAlt />

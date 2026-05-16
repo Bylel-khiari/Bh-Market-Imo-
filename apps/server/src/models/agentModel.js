@@ -66,6 +66,30 @@ function getRecentMonthKeys(monthCount = DEFAULT_MONTH_WINDOW) {
   return keys;
 }
 
+function normalizeMonthKey(value) {
+  const month = String(value || "").trim();
+
+  return /^\d{4}-\d{2}$/.test(month) ? month : null;
+}
+
+function createMonthFilter(month, column, keyword = "WHERE") {
+  const selectedMonth = normalizeMonthKey(month);
+
+  if (!selectedMonth) {
+    return {
+      sql: "",
+      params: [],
+    };
+  }
+
+  const monthStart = `${selectedMonth}-01`;
+
+  return {
+    sql: `${keyword} ${column} >= ? AND ${column} < DATE_ADD(?, INTERVAL 1 MONTH)`,
+    params: [monthStart, monthStart],
+  };
+}
+
 function buildCountMap(rows = []) {
   return rows.reduce((acc, row) => {
     if (row?.month) {
@@ -112,9 +136,17 @@ export async function fetchAgentProfile(userId) {
   return rows[0] || null;
 }
 
-export async function fetchAgentDashboardSummary() {
+export async function fetchAgentDashboardSummary({ month = null } = {}) {
   const monthKeys = getRecentMonthKeys(DEFAULT_MONTH_WINDOW);
   const fromMonthStart = `${monthKeys[0]}-01`;
+  const usersMonthFilter = createMonthFilter(month, "created_at");
+  const propertiesMonthFilter = createMonthFilter(
+    month,
+    "COALESCE(admin_updated_at, manual_scraped_at, scraped_at, created_at)",
+    "AND"
+  );
+  const reportsMonthFilter = createMonthFilter(month, "created_at");
+  const creditMonthFilter = createMonthFilter(month, "created_at");
 
   const [
     [roleRows],
@@ -134,7 +166,15 @@ export async function fetchAgentDashboardSummary() {
     [latestCreditApplicationRows],
     clientActivity,
   ] = await Promise.all([
-    dbPool.query("SELECT role, COUNT(*) AS total FROM users GROUP BY role"),
+    dbPool.query(
+      `
+      SELECT role, COUNT(*) AS total
+      FROM users
+      ${usersMonthFilter.sql}
+      GROUP BY role
+      `,
+      usersMonthFilter.params
+    ),
     dbPool.query(`
       SELECT
         COUNT(*) AS total_properties,
@@ -142,8 +182,16 @@ export async function fetchAgentDashboardSummary() {
         SUM(CASE WHEN COALESCE(is_active, 1) = 0 THEN 1 ELSE 0 END) AS inactive_properties
       FROM properties
       WHERE COALESCE(is_deleted, 0) = 0
-    `),
-    dbPool.query("SELECT COUNT(*) AS total_reports FROM reclamations"),
+        ${propertiesMonthFilter.sql}
+    `, propertiesMonthFilter.params),
+    dbPool.query(
+      `
+      SELECT COUNT(*) AS total_reports
+      FROM reclamations
+      ${reportsMonthFilter.sql}
+      `,
+      reportsMonthFilter.params
+    ),
     dbPool.query(`
       SELECT
         COUNT(*) AS total_credit_applications,
@@ -153,29 +201,48 @@ export async function fetchAgentDashboardSummary() {
         SUM(CASE WHEN status = 'REFUSE' THEN 1 ELSE 0 END) AS refused_credit_applications,
         ROUND(AVG(compliance_score), 0) AS average_compliance_score
       FROM credit_applications
-    `),
-    dbPool.query("SELECT statut AS status, COUNT(*) AS total FROM reclamations GROUP BY statut"),
-    dbPool.query("SELECT status, COUNT(*) AS total FROM credit_applications GROUP BY status"),
+      ${creditMonthFilter.sql}
+    `, creditMonthFilter.params),
+    dbPool.query(
+      `
+      SELECT statut AS status, COUNT(*) AS total
+      FROM reclamations
+      ${reportsMonthFilter.sql}
+      GROUP BY statut
+      `,
+      reportsMonthFilter.params
+    ),
+    dbPool.query(
+      `
+      SELECT status, COUNT(*) AS total
+      FROM credit_applications
+      ${creditMonthFilter.sql}
+      GROUP BY status
+      `,
+      creditMonthFilter.params
+    ),
     dbPool.query(`
       SELECT
         COALESCE(NULLIF(COALESCE(manual_city, city), ''), 'Non renseignee') AS city,
         COUNT(*) AS total
       FROM properties
       WHERE COALESCE(is_deleted, 0) = 0
+        ${propertiesMonthFilter.sql}
       GROUP BY COALESCE(NULLIF(COALESCE(manual_city, city), ''), 'Non renseignee')
       ORDER BY total DESC, city ASC
       LIMIT 6
-    `),
+    `, propertiesMonthFilter.params),
     dbPool.query(`
       SELECT
         COALESCE(NULLIF(COALESCE(manual_source, source), ''), 'Inconnue') AS source,
         COUNT(*) AS total
       FROM properties
       WHERE COALESCE(is_deleted, 0) = 0
+        ${propertiesMonthFilter.sql}
       GROUP BY COALESCE(NULLIF(COALESCE(manual_source, source), ''), 'Inconnue')
       ORDER BY total DESC, source ASC
       LIMIT 6
-    `),
+    `, propertiesMonthFilter.params),
     dbPool.query(
       `
       SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS total
@@ -221,9 +288,10 @@ export async function fetchAgentDashboardSummary() {
       SELECT id, name, email, role, created_at
       FROM users
       WHERE role IN ('client', 'agent_bancaire', 'admin')
+        ${usersMonthFilter.sql ? usersMonthFilter.sql.replace(/^WHERE /, "AND ") : ""}
       ORDER BY created_at DESC, id DESC
       LIMIT 6
-    `),
+    `, usersMonthFilter.params),
     dbPool.query(`
       SELECT
         r.id,
@@ -235,9 +303,10 @@ export async function fetchAgentDashboardSummary() {
         r.created_at
       FROM reclamations r
       LEFT JOIN users reporter ON reporter.id = r.client_id
+      ${reportsMonthFilter.sql ? reportsMonthFilter.sql.replace(/created_at/g, "r.created_at") : ""}
       ORDER BY r.created_at DESC, r.id DESC
       LIMIT 6
-    `),
+    `, reportsMonthFilter.params),
     dbPool.query(`
       SELECT
         id,
@@ -247,10 +316,11 @@ export async function fetchAgentDashboardSummary() {
         compliance_score,
         created_at
       FROM credit_applications
+      ${creditMonthFilter.sql}
       ORDER BY created_at DESC, id DESC
       LIMIT 6
-    `),
-    fetchClientActivityDashboard({ monthCount: DEFAULT_MONTH_WINDOW, limit: 8 }),
+    `, creditMonthFilter.params),
+    fetchClientActivityDashboard({ monthCount: DEFAULT_MONTH_WINDOW, limit: 8, month }),
   ]);
 
   const roleTotals = roleRows.reduce(
