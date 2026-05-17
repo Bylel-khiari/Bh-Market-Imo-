@@ -8,21 +8,19 @@
 /* ── Hero Section ── */
 
 .hero-section {
-  background: linear-gradient(160deg, #0A2240 0%, #0d2d52 40%, #071a30 100%);
-  padding: 80px 0 60px;
+  background:
+    linear-gradient(90deg, rgba(7, 26, 48, 0.9) 0%, rgba(7, 26, 48, 0.76) 45%, rgba(7, 26, 48, 0.56) 100%),
+    linear-gradient(180deg, rgba(7, 26, 48, 0.18) 0%, rgba(7, 26, 48, 0.72) 100%),
+    url('../assets/bh-bank.png');
+  background-size: cover;
+  background-position: center 18%;
+  background-repeat: no-repeat;
+  padding: 96px 0 88px;
+  min-height: 520px;
   position: relative;
   overflow: hidden;
-}
-
-.hero-section::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(255, 0, 0, 0.06) 0%, transparent 70%);
-  pointer-events: none;
+  display: flex;
+  align-items: center;
 }
 
 .hero-container {
@@ -30,6 +28,8 @@
   margin: 0 auto;
   padding: 0 40px;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-section h1 {
@@ -38,10 +38,11 @@
   color: white;
   margin-bottom: 20px;
   line-height: 1.15;
-  letter-spacing: -1px;
+  letter-spacing: 0;
   max-width: 700px;
   margin-left: auto;
   margin-right: auto;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.36);
 }
 
 .hero-accent {
@@ -51,11 +52,12 @@
 .hero-subtitle {
   font-size: 17px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.82);
   margin-bottom: 36px;
   max-width: 520px;
   margin-left: auto;
   margin-right: auto;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.34);
 }
 
 .hero-actions {
@@ -101,7 +103,7 @@
   font-size: 15px;
   font-weight: 600;
   border-radius: 10px;
-  background: transparent;
+  background: rgba(10, 34, 64, 0.36);
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.25);
   cursor: pointer;
@@ -110,6 +112,7 @@
   align-items: center;
   gap: 10px;
   transition: all 0.3s ease;
+  backdrop-filter: blur(6px);
 }
 
 .btn-hero-secondary:hover {
@@ -493,7 +496,9 @@
 
 @media (max-width: 768px) {
   .hero-section {
-    padding: 50px 0 50px;
+    background-position: 58% center;
+    padding: 64px 0 58px;
+    min-height: 520px;
   }
 
   .hero-container {
