@@ -1,5 +1,8 @@
 import scrapy
 
+from real_estate_scraper.image_extraction import first_image, normalize_image_url
+
+
 class PropertySpider(scrapy.Spider):
     name = "property"
     allowed_domains = ["tayara.tn"]
@@ -9,16 +12,22 @@ class PropertySpider(scrapy.Spider):
         ads = response.css("div.card")
 
         for ad in ads:
-            image = (
-                ad.css("img::attr(src)").get()
-                or ad.css("img::attr(data-src)").get()
-                or ad.css("img::attr(data-lazy-src)").get()
-            )
+            images = []
+            seen = set()
+            for candidate in ad.css("img::attr(src), img::attr(data-src), img::attr(data-lazy-src), img::attr(srcset)").getall():
+                if "," in candidate:
+                    candidate = candidate.split(",")[-1].strip().split(" ")[0]
+                normalized = normalize_image_url(response, candidate)
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    images.append(normalized)
+
             yield {
                 "title": ad.css("h2::text").get(),
                 "price": ad.css(".price::text").get(),
                 "location": ad.css(".location::text").get(),
-                "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
+                "image": first_image(images),
+                "images": images,
                 "url": response.url,
             }
 

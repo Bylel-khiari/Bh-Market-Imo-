@@ -29,6 +29,7 @@ describe("propertyModel admin pagination", () => {
           governorate: "Tunis",
           country: "Tunisie",
           image: null,
+          images_json: '["https://example.test/cover.jpg","https://example.test/detail.jpg"]',
           description: null,
           source: "admin",
           url: null,
@@ -42,6 +43,11 @@ describe("propertyModel admin pagination", () => {
     const properties = await fetchProperties({ all: true });
 
     expect(properties).toHaveLength(1);
+    expect(properties[0].image).toBe("https://example.test/cover.jpg");
+    expect(properties[0].images).toEqual([
+      "https://example.test/cover.jpg",
+      "https://example.test/detail.jpg",
+    ]);
     expect(executeMock.mock.calls[0][0]).not.toContain("LIMIT");
   });
 
@@ -60,6 +66,7 @@ describe("propertyModel admin pagination", () => {
             governorate: "Tunis",
             country: "Tunisie",
             image: null,
+            images_json: null,
             description: null,
             source: "admin",
             url: null,

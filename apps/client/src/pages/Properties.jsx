@@ -55,6 +55,14 @@ const buildRating = (id) => {
   return Math.min(4.9, Math.max(4.0, rating)).toFixed(1);
 };
 
+const getPropertyImages = (property) => {
+  if (!property) return [];
+  if (Array.isArray(property.images) && property.images.length) {
+    return property.images.filter(Boolean);
+  }
+  return property.image ? [property.image] : [];
+};
+
 const Properties = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -429,6 +437,10 @@ const Properties = () => {
     }
   };
 
+  const selectedImages = getPropertyImages(selectedProperty);
+  const selectedCoverImage = selectedImages[0] || '';
+  const selectedThumbs = selectedImages.length ? selectedImages.slice(0, 3) : [null, null, null];
+
   return (
     <div className="properties-page marketplace-mode">
       <div className="marketplace-shell">
@@ -487,6 +499,8 @@ const Properties = () => {
                   const propertyId = String(property.id);
                   const isFavorite = favoriteIdSet.has(propertyId);
                   const isFavoritePending = favoritePendingId === propertyId;
+                  const propertyImages = getPropertyImages(property);
+                  const coverImage = propertyImages[0] || '';
 
                   return (
                     <article
@@ -496,8 +510,8 @@ const Properties = () => {
                       onClick={() => setSelectedPropertyId(property.id)}
                     >
                       <div className="property-card-image-wrap">
-                        {property.image ? (
-                          <img src={property.image} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />
+                        {coverImage ? (
+                          <img src={coverImage} alt={property.title || 'Bien immobilier'} className="property-card-image" loading="lazy" />
                         ) : (
                           <div className="property-card-image-placeholder">Image non disponible</div>
                         )}
@@ -591,16 +605,16 @@ const Properties = () => {
           {selectedProperty ? (
             <>
               <div className="details-media">
-                {selectedProperty.image ? (
-                  <img src={selectedProperty.image} alt={selectedProperty.title || 'Bien immobilier'} className="details-main-image" />
+                {selectedCoverImage ? (
+                  <img src={selectedCoverImage} alt={selectedProperty.title || 'Bien immobilier'} className="details-main-image" />
                 ) : (
                   <div className="details-main-image image-fallback">Image non disponible</div>
                 )}
                 <div className="details-thumbs">
-                  {[1, 2, 3].map((index) => (
+                  {selectedThumbs.map((imageUrl, index) => (
                     <div className="thumb" key={`${selectedProperty.id}-${index}`}>
-                      {selectedProperty.image ? (
-                        <img src={selectedProperty.image} alt={`thumb-${index}`} />
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={`thumb-${index + 1}`} />
                       ) : (
                         <span>-</span>
                       )}

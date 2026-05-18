@@ -196,6 +196,7 @@ const migrations = [
       await addColumnIfMissing("properties", "city", "city VARCHAR(120) NULL");
       await addColumnIfMissing("properties", "country", "country VARCHAR(120) NULL");
       await addColumnIfMissing("properties", "image", "image TEXT NULL");
+      await addColumnIfMissing("properties", "images_json", "images_json LONGTEXT NULL");
       await addColumnIfMissing("properties", "description", "description LONGTEXT NULL");
       await addColumnIfMissing("properties", "normalized_description", "normalized_description LONGTEXT NULL");
       await addColumnIfMissing("properties", "source", "source VARCHAR(120) NULL");
@@ -296,6 +297,13 @@ const migrations = [
     version: "202605150001",
     name: "password-reset-tokens",
     up: createPasswordResetTokensTable,
+  },
+  {
+    version: "202605180001",
+    name: "property-gallery-images",
+    up: async () => {
+      await addColumnIfMissing("properties", "images_json", "images_json LONGTEXT NULL");
+    },
   },
 ];
 

@@ -2,6 +2,8 @@ import json
 
 import scrapy
 
+from real_estate_scraper.image_extraction import first_image, normalize_image_url
+
 
 class TayaraSpider(scrapy.Spider):
     name = "tayara"
@@ -48,6 +50,35 @@ class TayaraSpider(scrapy.Spider):
         parsed_url = response.url.split("?", 1)[0]
         return f"{parsed_url}?page={current_page + 1}"
 
+    def _extract_images(self, response, ad):
+        images = []
+        seen = set()
+
+        def add(candidate):
+            normalized = normalize_image_url(response, candidate)
+            if not normalized or normalized in seen:
+                return
+            seen.add(normalized)
+            images.append(normalized)
+
+        def add_many(value):
+            if not value:
+                return
+            if isinstance(value, str):
+                add(value)
+                return
+            if isinstance(value, dict):
+                add(value.get("url") or value.get("src") or value.get("imageUrl") or value.get("thumbnailUrl"))
+                return
+            if isinstance(value, list):
+                for element in value:
+                    add_many(element)
+
+        for key in ("image", "imageUrl", "thumbnail", "thumbnailUrl", "images", "image_urls", "photos"):
+            add_many(ad.get(key))
+
+        return images
+
     def parse(self, response):
         normalized_page_url = self._normalize_url(response, response.url)
         if normalized_page_url in self._seen_pages:
@@ -83,20 +114,7 @@ class TayaraSpider(scrapy.Spider):
             governorate = location_data.get("governorate")
             delegation = location_data.get("delegation")
             location = ", ".join([part for part in [delegation, governorate] if part])
-            image = (
-                ad.get("image")
-                or ad.get("imageUrl")
-                or ad.get("thumbnail")
-                or ad.get("thumbnailUrl")
-            )
-            if not image:
-                images = ad.get("images")
-                if isinstance(images, list) and images:
-                    first = images[0]
-                    if isinstance(first, dict):
-                        image = first.get("url") or first.get("src")
-                    elif isinstance(first, str):
-                        image = first
+            images = self._extract_images(response, ad)
 
             ad_url = self._normalize_url(response, self._extract_listing_url(ad))
             if not ad_url and ad_id is not None:
@@ -110,7 +128,8 @@ class TayaraSpider(scrapy.Spider):
                 "price": str(ad.get("price")) if ad.get("price") is not None else None,
                 "location": location or None,
                 "description": ad.get("description"),
-                "image": image,
+                "image": first_image(images),
+                "images": images,
                 "url": ad_url,
                 "listing_id": str(ad_id) if ad_id is not None else None,
             }

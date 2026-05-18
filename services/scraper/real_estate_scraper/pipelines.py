@@ -96,6 +96,7 @@ class RawPipeline:
 
         self._ensure_column("listing_id", "VARCHAR(128) NULL")
         self._ensure_column("stream", "VARCHAR(32) NULL")
+        self._ensure_column("images_json", "LONGTEXT NULL")
         self._ensure_column("extra_json", "LONGTEXT NULL")
         self._ensure_column("first_seen_at", "DATETIME NULL")
         self._ensure_column("last_seen_at", "DATETIME NULL")
@@ -161,6 +162,34 @@ class RawPipeline:
         text = " ".join(str(value).split()).strip()
         return text or None
 
+    def _iter_image_values(self, value):
+        if value is None:
+            return
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return
+            if stripped.startswith(("[", "{")):
+                try:
+                    parsed = json.loads(stripped)
+                except json.JSONDecodeError:
+                    yield stripped
+                else:
+                    yield from self._iter_image_values(parsed)
+                return
+            yield stripped
+            return
+
+        if isinstance(value, dict):
+            for key in ("url", "src", "contentUrl", "image", "images", "thumbnailUrl"):
+                yield from self._iter_image_values(value.get(key))
+            return
+
+        if isinstance(value, (list, tuple, set)):
+            for element in value:
+                yield from self._iter_image_values(element)
+
     def _extract_images_from_item(self, item):
         images = []
         seen = set()
@@ -177,20 +206,8 @@ class RawPipeline:
             if not value:
                 continue
 
-            if isinstance(value, str):
-                add_candidate(value)
-                continue
-
-            if isinstance(value, dict):
-                add_candidate(value.get("url") or value.get("src") or value.get("contentUrl"))
-                continue
-
-            if isinstance(value, (list, tuple, set)):
-                for element in value:
-                    if isinstance(element, str):
-                        add_candidate(element)
-                    elif isinstance(element, dict):
-                        add_candidate(element.get("url") or element.get("src") or element.get("contentUrl"))
+            for candidate in self._iter_image_values(value):
+                add_candidate(candidate)
 
         return images
 
@@ -212,12 +229,13 @@ class RawPipeline:
             source,
             listing_id,
             stream,
+            images_json,
             extra_json,
             first_seen_at,
             last_seen_at,
             last_crawled_at
         ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             NOW(), NOW(), NOW()
         )
         ON DUPLICATE KEY UPDATE
@@ -243,6 +261,7 @@ class RawPipeline:
             END,
             listing_id = COALESCE(VALUES(listing_id), listing_id),
             stream = COALESCE(VALUES(stream), stream),
+            images_json = COALESCE(VALUES(images_json), images_json),
             extra_json = COALESCE(VALUES(extra_json), extra_json),
             last_seen_at = NOW(),
             last_crawled_at = NOW()
@@ -274,6 +293,7 @@ class RawPipeline:
 
         images = self._extract_images_from_item(item)
         image = images[0] if images else None
+        images_json = json.dumps(images, ensure_ascii=True, default=str) if images else None
 
         extra_payload = {}
         for key, value in dict(item).items():
@@ -297,6 +317,7 @@ class RawPipeline:
                 source,
                 listing_id,
                 stream,
+                images_json,
                 extra_json,
             )
         )

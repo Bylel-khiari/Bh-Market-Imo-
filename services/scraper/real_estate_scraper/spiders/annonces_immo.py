@@ -4,6 +4,8 @@ from urllib.parse import parse_qs, urlparse
 
 import scrapy
 
+from real_estate_scraper.image_extraction import extract_listing_images, first_image
+
 
 class AnnoncesImmoSpider(scrapy.Spider):
     name = "annonces_immo"
@@ -169,18 +171,17 @@ class AnnoncesImmoSpider(scrapy.Spider):
         if not description:
             description = " ".join(t.strip() for t in response.css("p::text").getall() if t.strip()) or None
 
-        if not image:
-            image = (
-                response.css("meta[property='og:image']::attr(content)").get()
-                or response.css("meta[name='twitter:image']::attr(content)").get()
-                or response.css("img::attr(src)").get()
-            )
+        images = extract_listing_images(response)
+        if isinstance(image, str) and image.strip():
+            image = response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else image
+            images = [image, *[candidate for candidate in images if candidate != image]]
 
         yield {
             "title": title.strip() if isinstance(title, str) else title,
             "price": price,
             "location": location,
             "description": description.strip() if isinstance(description, str) else description,
-            "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
+            "image": first_image(images),
+            "images": images,
             "url": response.url,
         }

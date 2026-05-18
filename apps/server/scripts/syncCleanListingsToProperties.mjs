@@ -26,6 +26,9 @@ const ADMIN_PROPERTY_COLUMNS = [
   ["admin_updated_at", "admin_updated_at TIMESTAMP NULL DEFAULT NULL"],
 ];
 const ADMIN_MANAGED_COLUMN_NAMES = ADMIN_PROPERTY_COLUMNS.map(([columnName]) => columnName);
+const PROPERTY_DATA_COLUMNS = [
+  ["images_json", "images_json LONGTEXT NULL"],
+];
 
 function getEnv(name, fallback) {
   const value = process.env[name];
@@ -45,6 +48,12 @@ async function ensurePropertiesAdminColumns(connection) {
 
   const [columnRows] = await connection.query("SHOW COLUMNS FROM properties");
   const existingColumns = new Set(columnRows.map((row) => row.Field));
+
+  for (const [columnName, definition] of PROPERTY_DATA_COLUMNS) {
+    if (!existingColumns.has(columnName)) {
+      await connection.query(`ALTER TABLE properties ADD COLUMN ${definition}`);
+    }
+  }
 
   for (const [columnName, definition] of ADMIN_PROPERTY_COLUMNS) {
     if (!existingColumns.has(columnName)) {

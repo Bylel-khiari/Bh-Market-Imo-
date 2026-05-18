@@ -1,6 +1,7 @@
 import os
 import re
 import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict, Any
@@ -225,6 +226,7 @@ class Candidate:
     description: str
     normalized_description: str
     image: str
+    images_json: str
     url: str
     dedupe_key: str
     scraped_at: Optional[str]
@@ -242,6 +244,74 @@ def normalize_text(value: Any) -> str:
     value = re.sub(r"[^\w\s]", " ", value, flags=re.UNICODE)
     value = re.sub(r"\s+", " ", value).strip()
     return value
+
+
+def _decode_json_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    if not isinstance(value, str):
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def _iter_image_values(value: Any):
+    if value is None:
+        return
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return
+        parsed = _decode_json_value(stripped)
+        if parsed is not None:
+            yield from _iter_image_values(parsed)
+            return
+        yield stripped
+        return
+
+    if isinstance(value, dict):
+        for key in ("url", "src", "contentUrl", "image", "images", "thumbnailUrl"):
+            yield from _iter_image_values(value.get(key))
+        return
+
+    if isinstance(value, (list, tuple, set)):
+        for element in value:
+            yield from _iter_image_values(element)
+
+
+def extract_images_from_raw_row(raw_row: Dict[str, Any]) -> List[str]:
+    images = []
+    seen = set()
+
+    def add(candidate: Any):
+        candidate = clean_spaces(candidate)
+        if not candidate or candidate in seen:
+            return
+        seen.add(candidate)
+        images.append(candidate)
+
+    add(raw_row.get("image", ""))
+
+    for candidate in _iter_image_values(raw_row.get("images_json")):
+        add(candidate)
+
+    extra_payload = _decode_json_value(raw_row.get("extra_json"))
+    if isinstance(extra_payload, dict):
+        for key in ("images", "image_urls", "gallery", "photos"):
+            for candidate in _iter_image_values(extra_payload.get(key)):
+                add(candidate)
+
+    return images
 
 
 def parse_price(value: Any) -> Optional[float]:
@@ -624,6 +694,8 @@ def ensure_runtime_schema(conn):
     # raw_properties compatibility
     ensure_column(conn, RAW_TABLE, "processed", "TINYINT NOT NULL DEFAULT 0")
     ensure_column(conn, RAW_TABLE, "scraped_at", "DATETIME NULL")
+    ensure_column(conn, RAW_TABLE, "images_json", "LONGTEXT NULL")
+    ensure_column(conn, RAW_TABLE, "extra_json", "LONGTEXT NULL")
 
     cur = conn.cursor()
     cur.execute(
@@ -647,6 +719,7 @@ def ensure_runtime_schema(conn):
         ensure_column(conn, "clean_listings", "normalized_location", "TEXT NULL")
         ensure_column(conn, "clean_listings", "normalized_description", "LONGTEXT NULL")
         ensure_column(conn, "clean_listings", "dedupe_key", "CHAR(40) NULL")
+        ensure_column(conn, "clean_listings", "images_json", "LONGTEXT NULL")
 
     # duplicates_log table required by cleaner
     if not table_exists(conn, "duplicates_log"):
@@ -684,6 +757,8 @@ def fetch_raw_rows(conn) -> List[Dict[str, Any]]:
             location,
             description,
             image,
+            images_json,
+            extra_json,
             url,
             source,
             processed,
@@ -715,6 +790,7 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
             description,
             normalized_description,
             image,
+            images_json,
             url,
             dedupe_key,
             scraped_at
@@ -740,6 +816,7 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
             description=row["description"] or "",
             normalized_description=row["normalized_description"] or "",
             image=row["image"] or "",
+            images_json=row.get("images_json") or "",
             url=row["url"] or "",
             dedupe_key=row["dedupe_key"] or "",
             scraped_at=str(row["scraped_at"]) if row["scraped_at"] else None,
@@ -784,14 +861,14 @@ def insert_clean_listing(conn, c: Candidate) -> int:
             price_raw, price_value,
             location_raw, normalized_location, country, city,
             description, normalized_description,
-            image, url, dedupe_key, scraped_at
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            image, images_json, url, dedupe_key, scraped_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         c.raw_id, c.source, c.title, c.normalized_title,
         c.price_raw, c.price_value,
         c.location_raw, c.normalized_location, c.country, c.governorate,
         c.description, c.normalized_description,
-        c.image, c.url, c.dedupe_key, c.scraped_at
+        c.image, c.images_json, c.url, c.dedupe_key, c.scraped_at
     ))
     new_id = cur.lastrowid
     cur.close()
@@ -865,7 +942,9 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     title = clean_spaces(raw_row.get("title", ""))
     location = clean_spaces(raw_row.get("location", ""))
     description = clean_spaces(raw_row.get("description", ""))
-    image = clean_spaces(raw_row.get("image", ""))
+    images = extract_images_from_raw_row(raw_row)
+    image = images[0] if images else clean_spaces(raw_row.get("image", ""))
+    images_json = json.dumps(images, ensure_ascii=True) if images else ""
     url = clean_spaces(raw_row.get("url", ""))
     source = clean_spaces(raw_row.get("source", ""))
     price_raw = clean_spaces(raw_row.get("price", ""))
@@ -900,6 +979,7 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
         description=description,
         normalized_description=normalized_description,
         image=image,
+        images_json=images_json,
         url=url,
         dedupe_key=dedupe_key,
         scraped_at=str(raw_row["scraped_at"]) if raw_row.get("scraped_at") else None,

@@ -19,6 +19,7 @@ const PROPERTY_EFFECTIVE_SELECT_COLUMNS = `
   COALESCE(p.manual_city, p.city) AS governorate,
   COALESCE(p.manual_country, p.country) AS country,
   COALESCE(p.manual_image, p.image) AS image,
+  p.images_json AS images_json,
   COALESCE(p.manual_description, p.description) AS description,
   COALESCE(p.manual_source, p.source) AS source,
   COALESCE(p.manual_url, p.url) AS url,
@@ -110,8 +111,55 @@ function normalizeOptionalDateTime(value, fieldName) {
   return parsed.toISOString().slice(0, 19).replace("T", " ");
 }
 
+function collectImageList(...values) {
+  const images = [];
+  const seen = new Set();
+
+  const add = (value) => {
+    if (value == null) {
+      return;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        try {
+          add(JSON.parse(trimmed));
+          return;
+        } catch {
+          // Fall through and treat the value as a plain URL.
+        }
+      }
+
+      if (!seen.has(trimmed)) {
+        seen.add(trimmed);
+        images.push(trimmed);
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+
+    if (typeof value === "object") {
+      add(value.url || value.src || value.contentUrl || value.image || value.images);
+    }
+  };
+
+  values.forEach(add);
+  return images;
+}
+
 function toPublicProperty(row) {
   if (!row) return null;
+
+  const images = collectImageList(row.image, row.images_json);
 
   return {
     id: row.id,
@@ -122,7 +170,8 @@ function toPublicProperty(row) {
     city: row.city,
     governorate: row.governorate,
     country: row.country,
-    image: row.image,
+    image: row.image || images[0] || null,
+    images,
     description: row.description,
     source: row.source,
     url: row.url,
@@ -167,6 +216,7 @@ async function ensurePropertiesInfrastructure() {
             city VARCHAR(120) NULL,
             country VARCHAR(120) NULL,
             image TEXT NULL,
+            images_json LONGTEXT NULL,
             description LONGTEXT NULL,
             normalized_description LONGTEXT NULL,
             url TEXT NULL,

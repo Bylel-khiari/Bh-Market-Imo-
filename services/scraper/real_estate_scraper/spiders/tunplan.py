@@ -1,6 +1,8 @@
 import scrapy
 import re
 
+from real_estate_scraper.image_extraction import extract_listing_images, first_image
+
 
 class TunplanSpider(scrapy.Spider):
     name = "tunplan"
@@ -88,17 +90,14 @@ class TunplanSpider(scrapy.Spider):
             )
             if desc_match:
                 description = re.sub(r"\s+", " ", desc_match.group(1)).strip()
-        image = (
-            response.css("meta[property='og:image']::attr(content)").get()
-            or response.css("meta[name='twitter:image']::attr(content)").get()
-            or response.css("img::attr(src)").get()
-        )
+        images = extract_listing_images(response)
 
         yield {
             "title": title,
             "price": price,
             "location": location,
             "description": description,
-            "image": response.urljoin(image.strip()) if isinstance(image, str) and image.strip() else None,
+            "image": first_image(images),
+            "images": images,
             "url": response.url,
         }
