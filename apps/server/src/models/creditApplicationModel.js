@@ -111,6 +111,9 @@ function normalizeTypedDocuments(documents) {
       }
       const type = String(doc.type || "").trim().toUpperCase();
       const name = String(doc.name || "").trim();
+      const mimeType = normalizeOptionalString(doc.mime_type || doc.content_type);
+      const storagePath = normalizeOptionalString(doc.storage_path);
+      const sizeBytes = normalizeOptionalInteger(doc.size_bytes ?? doc.size);
 
       if (!type || !name) {
         return null;
@@ -120,7 +123,13 @@ function normalizeTypedDocuments(documents) {
         return null;
       }
 
-      return { type, name };
+      return {
+        type,
+        name,
+        ...(mimeType ? { mime_type: mimeType } : {}),
+        ...(Number.isInteger(sizeBytes) && sizeBytes >= 0 ? { size_bytes: sizeBytes } : {}),
+        ...(storagePath ? { storage_path: storagePath } : {}),
+      };
     })
     .filter(Boolean)
     .slice(0, 40);

@@ -21,6 +21,13 @@ import {
   scoreCreditApplication,
   determineApplicationStatus,
 } from "../services/creditScoringService.js";
+import {
+  buildInlineContentDisposition,
+  cleanupPersistedCreditApplicationDocuments,
+  openStoredCreditApplicationDocument,
+  persistCreditApplicationDocuments,
+} from "../services/creditApplicationDocumentService.js";
+import { httpError } from "../utils/httpError.js";
 
 function toScoringApplicationData(application) {
   return {
@@ -42,6 +49,8 @@ function toScoringApplicationData(application) {
 }
 
 export async function submitCreditApplication(req, res) {
+  const persistedDocuments = await persistCreditApplicationDocuments(req.body?.documents);
+
   // Prepare application data
   const applicationData = {
     clientUserId: req.user?.sub,
@@ -70,7 +79,7 @@ export async function submitCreditApplication(req, res) {
     estimatedMonthlyPayment: req.body?.estimated_monthly_payment,
     estimatedRate: req.body?.estimated_rate,
     debtRatio: req.body?.debt_ratio,
-    documents: req.body?.documents,
+    documents: persistedDocuments.length ? persistedDocuments : req.body?.documents,
   };
 
   let scoringResult = null;
@@ -97,13 +106,20 @@ export async function submitCreditApplication(req, res) {
   }
 
   // Create the credit application with scoring results (if available)
-  const application = await createCreditApplication({
-    ...applicationData,
-    complianceScore: applicationStatus?.complianceScore,
-    complianceSummary: applicationStatus?.complianceSummary,
-    initialStatus: applicationStatus?.status,
-    scoringResult: scoringResult,
-  });
+  let application = null;
+
+  try {
+    application = await createCreditApplication({
+      ...applicationData,
+      complianceScore: applicationStatus?.complianceScore,
+      complianceSummary: applicationStatus?.complianceSummary,
+      initialStatus: applicationStatus?.status,
+      scoringResult: scoringResult,
+    });
+  } catch (error) {
+    await cleanupPersistedCreditApplicationDocuments(persistedDocuments);
+    throw error;
+  }
 
   await recordClientActivityLog(req, {
     eventType: CLIENT_ACTIVITY_EVENT_TYPES.CREDIT_APPLICATION_SUBMIT,
@@ -170,4 +186,27 @@ export async function scoreAgentCreditApplication(req, res) {
   });
 
   return renderUpdatedCreditApplication(res, application);
+}
+
+export async function viewAgentCreditApplicationDocument(req, res) {
+  const application = await fetchCreditApplicationById(req.params.id);
+
+  if (!application) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  const documentIndex = Number(req.params.documentIndex);
+  const documents = Array.isArray(application.typed_documents) ? application.typed_documents : [];
+  const document = documents[documentIndex];
+
+  if (!document) {
+    throw httpError(404, "Document not found");
+  }
+
+  const openedDocument = await openStoredCreditApplicationDocument(document);
+
+  res.setHeader("Content-Type", openedDocument.mimeType);
+  res.setHeader("Content-Length", String(openedDocument.size));
+  res.setHeader("Content-Disposition", buildInlineContentDisposition(openedDocument.filename));
+  openedDocument.stream.pipe(res);
 }

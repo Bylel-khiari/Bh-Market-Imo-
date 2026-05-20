@@ -47,13 +47,40 @@ function toClientCreditApplication(application) {
     situation_contractuelle,
     other_monthly_charges,
     debt_ratio,
+    typed_documents,
     ...clientApplication
   } = application;
 
   return {
     ...clientApplication,
+    typed_documents: Array.isArray(typed_documents)
+      ? typed_documents.map(({ storage_path, ...document }) => ({
+          ...document,
+          has_file: Boolean(storage_path),
+        }))
+      : [],
     statusMessage: getStatusMessage(application),
     client_decision_message: getClientDecisionMessage(application),
+  };
+}
+
+function toAgentCreditApplication(application) {
+  if (!application) return null;
+
+  const typedDocuments = Array.isArray(application.typed_documents)
+    ? application.typed_documents.map(({ storage_path, ...document }, index) => ({
+        ...document,
+        has_file: Boolean(storage_path),
+        view_url: storage_path
+          ? `/api/agent/credit-applications/${application.id}/documents/${index}`
+          : null,
+      }))
+    : [];
+
+  return {
+    ...application,
+    typed_documents: typedDocuments,
+    statusMessage: getStatusMessage(application),
   };
 }
 
@@ -93,19 +120,13 @@ export function renderAgentCreditApplicationList(res, payload) {
         REFUSE: "Refusées",
       },
     },
-    applications: applications.map((app) => ({
-      ...app,
-      statusMessage: getStatusMessage(app),
-    })),
+    applications: applications.map(toAgentCreditApplication),
   });
 }
 
 export function renderUpdatedCreditApplication(res, application) {
   return res.json({
     message: "Demande de crédit mise à jour avec succès.",
-    application: {
-      ...application,
-      statusMessage: getStatusMessage(application),
-    },
+    application: toAgentCreditApplication(application),
   });
 }

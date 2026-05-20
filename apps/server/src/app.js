@@ -85,7 +85,7 @@ app.disable("x-powered-by");
 app.use(helmet());
 app.use(morgan(isProduction ? "combined" : "dev"));
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "80mb" }));
 app.use(globalRateLimiter);
 app.use("/api/auth", authRateLimiter);
 

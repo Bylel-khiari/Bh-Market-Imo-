@@ -930,13 +930,38 @@
 .agent-document-pill {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
+  border: 1px solid transparent;
   background: rgba(10, 77, 140, 0.08);
   color: #0a4d8c;
   font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
+}
+
+.agent-document-pill--action {
+  cursor: pointer;
+  border-color: rgba(10, 77, 140, 0.14);
+  font: inherit;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.agent-document-pill--action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(10, 77, 140, 0.34);
+  background: rgba(10, 77, 140, 0.13);
+}
+
+.agent-document-pill--action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.agent-document-pill--unavailable {
+  color: #65758c;
 }
 
 .agent-review-form {

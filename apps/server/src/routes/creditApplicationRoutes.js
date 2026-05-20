@@ -5,12 +5,14 @@ import {
   scoreAgentCreditApplication,
   submitCreditApplication,
   updateAgentCreditApplication,
+  viewAgentCreditApplicationDocument,
 } from "../controllers/creditApplicationController.js";
 import { requireAuth, requireRoles } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import {
   agentListCreditApplicationsQuerySchema,
   agentUpdateCreditApplicationBodySchema,
+  creditApplicationDocumentParamSchema,
   creditApplicationCreateBodySchema,
   creditApplicationListQuerySchema,
   idParamSchema,
@@ -40,6 +42,14 @@ router.get(
   requireRoles("agent_bancaire"),
   validateRequest({ query: agentListCreditApplicationsQuerySchema }),
   listAgentCreditApplications
+);
+
+router.get(
+  "/api/agent/credit-applications/:id/documents/:documentIndex",
+  requireAuth,
+  requireRoles("agent_bancaire"),
+  validateRequest({ params: creditApplicationDocumentParamSchema }),
+  viewAgentCreditApplicationDocument
 );
 
 router.patch(

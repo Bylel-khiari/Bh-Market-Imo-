@@ -27,7 +27,11 @@ function App() {
   const hideNavFooter = ['/login', '/forgot-password', '/reset-password', ...fullscreenRoutes].includes(location.pathname);
   const isFullscreenRoute = fullscreenRoutes.includes(location.pathname);
   const role = getAuthSession()?.user?.role;
-  const showAssistantWidget = role !== 'admin' && role !== 'agent_bancaire';
+  const hideAssistantRoutes = ['/login', '/forgot-password', '/reset-password'];
+  const showAssistantWidget =
+    !hideAssistantRoutes.includes(location.pathname) &&
+    role !== 'admin' &&
+    role !== 'agent_bancaire';
 
   return (
     <div className={`App${isFullscreenRoute ? ' App--fullscreen' : ''}`}>

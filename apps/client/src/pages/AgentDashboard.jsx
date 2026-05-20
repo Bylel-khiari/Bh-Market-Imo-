@@ -42,6 +42,7 @@ import {
   clearAuthSession,
   fetchAgentDashboardApi,
   fetchAgentCreditApplicationsApi,
+  fetchAgentCreditApplicationDocumentApi,
   fetchAgentProfileApi,
   isAuthError,
   requireAuthToken,
@@ -186,6 +187,28 @@ function formatDateTime(value) {
   return date.toLocaleString('fr-FR');
 }
 
+function getApplicationDocuments(application) {
+  if (!application) return [];
+
+  if (Array.isArray(application.typed_documents) && application.typed_documents.length > 0) {
+    return application.typed_documents.map((document, index) => ({
+      key: `${document.type || 'document'}-${document.name || index}-${index}`,
+      name: document.name || `Document ${index + 1}`,
+      type: document.type || 'Document',
+      index,
+      hasFile: Boolean(document.has_file && document.view_url),
+    }));
+  }
+
+  return (Array.isArray(application.documents) ? application.documents : []).map((documentName, index) => ({
+    key: `${documentName}-${index}`,
+    name: documentName,
+    type: 'Document',
+    index,
+    hasFile: false,
+  }));
+}
+
 function formatStatus(status) {
   return STATUS_LABELS[status] || status || 'Inconnu';
 }
@@ -312,6 +335,7 @@ export default function AgentDashboard() {
   const [error, setError] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [openingDocumentKey, setOpeningDocumentKey] = useState('');
 
   const redirectToLogin = useCallback(() => {
     clearAuthSession();
@@ -419,6 +443,11 @@ export default function AgentDashboard() {
       applications[0]
     );
   }, [applications, selectedApplicationId]);
+
+  const selectedApplicationDocuments = useMemo(
+    () => getApplicationDocuments(selectedApplication),
+    [selectedApplication],
+  );
 
   useEffect(() => {
     setActiveApplicationPanel('summary');
@@ -739,6 +768,53 @@ export default function AgentDashboard() {
       setError(requestError.message || "Impossible de calculer le score de ce dossier.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleOpenApplicationDocument = async (document) => {
+    if (!selectedApplication || !document?.hasFile) {
+      return;
+    }
+
+    const documentWindow = window.open('about:blank', '_blank');
+    if (documentWindow) {
+      documentWindow.opener = null;
+      documentWindow.document.title = 'Chargement du document';
+      documentWindow.document.body.innerHTML = '<p style="font-family: sans-serif;">Chargement du document...</p>';
+    }
+    const documentKey = `${selectedApplication.id}-${document.index}`;
+
+    try {
+      const token = requireAuthToken();
+      setOpeningDocumentKey(documentKey);
+      setError('');
+
+      const { blob } = await fetchAgentCreditApplicationDocumentApi(
+        selectedApplication.id,
+        document.index,
+        token,
+      );
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (documentWindow) {
+        documentWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (requestError) {
+      if (documentWindow) {
+        documentWindow.close();
+      }
+
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setError(requestError.message || 'Impossible d ouvrir ce document.');
+    } finally {
+      setOpeningDocumentKey('');
     }
   };
 
@@ -1207,13 +1283,34 @@ export default function AgentDashboard() {
                               <h3>Pièces du dossier</h3>
                               <p>Documents déclarés par le client pour l’étude du crédit.</p>
                             </div>
-                            {selectedApplication.documents?.length ? (
+                            {selectedApplicationDocuments.length ? (
                               <div className="agent-document-list">
-                                {selectedApplication.documents.map((documentName) => (
-                                  <span key={documentName} className="agent-document-pill">
-                                    {documentName}
-                                  </span>
-                                ))}
+                                {selectedApplicationDocuments.map((document) => {
+                                  const documentKey = `${selectedApplication.id}-${document.index}`;
+                                  const isOpening = openingDocumentKey === documentKey;
+
+                                  return document.hasFile ? (
+                                    <button
+                                      key={document.key}
+                                      type="button"
+                                      className="agent-document-pill agent-document-pill--action"
+                                      onClick={() => handleOpenApplicationDocument(document)}
+                                      disabled={isOpening}
+                                      title="Consulter le document"
+                                    >
+                                      <FaDownload />
+                                      <span>{isOpening ? 'Ouverture...' : document.name}</span>
+                                    </button>
+                                  ) : (
+                                    <span
+                                      key={document.key}
+                                      className="agent-document-pill agent-document-pill--unavailable"
+                                      title="Fichier non disponible pour les anciens dossiers."
+                                    >
+                                      {document.name}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>
@@ -1418,13 +1515,34 @@ export default function AgentDashboard() {
 
                       <div className="agent-document-block">
                         <h3>Documents déclarés</h3>
-                        {selectedApplication.documents?.length ? (
+                        {selectedApplicationDocuments.length ? (
                           <div className="agent-document-list">
-                            {selectedApplication.documents.map((documentName) => (
-                              <span key={documentName} className="agent-document-pill">
-                                {documentName}
-                              </span>
-                            ))}
+                            {selectedApplicationDocuments.map((document) => {
+                              const documentKey = `${selectedApplication.id}-${document.index}`;
+                              const isOpening = openingDocumentKey === documentKey;
+
+                              return document.hasFile ? (
+                                <button
+                                  key={document.key}
+                                  type="button"
+                                  className="agent-document-pill agent-document-pill--action"
+                                  onClick={() => handleOpenApplicationDocument(document)}
+                                  disabled={isOpening}
+                                  title="Consulter le document"
+                                >
+                                  <FaDownload />
+                                  <span>{isOpening ? 'Ouverture...' : document.name}</span>
+                                </button>
+                              ) : (
+                                <span
+                                  key={document.key}
+                                  className="agent-document-pill agent-document-pill--unavailable"
+                                  title="Fichier non disponible pour les anciens dossiers."
+                                >
+                                  {document.name}
+                                </span>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>

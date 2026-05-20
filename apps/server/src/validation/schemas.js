@@ -59,6 +59,13 @@ export const idParamSchema = z
   })
   .strict();
 
+export const creditApplicationDocumentParamSchema = z
+  .object({
+    id: z.coerce.number().int().positive(),
+    documentIndex: z.coerce.number().int().min(0).max(39),
+  })
+  .strict();
+
 export const adminListUsersQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(500).optional(),
@@ -315,6 +322,9 @@ export const creditApplicationCreateBodySchema = z
         z.object({
           type: z.string().trim().min(1).max(64),
           name: z.string().trim().min(1).max(200),
+          content_type: z.string().trim().max(120).optional().nullable(),
+          size: z.coerce.number().int().min(0).max(20 * 1024 * 1024).optional().nullable(),
+          data: z.string().max(12 * 1024 * 1024).optional().nullable(),
           extracted_text: z.string().trim().max(4000).optional().nullable(),
         })
       )

@@ -64,6 +64,32 @@ const DOCUMENT_TYPES = {
 const REQUIRED_DOCUMENT_KEYS = Object.values(DOCUMENT_TYPES)
   .filter(doc => doc.required)
   .map(doc => doc.key);
+const MAX_UPLOAD_DOCUMENT_BYTES = 8 * 1024 * 1024;
+const ACCEPTED_UPLOAD_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Impossible de lire le fichier.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isAcceptedDocumentFile(file) {
+  if (!file) return false;
+  const lowerName = String(file.name || '').toLowerCase();
+  return ACCEPTED_UPLOAD_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
+}
+
+function getDocumentContentType(file) {
+  if (file?.type) return file.type;
+  const lowerName = String(file?.name || '').toLowerCase();
+  if (lowerName.endsWith('.pdf')) return 'application/pdf';
+  if (lowerName.endsWith('.png')) return 'image/png';
+  if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) return 'image/jpeg';
+  return 'application/octet-stream';
+}
 
 function formatCurrency(value) {
   const amount = Number(value || 0);
@@ -329,9 +355,25 @@ export default function CreditImmobilierBHPortal() {
 
   const handleDocumentChange = (documentType, event) => {
     const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+
+    if (file && !isAcceptedDocumentFile(file)) {
+      setErrorMessage('Format de document non accepte. Utilisez PDF, JPG, PNG ou JPEG.');
+      event.target.value = '';
+      setUploadedDocuments((prev) => ({ ...prev, [documentType]: null }));
+      return;
+    }
+
+    if (file && file.size > MAX_UPLOAD_DOCUMENT_BYTES) {
+      setErrorMessage('Chaque document doit faire moins de 8 Mo.');
+      event.target.value = '';
+      setUploadedDocuments((prev) => ({ ...prev, [documentType]: null }));
+      return;
+    }
+
+    setErrorMessage('');
     setUploadedDocuments((prev) => ({
       ...prev,
-      [documentType]: file ? file.name : null,
+      [documentType]: file ? { name: file.name, file } : null,
     }));
   };
 
@@ -399,13 +441,24 @@ export default function CreditImmobilierBHPortal() {
       return;
     }
 
-    // Convert uploadedDocuments to typed documents format
-    const documents = Object.entries(uploadedDocuments)
-      .filter(([, fileName]) => fileName)
-      .map(([docType, fileName]) => ({
-        type: docType,
-        name: fileName,
-      }));
+    let documents = [];
+
+    try {
+      documents = await Promise.all(
+        Object.entries(uploadedDocuments)
+          .filter(([, document]) => document?.file)
+          .map(async ([docType, document]) => ({
+            type: docType,
+            name: document.name,
+            content_type: getDocumentContentType(document.file),
+            size: document.file.size,
+            data: await readFileAsDataUrl(document.file),
+          })),
+      );
+    } catch (fileError) {
+      setErrorMessage(fileError.message || 'Impossible de lire les documents selectionnes.');
+      return;
+    }
     const scoringAnnualIncome = toPositiveNumberOrNull(formData.scoringAnnualIncome);
     const scoringAnnualCharges = toPositiveNumberOrNull(formData.scoringAnnualCharges);
     const otherMonthlyCharges = toPositiveNumberOrNull(formData.otherMonthlyCharges);
@@ -1255,7 +1308,7 @@ export default function CreditImmobilierBHPortal() {
                     <div className="bh-doc-upload-panel">
                       <div className="bh-doc-grid">
                         {requiredDocumentsList.map((doc) => {
-                          const uploadedFileName = uploadedDocuments[doc.key];
+                          const uploadedFileName = uploadedDocuments[doc.key]?.name;
 
                           return (
                           <article

@@ -110,6 +110,34 @@ export async function authorizedJsonRequest(path, token, options = {}) {
   return jsonRequest(path, { ...options, headers });
 }
 
+export async function authorizedBlobRequest(path, token, options = {}) {
+  if (!token) {
+    throw createHttpError('Session invalide. Veuillez vous reconnecter.', 401);
+  }
+
+  const headers = new Headers(options.headers || {});
+  if (token !== COOKIE_AUTH_SENTINEL) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw createHttpError(payload?.message || `HTTP ${response.status}`, response.status, payload?.details);
+  }
+
+  return {
+    blob: await response.blob(),
+    contentType: response.headers.get('Content-Type') || '',
+    filename: response.headers.get('Content-Disposition') || '',
+  };
+}
+
 export async function loginApi(input) {
   return jsonRequest('/api/auth/login', {
     method: 'POST',
@@ -489,6 +517,13 @@ export async function scoreAgentCreditApplicationApi(applicationId, token) {
     method: 'POST',
     body: {},
   });
+}
+
+export async function fetchAgentCreditApplicationDocumentApi(applicationId, documentIndex, token) {
+  return authorizedBlobRequest(
+    `/api/agent/credit-applications/${applicationId}/documents/${documentIndex}`,
+    token,
+  );
 }
 
 export function clearAuthSession() {

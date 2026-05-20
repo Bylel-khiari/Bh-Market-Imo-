@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowRight, FaComments, FaMapMarkerAlt, FaPaperPlane, FaTimes } from 'react-icons/fa';
+import { FaArrowRight, FaMapMarkerAlt, FaPaperPlane, FaTimes } from 'react-icons/fa';
 import { AUTH_SESSION_CHANGED_EVENT, getAuthSession } from '../../lib/auth';
 import { sendAssistantMessage } from './assistantApi';
+import bhLogo from '../../assets/favicon.ico';
 import './BHAssistantWidget.css';
 
 const INITIAL_MESSAGE = {
@@ -149,6 +150,14 @@ function normalizeSuggestions(suggestions) {
 function getAuthSessionKey() {
   const session = getAuthSession();
   return session?.token || session?.user?.email || 'guest';
+}
+
+function BHAssistantLogo({ className }) {
+  return (
+    <span className={className} aria-hidden="true">
+      <img src={bhLogo} alt="" />
+    </span>
+  );
 }
 
 function BHAssistantWidget() {
@@ -367,9 +376,7 @@ function BHAssistantWidget() {
         onClick={() => setIsOpen(true)}
         aria-label="Ouvrir BH Assistant"
       >
-        <span className="bh-assistant-launcher__icon" aria-hidden="true">
-          <FaComments />
-        </span>
+        <BHAssistantLogo className="bh-assistant-launcher__icon" />
         <span>BH Assistant</span>
       </button>
     );
@@ -379,9 +386,7 @@ function BHAssistantWidget() {
     <section className="bh-assistant-widget" aria-label="BH Assistant">
       <header className="bh-assistant-widget__header">
         <div className="bh-assistant-widget__identity">
-          <span className="bh-assistant-widget__avatar" aria-hidden="true">
-            BH
-          </span>
+          <BHAssistantLogo className="bh-assistant-widget__avatar" />
           <div>
             <h2>BH Assistant</h2>
             <p>Conseiller virtuel</p>
@@ -404,9 +409,7 @@ function BHAssistantWidget() {
             className={`bh-assistant-message bh-assistant-message--${message.role}`}
           >
             {message.role === 'assistant' && (
-              <span className="bh-assistant-message__avatar" aria-hidden="true">
-                BH
-              </span>
+              <BHAssistantLogo className="bh-assistant-message__avatar" />
             )}
             <div className="bh-assistant-message__content">
               <div className="bh-assistant-message__bubble">{message.content}</div>
@@ -447,7 +450,9 @@ function BHAssistantWidget() {
                         {property.image ? (
                           <img src={property.image} alt={property.title} loading="lazy" />
                         ) : (
-                          <div className="bh-assistant-property-card__placeholder">BH</div>
+                          <div className="bh-assistant-property-card__placeholder">
+                            <img src={bhLogo} alt="" aria-hidden="true" />
+                          </div>
                         )}
                         <div>
                           <h3>{property.title}</h3>
@@ -471,9 +476,7 @@ function BHAssistantWidget() {
         ))}
         {isLoading && (
           <div className="bh-assistant-message bh-assistant-message--assistant">
-            <span className="bh-assistant-message__avatar" aria-hidden="true">
-              BH
-            </span>
+            <BHAssistantLogo className="bh-assistant-message__avatar" />
             <div className="bh-assistant-message__bubble bh-assistant-message__bubble--loading">
               Assistant écrit...
             </div>
