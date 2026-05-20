@@ -2,12 +2,21 @@ import os
 import re
 import hashlib
 import json
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict, Any
 
 import mysql.connector
 from rapidfuzz import fuzz
+
+SCRAPER_PACKAGE_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "services", "scraper")
+)
+if SCRAPER_PACKAGE_DIR not in sys.path:
+    sys.path.insert(0, SCRAPER_PACKAGE_DIR)
+
+from real_estate_scraper.source_dates import normalize_source_datetime, parse_source_datetime
 
 
 # =========================
@@ -34,7 +43,11 @@ STATUS_RENT = 3
 STATUS_OUTSIDE_TUNISIA = 4
 STATUS_TOO_OLD = 5
 
-MAX_AGE_DAYS = 365 * 3
+MAX_AGE_DAYS = int(
+    os.getenv("SOURCE_LISTING_MAX_AGE_DAYS")
+    or os.getenv("MAX_LISTING_AGE_DAYS")
+    or str(365 * 3)
+)
 
 DELETE_OLD_RAW_ROWS = True
 PURGE_OLD_CLEAN_LISTINGS = False
@@ -230,6 +243,8 @@ class Candidate:
     url: str
     dedupe_key: str
     scraped_at: Optional[str]
+    source_published_at: Optional[str]
+    source_published_raw: Optional[str]
 
 
 # =========================
@@ -391,31 +406,15 @@ def hash_key(text: str) -> str:
 # DATETIME HELPERS
 # =========================
 def parse_datetime(value: Any) -> Optional[datetime]:
-    if value is None:
-        return None
-
-    if isinstance(value, datetime):
-        return value
-
-    value = str(value).strip()
-    if not value:
-        return None
-
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            pass
-
-    return None
+    return parse_source_datetime(value)
 
 
 def cutoff_datetime() -> datetime:
     return datetime.now() - timedelta(days=MAX_AGE_DAYS)
 
 
-def is_too_old(scraped_at: Any) -> bool:
-    dt = parse_datetime(scraped_at)
+def is_too_old(source_date: Any) -> bool:
+    dt = parse_datetime(source_date)
     if dt is None:
         return False
     return dt < cutoff_datetime()
@@ -694,6 +693,8 @@ def ensure_runtime_schema(conn):
     # raw_properties compatibility
     ensure_column(conn, RAW_TABLE, "processed", "TINYINT NOT NULL DEFAULT 0")
     ensure_column(conn, RAW_TABLE, "scraped_at", "DATETIME NULL")
+    ensure_column(conn, RAW_TABLE, "source_published_at", "DATETIME NULL")
+    ensure_column(conn, RAW_TABLE, "source_published_raw", "VARCHAR(255) NULL")
     ensure_column(conn, RAW_TABLE, "images_json", "LONGTEXT NULL")
     ensure_column(conn, RAW_TABLE, "extra_json", "LONGTEXT NULL")
 
@@ -720,6 +721,8 @@ def ensure_runtime_schema(conn):
         ensure_column(conn, "clean_listings", "normalized_description", "LONGTEXT NULL")
         ensure_column(conn, "clean_listings", "dedupe_key", "CHAR(40) NULL")
         ensure_column(conn, "clean_listings", "images_json", "LONGTEXT NULL")
+        ensure_column(conn, "clean_listings", "source_published_at", "DATETIME NULL")
+        ensure_column(conn, "clean_listings", "source_published_raw", "VARCHAR(255) NULL")
 
     # duplicates_log table required by cleaner
     if not table_exists(conn, "duplicates_log"):
@@ -762,7 +765,9 @@ def fetch_raw_rows(conn) -> List[Dict[str, Any]]:
             url,
             source,
             processed,
-            scraped_at
+            scraped_at,
+            source_published_at,
+            source_published_raw
         FROM {RAW_TABLE}
         WHERE processed = %s
         ORDER BY id ASC
@@ -793,7 +798,9 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
             images_json,
             url,
             dedupe_key,
-            scraped_at
+            scraped_at,
+            source_published_at,
+            source_published_raw
         FROM clean_listings
         WHERE country = %s
     """, (TARGET_COUNTRY,))
@@ -820,6 +827,8 @@ def load_existing_clean(conn) -> List[Tuple[int, Candidate]]:
             url=row["url"] or "",
             dedupe_key=row["dedupe_key"] or "",
             scraped_at=str(row["scraped_at"]) if row["scraped_at"] else None,
+            source_published_at=str(row.get("source_published_at")) if row.get("source_published_at") else None,
+            source_published_raw=row.get("source_published_raw") or None,
         )
         items.append((row["id"], candidate))
 
@@ -861,14 +870,15 @@ def insert_clean_listing(conn, c: Candidate) -> int:
             price_raw, price_value,
             location_raw, normalized_location, country, city,
             description, normalized_description,
-            image, images_json, url, dedupe_key, scraped_at
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            image, images_json, url, dedupe_key, scraped_at, source_published_at, source_published_raw
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         c.raw_id, c.source, c.title, c.normalized_title,
         c.price_raw, c.price_value,
         c.location_raw, c.normalized_location, c.country, c.governorate,
         c.description, c.normalized_description,
-        c.image, c.images_json, c.url, c.dedupe_key, c.scraped_at
+        c.image, c.images_json, c.url, c.dedupe_key, c.scraped_at,
+        c.source_published_at, c.source_published_raw
     ))
     new_id = cur.lastrowid
     cur.close()
@@ -922,7 +932,7 @@ def purge_old_live_data(conn):
 
     if PURGE_OLD_CLEAN_LISTINGS:
         cur.execute(
-            "DELETE FROM clean_listings WHERE scraped_at IS NOT NULL AND scraped_at < %s",
+            "DELETE FROM clean_listings WHERE source_published_at IS NOT NULL AND source_published_at < %s",
             (cutoff,)
         )
 
@@ -948,6 +958,9 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     url = clean_spaces(raw_row.get("url", ""))
     source = clean_spaces(raw_row.get("source", ""))
     price_raw = clean_spaces(raw_row.get("price", ""))
+    source_published_raw = clean_spaces(raw_row.get("source_published_raw", ""))
+    source_published_at = normalize_source_datetime(raw_row.get("source_published_at") or source_published_raw)
+    effective_listing_date = source_published_at or (str(raw_row["scraped_at"]) if raw_row.get("scraped_at") else None)
 
     combined_geo_text = f"{title} {location} {description}"
     country, governorate = detect_country_governorate(combined_geo_text)
@@ -982,7 +995,9 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
         images_json=images_json,
         url=url,
         dedupe_key=dedupe_key,
-        scraped_at=str(raw_row["scraped_at"]) if raw_row.get("scraped_at") else None,
+        scraped_at=effective_listing_date,
+        source_published_at=source_published_at,
+        source_published_raw=source_published_raw or None,
     )
 
 
@@ -1008,7 +1023,7 @@ def main():
         rows_since_commit = 0
 
         for idx, raw_row in enumerate(raw_rows, start=1):
-            if is_too_old(raw_row.get("scraped_at")):
+            if is_too_old(raw_row.get("source_published_at") or raw_row.get("source_published_raw")):
                 handle_old_raw_row(conn, int(raw_row["id"]))
                 skipped_too_old += 1
                 rows_since_commit += 1

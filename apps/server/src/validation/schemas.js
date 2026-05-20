@@ -105,12 +105,14 @@ export const adminStartScrapeSiteDiscoveryBodySchema = z.object({}).strict();
 export const adminStartScraperBodySchema = z
   .object({
     interval_days: z.coerce.number().int().min(1).max(365).optional(),
+    max_listing_age_days: z.coerce.number().int().min(30).max(365 * 20).optional(),
   })
   .strict();
 
 export const adminUpdateScraperControlBodySchema = z
   .object({
     interval_days: z.coerce.number().int().min(1).max(365).optional(),
+    max_listing_age_days: z.coerce.number().int().min(30).max(365 * 20).optional(),
     is_enabled: z.boolean().optional(),
   })
   .strict()
@@ -307,7 +309,7 @@ export const creditApplicationCreateBodySchema = z
     duration_months: z.coerce.number().int().min(12).max(360).optional().nullable(),
     estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
     estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
-    debt_ratio: z.coerce.number().finite().min(0).max(100).optional().nullable(),
+    debt_ratio: z.coerce.number().finite().min(0).optional().nullable(),
     documents: z
       .array(
         z.object({

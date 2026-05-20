@@ -113,6 +113,115 @@ function calculateAnnualIncome(income, incomePeriod) {
   return Math.round(incomePeriod === 'annual' ? amount : amount * 12);
 }
 
+const CREDIT_APPLICATION_FIELD_LABELS = {
+  property_id: 'Bien immobilier',
+  full_name: 'Nom complet',
+  email: 'Adresse e-mail',
+  phone: 'Numero de telephone',
+  cin: 'Numero de CIN',
+  rib: 'RIB bancaire',
+  income_period: 'Periode de revenu',
+  documents: 'Documents',
+  debt_ratio: "Taux d'endettement",
+};
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function normalizeIncomePeriod(value) {
+  return value === 'monthly' || value === 'annual' ? value : null;
+}
+
+function toPositiveIntegerOrNull(value) {
+  const amount = Number(value);
+  return Number.isInteger(amount) && amount > 0 ? amount : null;
+}
+
+function getValidationFieldLabel(path = '') {
+  const normalizedPath = String(path || '').trim();
+  const rootPath = normalizedPath.split('.')[0];
+
+  return CREDIT_APPLICATION_FIELD_LABELS[normalizedPath] || CREDIT_APPLICATION_FIELD_LABELS[rootPath] || normalizedPath;
+}
+
+function formatServerValidationMessage(message = '') {
+  const text = String(message || '').trim();
+
+  if (!text || text === 'Required') {
+    return 'champ obligatoire';
+  }
+
+  if (text === 'Invalid email') {
+    return 'format invalide';
+  }
+
+  const minLengthMatch = text.match(/String must contain at least (\d+) character/);
+  if (minLengthMatch) {
+    return `minimum ${minLengthMatch[1]} caracteres`;
+  }
+
+  const maxLengthMatch = text.match(/String must contain at most (\d+) character/);
+  if (maxLengthMatch) {
+    return `maximum ${maxLengthMatch[1]} caracteres`;
+  }
+
+  const maxNumberMatch = text.match(/Number must be less than or equal to ([\d.]+)/);
+  if (maxNumberMatch) {
+    return `doit etre inferieur ou egal a ${maxNumberMatch[1]}`;
+  }
+
+  if (text.includes('Expected number')) {
+    return 'valeur numerique invalide';
+  }
+
+  return text;
+}
+
+function formatCreditApplicationRequestError(error) {
+  if (error?.message === 'Request validation failed' && Array.isArray(error.details) && error.details.length > 0) {
+    const issues = error.details
+      .map((issue) => {
+        const label = getValidationFieldLabel(issue?.path);
+        const message = formatServerValidationMessage(issue?.message);
+        return label ? `${label}: ${message}` : message;
+      })
+      .filter(Boolean);
+
+    if (issues.length > 0) {
+      return `Veuillez verifier: ${issues.join('; ')}.`;
+    }
+  }
+
+  return error?.message || 'Impossible de deposer votre dossier.';
+}
+
+function validateSubmissionFields(data) {
+  const issues = [];
+
+  if (String(data.fullName || '').trim().length < 2) {
+    issues.push('Nom complet: minimum 2 caracteres');
+  }
+
+  if (!isValidEmail(data.email)) {
+    issues.push('Adresse e-mail: format invalide');
+  }
+
+  if (String(data.phone || '').trim().length < 8) {
+    issues.push('Numero de telephone: minimum 8 caracteres');
+  }
+
+  if (String(data.cin || '').trim().length < 4) {
+    issues.push('Numero de CIN: minimum 4 caracteres');
+  }
+
+  if (String(data.rib || '').trim().length < 8) {
+    issues.push('RIB bancaire: minimum 8 caracteres');
+  }
+
+  return issues;
+}
+
 export default function CreditImmobilierBHPortal() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -278,6 +387,12 @@ export default function CreditImmobilierBHPortal() {
       return;
     }
 
+    const fieldIssues = validateSubmissionFields(formData);
+    if (fieldIssues.length > 0) {
+      setErrorMessage(`Veuillez verifier: ${fieldIssues.join('; ')}.`);
+      return;
+    }
+
     const missingDocs = getMissingRequiredDocuments();
     if (missingDocs.length > 0) {
       setErrorMessage(`Documents manquants: ${missingDocs.map(key => DOCUMENT_TYPES[key]?.label).join(', ')}`);
@@ -294,13 +409,15 @@ export default function CreditImmobilierBHPortal() {
     const scoringAnnualIncome = toPositiveNumberOrNull(formData.scoringAnnualIncome);
     const scoringAnnualCharges = toPositiveNumberOrNull(formData.scoringAnnualCharges);
     const otherMonthlyCharges = toPositiveNumberOrNull(formData.otherMonthlyCharges);
+    const propertyId = toPositiveIntegerOrNull(propertyContext.propertyId);
+    const incomePeriod = normalizeIncomePeriod(propertyContext.incomePeriod);
 
     try {
       setSubmitting(true);
 
       await submitCreditApplicationApi(
         {
-          property_id: propertyContext.propertyId ? Number(propertyContext.propertyId) : undefined,
+          property_id: propertyId || undefined,
           full_name: formData.fullName.trim(),
           email: formData.email.trim(),
           phone: formData.phone.trim(),
@@ -315,7 +432,7 @@ export default function CreditImmobilierBHPortal() {
           requested_amount: propertyContext.requestedAmount > 0 ? propertyContext.requestedAmount : null,
           personal_contribution: propertyContext.contribution > 0 ? propertyContext.contribution : null,
           gross_income: propertyContext.income > 0 ? propertyContext.income : scoringAnnualIncome,
-          income_period: propertyContext.incomePeriod || (scoringAnnualIncome ? 'annual' : null),
+          income_period: incomePeriod || (scoringAnnualIncome ? 'annual' : null),
           revenu_annuel: scoringAnnualIncome,
           charges_impayees: scoringAnnualCharges,
           situation_familiale: formData.familySituation || null,
@@ -335,7 +452,7 @@ export default function CreditImmobilierBHPortal() {
       setFormData(createEmptyFormData(authSession));
       setFormResetKey((prev) => prev + 1);
     } catch (requestError) {
-      setErrorMessage(requestError.message || 'Impossible de déposer votre dossier.');
+      setErrorMessage(formatCreditApplicationRequestError(requestError));
     } finally {
       setSubmitting(false);
     }

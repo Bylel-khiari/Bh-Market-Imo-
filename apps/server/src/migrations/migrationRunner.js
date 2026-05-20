@@ -252,6 +252,7 @@ const migrations = [
     name: "scraper-control-progress-columns",
     up: async () => {
       await addColumnIfMissing("scraper_control", "run_type", "run_type VARCHAR(32) NULL AFTER status");
+      await addColumnIfMissing("scraper_control", "max_listing_age_days", "max_listing_age_days SMALLINT UNSIGNED NOT NULL DEFAULT 1095 AFTER interval_days");
       await addColumnIfMissing("scraper_control", "current_stage", "current_stage VARCHAR(32) NULL AFTER run_type");
       await addColumnIfMissing("scraper_control", "progress_current", "progress_current SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER current_spider_name");
       await addColumnIfMissing("scraper_control", "progress_total", "progress_total SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER progress_current");

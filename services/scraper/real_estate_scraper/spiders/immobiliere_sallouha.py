@@ -3,6 +3,7 @@ import json
 import re
 
 from real_estate_scraper.image_extraction import extract_listing_images, first_image
+from real_estate_scraper.source_dates import extract_source_date_from_response, find_source_date_in_mapping
 
 
 class ImmobiliereSallouhaSpider(scrapy.Spider):
@@ -72,6 +73,7 @@ class ImmobiliereSallouhaSpider(scrapy.Spider):
                 location = loc_from_text.group(1).strip()
 
         price = None
+        source_published_at = extract_source_date_from_response(response)
         jsonld_blocks = response.xpath("//script[@type='application/ld+json']/text()").getall()
         for raw in jsonld_blocks:
             try:
@@ -80,6 +82,7 @@ class ImmobiliereSallouhaSpider(scrapy.Spider):
                 continue
             if not isinstance(data, dict):
                 continue
+            source_published_at = source_published_at or find_source_date_in_mapping(data)
             if data.get("@type") != "Product":
                 continue
             offers = data.get("offers")
@@ -119,4 +122,5 @@ class ImmobiliereSallouhaSpider(scrapy.Spider):
             "image": first_image(images),
             "images": images,
             "url": response.url,
+            "source_published_at": source_published_at,
         }

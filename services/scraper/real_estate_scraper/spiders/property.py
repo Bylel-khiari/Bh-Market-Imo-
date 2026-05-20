@@ -1,6 +1,7 @@
 import scrapy
 
 from real_estate_scraper.image_extraction import first_image, normalize_image_url
+from real_estate_scraper.source_dates import extract_source_date_from_response
 
 
 class PropertySpider(scrapy.Spider):
@@ -29,6 +30,7 @@ class PropertySpider(scrapy.Spider):
                 "image": first_image(images),
                 "images": images,
                 "url": response.url,
+                "source_published_at": extract_source_date_from_response(response),
             }
 
         # pagination (page suivante)

@@ -19,6 +19,7 @@ export default function AdminScraperControlSection({
   scraperControlMessage,
   scraperSubmitting,
   scraperIntervalDays,
+  scraperMaxListingAgeYears,
   scraperIntervalDirty,
   scraperStatusClassName,
   scraperStatusLabel,
@@ -32,6 +33,7 @@ export default function AdminScraperControlSection({
   scraperRecentLog,
   siteTotals,
   handleScraperIntervalChange,
+  handleScraperMaxListingAgeChange,
   handleSaveScraperConfig,
   handleStartScraper,
   handleStartListingCleaner,
@@ -100,6 +102,10 @@ export default function AdminScraperControlSection({
                     <span>Temps restant</span>
                     <strong>{scraperEtaLabel}</strong>
                   </div>
+                  <div className="admin-scraper-mini-card">
+                    <span>Age annonce source</span>
+                    <strong>{Math.round((scraperControl?.max_listing_age_days || 0) / 365) || scraperMaxListingAgeYears} ans</strong>
+                  </div>
                 </div>
 
                 <div className="admin-scraper-progress-panel">
@@ -139,6 +145,28 @@ export default function AdminScraperControlSection({
                         disabled={scraperSubmitting}
                       />
                       <span className="admin-inline-suffix">jours</span>
+                    </div>
+                  </div>
+
+                  <div className="admin-field-block">
+                    <label className="admin-field-label" htmlFor="scraper-max-listing-age-years">
+                      Age maximum des annonces source
+                    </label>
+                    <p className="admin-scraper-field-help">
+                      Ignore les annonces dont la date de publication sur le site source depasse cette limite.
+                    </p>
+                    <div className="admin-inline-control">
+                      <input
+                        id="scraper-max-listing-age-years"
+                        type="number"
+                        min="1"
+                        max="20"
+                        step="1"
+                        value={scraperMaxListingAgeYears}
+                        onChange={handleScraperMaxListingAgeChange}
+                        disabled={scraperSubmitting}
+                      />
+                      <span className="admin-inline-suffix">ans</span>
                       <button
                         type="button"
                         className="admin-secondary admin-scraper-btn admin-scraper-btn--save"

@@ -1,10 +1,12 @@
 import json
+import json
 import re
 from urllib.parse import parse_qs, urlparse
 
 import scrapy
 
 from real_estate_scraper.image_extraction import extract_listing_images, first_image
+from real_estate_scraper.source_dates import extract_source_date_from_response, find_source_date_in_mapping
 
 
 class AnnoncesImmoSpider(scrapy.Spider):
@@ -124,6 +126,7 @@ class AnnoncesImmoSpider(scrapy.Spider):
         location = None
         description = None
         image = None
+        source_published_at = None
 
         for script in response.css("script[type='application/ld+json']::text").getall():
             try:
@@ -137,6 +140,7 @@ class AnnoncesImmoSpider(scrapy.Spider):
             title = title or payload.get("name")
             description = description or payload.get("description")
             image = image or payload.get("image")
+            source_published_at = source_published_at or find_source_date_in_mapping(payload)
 
             raw_price = payload.get("price")
             currency = payload.get("priceCurrency")
@@ -184,4 +188,5 @@ class AnnoncesImmoSpider(scrapy.Spider):
             "image": first_image(images),
             "images": images,
             "url": response.url,
+            "source_published_at": source_published_at or extract_source_date_from_response(response),
         }

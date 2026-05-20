@@ -6,8 +6,15 @@
 import json
 import mysql.connector
 import os
-from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+from scrapy.exceptions import DropItem
+
+from real_estate_scraper.source_dates import (
+    find_source_date_in_mapping,
+    is_older_than_days,
+    normalize_source_datetime,
+)
 
 
 class RealEstateScraperPipeline:
@@ -48,6 +55,13 @@ class RawPipeline:
         "source",
         "listing_id",
         "stream",
+        "source_published_at",
+        "source_published_raw",
+        "published_at",
+        "date_published",
+        "datePosted",
+        "datePublished",
+        "created_at",
     }
 
     @classmethod
@@ -58,6 +72,14 @@ class RawPipeline:
 
     def open_spider(self, spider=None):
         self.batch_size = max(50, int(os.getenv("SCRAPER_DB_BATCH_SIZE", "300")))
+        self.max_source_listing_age_days = max(
+            0,
+            int(
+                os.getenv("SOURCE_LISTING_MAX_AGE_DAYS")
+                or os.getenv("MAX_LISTING_AGE_DAYS")
+                or "0"
+            ),
+        )
         self.pending_rows = []
 
         self.conn = mysql.connector.connect(
@@ -101,6 +123,8 @@ class RawPipeline:
         self._ensure_column("first_seen_at", "DATETIME NULL")
         self._ensure_column("last_seen_at", "DATETIME NULL")
         self._ensure_column("last_crawled_at", "DATETIME NULL")
+        self._ensure_column("source_published_at", "DATETIME NULL")
+        self._ensure_column("source_published_raw", "VARCHAR(255) NULL")
 
         self.cursor.execute("SHOW INDEX FROM raw_properties WHERE Key_name = 'ux_raw_properties_source_url'")
         existing_indexes = self.cursor.fetchall()
@@ -233,10 +257,12 @@ class RawPipeline:
             extra_json,
             first_seen_at,
             last_seen_at,
-            last_crawled_at
+            last_crawled_at,
+            source_published_at,
+            source_published_raw
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            NOW(), NOW(), NOW()
+            NOW(), NOW(), NOW(), %s, %s
         )
         ON DUPLICATE KEY UPDATE
             title = CASE
@@ -263,6 +289,8 @@ class RawPipeline:
             stream = COALESCE(VALUES(stream), stream),
             images_json = COALESCE(VALUES(images_json), images_json),
             extra_json = COALESCE(VALUES(extra_json), extra_json),
+            source_published_at = COALESCE(VALUES(source_published_at), source_published_at),
+            source_published_raw = COALESCE(VALUES(source_published_raw), source_published_raw),
             last_seen_at = NOW(),
             last_crawled_at = NOW()
         """
@@ -290,6 +318,21 @@ class RawPipeline:
 
         listing_id = self._clean_text(item.get("listing_id"))
         stream = self._clean_text(item.get("stream"))
+        source_published_raw = self._clean_text(
+            item.get("source_published_at")
+            or item.get("source_published_raw")
+            or find_source_date_in_mapping(dict(item))
+        )
+        source_published_at = normalize_source_datetime(source_published_raw)
+
+        if (
+            source_published_at
+            and self.max_source_listing_age_days > 0
+            and is_older_than_days(source_published_at, self.max_source_listing_age_days)
+        ):
+            raise DropItem(
+                f"Source listing is older than {self.max_source_listing_age_days} days: {source_published_raw}"
+            )
 
         images = self._extract_images_from_item(item)
         image = images[0] if images else None
@@ -319,6 +362,8 @@ class RawPipeline:
                 stream,
                 images_json,
                 extra_json,
+                source_published_at,
+                source_published_raw,
             )
         )
 

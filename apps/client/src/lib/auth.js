@@ -54,9 +54,12 @@ function prepareRequestBody(headers, body) {
   return body;
 }
 
-function createHttpError(message, status) {
+function createHttpError(message, status, details) {
   const error = new Error(message);
   error.status = status;
+  if (details) {
+    error.details = details;
+  }
   return error;
 }
 
@@ -74,7 +77,7 @@ async function parseJsonResponse(response) {
 
   if (!response.ok) {
     const message = payload?.message || `HTTP ${response.status}`;
-    throw createHttpError(message, response.status);
+    throw createHttpError(message, response.status, payload?.details);
   }
 
   return payload;

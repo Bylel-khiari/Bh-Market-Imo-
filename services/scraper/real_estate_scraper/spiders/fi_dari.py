@@ -2,6 +2,7 @@ import scrapy
 import re
 
 from real_estate_scraper.image_extraction import extract_listing_images, first_image
+from real_estate_scraper.source_dates import extract_source_date_from_response
 
 
 class FiDariSpider(scrapy.Spider):
@@ -116,4 +117,5 @@ class FiDariSpider(scrapy.Spider):
             "image": first_image(images),
             "images": images,
             "url": response.url,
+            "source_published_at": extract_source_date_from_response(response),
         }

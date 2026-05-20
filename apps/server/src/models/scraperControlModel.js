@@ -3,10 +3,16 @@ import { httpError } from "../utils/httpError.js";
 
 export const MIN_SCRAPER_INTERVAL_DAYS = 1;
 export const MAX_SCRAPER_INTERVAL_DAYS = Number(process.env.SCRAPER_INTERVAL_MAX_DAYS || 365);
+export const MIN_SOURCE_LISTING_MAX_AGE_DAYS = 30;
+export const MAX_SOURCE_LISTING_MAX_AGE_DAYS = Number(process.env.SOURCE_LISTING_MAX_AGE_LIMIT_DAYS || 365 * 20);
 
 const DEFAULT_SCRAPER_INTERVAL_DAYS = normalizeIntervalDays(
   Number(process.env.SCRAPER_INTERVAL_DEFAULT_DAYS || 7),
   "SCRAPER_INTERVAL_DEFAULT_DAYS"
+);
+const DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS = normalizeSourceListingMaxAgeDays(
+  Number(process.env.SOURCE_LISTING_MAX_AGE_DAYS || 365 * 3),
+  "SOURCE_LISTING_MAX_AGE_DAYS"
 );
 const SCRAPER_CONTROL_ID = 1;
 
@@ -30,6 +36,25 @@ function normalizeIntervalDays(value, fieldName = "interval_days") {
   }
 
   return intervalDays;
+}
+
+function normalizeSourceListingMaxAgeDays(value, fieldName = "max_listing_age_days") {
+  if (!Number.isInteger(Number(value))) {
+    throw httpError(400, `Invalid ${fieldName}`);
+  }
+
+  const maxAgeDays = Number(value);
+  if (
+    maxAgeDays < MIN_SOURCE_LISTING_MAX_AGE_DAYS ||
+    maxAgeDays > MAX_SOURCE_LISTING_MAX_AGE_DAYS
+  ) {
+    throw httpError(
+      400,
+      `${fieldName} must be between ${MIN_SOURCE_LISTING_MAX_AGE_DAYS} and ${MAX_SOURCE_LISTING_MAX_AGE_DAYS}`
+    );
+  }
+
+  return maxAgeDays;
 }
 
 function normalizeOptionalString(value) {
@@ -69,6 +94,7 @@ function toPublicScraperControl(row) {
     id: row.id,
     is_enabled: Boolean(row.is_enabled),
     interval_days: Number(row.interval_days) || DEFAULT_SCRAPER_INTERVAL_DAYS,
+    max_listing_age_days: Number(row.max_listing_age_days) || DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS,
     status: row.status || "idle",
     run_type: row.run_type,
     current_stage: row.current_stage,
@@ -92,6 +118,15 @@ function toPublicScraperControl(row) {
   };
 }
 
+async function ensureScraperControlColumn(columnName, definition) {
+  const [rows] = await dbPool.query(`SHOW COLUMNS FROM scraper_control LIKE '${columnName}'`);
+  if (rows.length) {
+    return;
+  }
+
+  await dbPool.query(`ALTER TABLE scraper_control ADD COLUMN ${columnName} ${definition}`);
+}
+
 async function ensureScraperControlTable() {
   if (!ensureScraperControlTablePromise) {
     ensureScraperControlTablePromise = (async () => {
@@ -100,6 +135,7 @@ async function ensureScraperControlTable() {
           id TINYINT UNSIGNED NOT NULL,
           is_enabled TINYINT(1) NOT NULL DEFAULT 0,
           interval_days SMALLINT UNSIGNED NOT NULL DEFAULT ${DEFAULT_SCRAPER_INTERVAL_DAYS},
+          max_listing_age_days SMALLINT UNSIGNED NOT NULL DEFAULT ${DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS},
           status VARCHAR(24) NOT NULL DEFAULT 'idle',
           run_type VARCHAR(32) NULL,
           current_stage VARCHAR(32) NULL,
@@ -121,13 +157,18 @@ async function ensureScraperControlTable() {
         )
       `);
 
+      await ensureScraperControlColumn(
+        "max_listing_age_days",
+        `SMALLINT UNSIGNED NOT NULL DEFAULT ${DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS} AFTER interval_days`
+      );
+
       await dbPool.execute(
         `
-        INSERT INTO scraper_control (id, is_enabled, interval_days, status)
-        VALUES (?, 0, ?, 'idle')
+        INSERT INTO scraper_control (id, is_enabled, interval_days, max_listing_age_days, status)
+        VALUES (?, 0, ?, ?, 'idle')
         ON DUPLICATE KEY UPDATE id = id
         `,
-        [SCRAPER_CONTROL_ID, DEFAULT_SCRAPER_INTERVAL_DAYS]
+        [SCRAPER_CONTROL_ID, DEFAULT_SCRAPER_INTERVAL_DAYS, DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS]
       );
     })().catch((error) => {
       ensureScraperControlTablePromise = null;
@@ -158,6 +199,7 @@ async function findScraperControlRow() {
       id,
       is_enabled,
       interval_days,
+      max_listing_age_days,
       status,
       run_type,
       current_stage,
@@ -211,6 +253,10 @@ export async function patchScraperControl(payload = {}) {
 
   if ("interval_days" in payload && payload.interval_days !== undefined) {
     pushUpdate("interval_days", normalizeIntervalDays(payload.interval_days));
+  }
+
+  if ("max_listing_age_days" in payload && payload.max_listing_age_days !== undefined) {
+    pushUpdate("max_listing_age_days", normalizeSourceListingMaxAgeDays(payload.max_listing_age_days));
   }
 
   if ("status" in payload && payload.status !== undefined) {
@@ -309,6 +355,10 @@ export async function updateScraperControlSettings(payload = {}) {
 
   if ("interval_days" in payload && payload.interval_days !== undefined) {
     updates.interval_days = payload.interval_days;
+  }
+
+  if ("max_listing_age_days" in payload && payload.max_listing_age_days !== undefined) {
+    updates.max_listing_age_days = payload.max_listing_age_days;
   }
 
   if ("is_enabled" in payload && payload.is_enabled !== undefined) {

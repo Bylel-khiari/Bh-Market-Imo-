@@ -28,6 +28,7 @@ const LOG_SNIPPET_MAX_LENGTH = 12000;
 const RUNNING_STATUSES = new Set(["running", "stopping"]);
 const SCRAPER_RUNTIME_MODULES = ["scrapy", "mysql.connector", "rapidfuzz", "httpx"];
 const CLEANER_PROGRESS_EVERY = process.env.CLEANER_PROGRESS_EVERY || "250";
+const DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS = String(process.env.SOURCE_LISTING_MAX_AGE_DAYS || 365 * 3);
 const RUN_TYPE_SCRAPER_CYCLE = "scraper_cycle";
 const RUN_TYPE_LISTING_CLEANER = "listing_cleaner";
 const SCRAPER_SCHEDULER_ENABLED = String(process.env.SCRAPER_SCHEDULER_ENABLED || "true").toLowerCase() !== "false";
@@ -231,6 +232,19 @@ function parseCleanerProgress(text) {
     current: Math.min(current, total),
     total,
     fraction: Math.min(1, Math.max(0, current / total)),
+  };
+}
+
+export function buildSourceListingAgeEnv(control = {}) {
+  const maxAgeDays = Number(control?.max_listing_age_days);
+  const normalizedMaxAgeDays =
+    Number.isInteger(maxAgeDays) && maxAgeDays > 0
+      ? String(maxAgeDays)
+      : DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS;
+
+  return {
+    SOURCE_LISTING_MAX_AGE_DAYS: normalizedMaxAgeDays,
+    MAX_LISTING_AGE_DAYS: normalizedMaxAgeDays,
   };
 }
 
@@ -623,6 +637,7 @@ function assertRunNotStopped(message) {
 }
 
 async function runListingCleanerStage({ pythonBin, completedSteps }) {
+  const control = await fetchScraperControl();
   runtimeState.completedSteps = completedSteps;
   appendRuntimeLog("Demarrage de l agent de filtrage des annonces.");
 
@@ -642,6 +657,7 @@ async function runListingCleanerStage({ pythonBin, completedSteps }) {
     cwd: REPO_ROOT,
     label: "l agent de filtrage des annonces",
     envOverrides: {
+      ...buildSourceListingAgeEnv(control),
       CLEANER_PROGRESS_EVERY,
       PYTHONUNBUFFERED: "1",
     },
@@ -720,6 +736,8 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
   try {
     const activeSites = preloadedActiveSites || await fetchActiveSites();
     const pythonBin = resolveScraperPythonBin();
+    const currentControl = await fetchScraperControl();
+    const sourceListingAgeEnv = buildSourceListingAgeEnv(currentControl);
 
     if (!activeSites.length) {
       throw new Error("Aucun site actif n est configure pour le scraping.");
@@ -750,6 +768,7 @@ async function executeScraperCycle(trigger, preloadedActiveSites = null) {
           args: ["-m", "scrapy", "crawl", site.spider_name],
           cwd: SCRAPER_PROJECT_DIR,
           label: `le spider ${site.spider_name}`,
+          envOverrides: sourceListingAgeEnv,
         });
 
         await safeRecordSpiderMetric(site, {
@@ -1003,7 +1022,7 @@ export async function configureScraperAutomation(payload = {}) {
   return fetchScraperAutomationStatus();
 }
 
-export async function startScraperCycle({ trigger = "manual", interval_days } = {}) {
+export async function startScraperCycle({ trigger = "manual", interval_days, max_listing_age_days } = {}) {
   if (runtimeState.currentRunPromise) {
     throw httpError(409, "Un cycle de scraping est deja en cours.");
   }
@@ -1051,6 +1070,10 @@ export async function startScraperCycle({ trigger = "manual", interval_days } = 
 
   if (interval_days !== undefined) {
     updates.interval_days = interval_days;
+  }
+
+  if (max_listing_age_days !== undefined) {
+    updates.max_listing_age_days = max_listing_age_days;
   }
 
   await patchScraperControl(updates);

@@ -3,6 +3,7 @@ import json
 import scrapy
 
 from real_estate_scraper.image_extraction import first_image, normalize_image_url
+from real_estate_scraper.source_dates import find_source_date_in_mapping
 
 
 class TayaraSpider(scrapy.Spider):
@@ -132,6 +133,7 @@ class TayaraSpider(scrapy.Spider):
                 "images": images,
                 "url": ad_url,
                 "listing_id": str(ad_id) if ad_id is not None else None,
+                "source_published_at": find_source_date_in_mapping(ad),
             }
 
         next_page_url = self._extract_next_page_url(response, listing_action)

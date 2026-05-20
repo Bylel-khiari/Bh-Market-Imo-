@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 import scrapy
 
 from real_estate_scraper.image_extraction import extract_listing_images, first_image
+from real_estate_scraper.source_dates import extract_source_date_from_response
 
 
 class TunisieAnnonceSpider(scrapy.Spider):
@@ -119,4 +120,5 @@ class TunisieAnnonceSpider(scrapy.Spider):
             "image": first_image(images),
             "images": images,
             "url": response.url,
+            "source_published_at": extract_source_date_from_response(response),
         }

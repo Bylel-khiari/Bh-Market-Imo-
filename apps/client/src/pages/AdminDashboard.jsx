@@ -57,6 +57,7 @@ import useAdminPropertiesPagination from '../features/admin/hooks/useAdminProper
 import '../styles/AdminDashboard.css';
 
 const ADMIN_PROPERTIES_PER_PAGE = 50;
+const DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS = 365 * 3;
 const DASHBOARD_ROLE_KEYS = ['client', 'agent_bancaire', 'admin'];
 const DASHBOARD_SUGGESTION_STATUS_KEYS = ['pending', 'accepted', 'rejected', 'ignored'];
 
@@ -285,6 +286,17 @@ function formatDateTimeLocalValue(dateLike) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function daysToYearsInput(daysLike) {
+  const days = Number(daysLike || DEFAULT_SOURCE_LISTING_MAX_AGE_DAYS);
+  if (!Number.isFinite(days) || days <= 0) return '3';
+  return String(Math.max(1, Math.round(days / 365)));
+}
+
+function yearsToDays(yearsLike) {
+  const years = Number(yearsLike);
+  return Number.isInteger(years) && years > 0 ? years * 365 : null;
+}
+
 function formatPropertyPrice(property) {
   const numeric = Number(property?.price_value);
   if (Number.isFinite(numeric) && numeric > 0) {
@@ -441,11 +453,13 @@ export default function AdminDashboard() {
   const [scraperControlMessage, setScraperControlMessage] = useState('');
   const [scraperSubmitting, setScraperSubmitting] = useState(false);
   const [scraperIntervalDays, setScraperIntervalDays] = useState('7');
+  const [scraperMaxListingAgeYears, setScraperMaxListingAgeYears] = useState('3');
   const [scraperIntervalDirty, setScraperIntervalDirty] = useState(false);
   const scraperIntervalDirtyRef = useRef(false);
   const [siteSuggestions, setSiteSuggestions] = useState([]);
   const [siteSuggestionStatusFilter, setSiteSuggestionStatusFilter] = useState('pending');
   const [siteSuggestionLoading, setSiteSuggestionLoading] = useState(true);
+  const siteSuggestionsLoadedRef = useRef(false);
   const [siteSuggestionError, setSiteSuggestionError] = useState('');
   const [siteSuggestionMessage, setSiteSuggestionMessage] = useState('');
   const [siteSuggestionSubmittingId, setSiteSuggestionSubmittingId] = useState(null);
@@ -543,7 +557,7 @@ export default function AdminDashboard() {
     }
   }, [handleAuthFailure]);
 
-  const fetchScrapeSiteSuggestions = useCallback(async ({ status = siteSuggestionStatusFilter, silent = false } = {}) => {
+  const fetchScrapeSiteSuggestions = useCallback(async ({ status = 'pending', silent = false } = {}) => {
     try {
       const token = requireAuthToken();
 
@@ -564,11 +578,13 @@ export default function AdminDashboard() {
 
       setSiteSuggestionError(requestError.message || 'Erreur de chargement des suggestions.');
     } finally {
+      siteSuggestionsLoadedRef.current = true;
+
       if (!silent) {
         setSiteSuggestionLoading(false);
       }
     }
-  }, [handleAuthFailure, siteSuggestionStatusFilter]);
+  }, [handleAuthFailure]);
 
   const fetchScraperControl = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -586,6 +602,9 @@ export default function AdminDashboard() {
 
       if (nextControl?.interval_days && !scraperIntervalDirtyRef.current) {
         setScraperIntervalDays(String(nextControl.interval_days));
+      }
+      if (nextControl?.max_listing_age_days && !scraperIntervalDirtyRef.current) {
+        setScraperMaxListingAgeYears(daysToYearsInput(nextControl.max_listing_age_days));
       }
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -1023,6 +1042,10 @@ export default function AdminDashboard() {
       setScraperIntervalDays(String(control.interval_days));
     }
 
+    if (control?.max_listing_age_days) {
+      setScraperMaxListingAgeYears(daysToYearsInput(control.max_listing_age_days));
+    }
+
     scraperIntervalDirtyRef.current = false;
     setScraperIntervalDirty(false);
     setScraperControlMessage(message);
@@ -1040,8 +1063,27 @@ export default function AdminDashboard() {
     return value;
   };
 
+  const readScraperMaxListingAgeDays = () => {
+    const value = yearsToDays(scraperMaxListingAgeYears);
+
+    if (!value || value < 365 || value > 365 * 20) {
+      setScraperControlMessage('');
+      setScraperControlError('Choisissez un age maximum valide entre 1 et 20 ans.');
+      return null;
+    }
+
+    return value;
+  };
+
   const handleScraperIntervalChange = (event) => {
     setScraperIntervalDays(event.target.value);
+    setScraperControlError('');
+    scraperIntervalDirtyRef.current = true;
+    setScraperIntervalDirty(true);
+  };
+
+  const handleScraperMaxListingAgeChange = (event) => {
+    setScraperMaxListingAgeYears(event.target.value);
     setScraperControlError('');
     scraperIntervalDirtyRef.current = true;
     setScraperIntervalDirty(true);
@@ -1050,6 +1092,8 @@ export default function AdminDashboard() {
   const handleSaveScraperConfig = async () => {
     const intervalDays = readScraperIntervalDays();
     if (!intervalDays) return;
+    const maxListingAgeDays = readScraperMaxListingAgeDays();
+    if (!maxListingAgeDays) return;
 
     try {
       const token = requireAuthToken();
@@ -1060,13 +1104,14 @@ export default function AdminDashboard() {
       const payload = await updateAdminScraperControlApi(
         {
           interval_days: intervalDays,
+          max_listing_age_days: maxListingAgeDays,
         },
         token,
       );
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Intervalle de rescrape mis a jour.',
+        'Configuration du scraping mise a jour.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -1082,6 +1127,8 @@ export default function AdminDashboard() {
   const handleStartScraper = async () => {
     const intervalDays = readScraperIntervalDays();
     if (!intervalDays) return;
+    const maxListingAgeDays = readScraperMaxListingAgeDays();
+    if (!maxListingAgeDays) return;
 
     try {
       const token = requireAuthToken();
@@ -1092,6 +1139,7 @@ export default function AdminDashboard() {
       const payload = await startAdminScraperApi(
         {
           interval_days: intervalDays,
+          max_listing_age_days: maxListingAgeDays,
         },
         token,
       );
@@ -1424,18 +1472,22 @@ export default function AdminDashboard() {
     fetchDashboardSummary();
     fetchUsers();
     fetchScrapeSites();
-    fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter });
     fetchScraperControl();
     fetchAdminProperties();
   }, [
     fetchAdminProperties,
     fetchDashboardSummary,
-    fetchScrapeSiteSuggestions,
     fetchScrapeSites,
     fetchScraperControl,
     fetchUsers,
-    siteSuggestionStatusFilter,
   ]);
+
+  useEffect(() => {
+    fetchScrapeSiteSuggestions({
+      status: siteSuggestionStatusFilter,
+      silent: siteSuggestionsLoadedRef.current,
+    });
+  }, [fetchScrapeSiteSuggestions, siteSuggestionStatusFilter]);
 
   useEffect(() => {
     fetchAdminReports({ status: reportStatusFilter });
@@ -1935,6 +1987,7 @@ export default function AdminDashboard() {
                   scraperControlMessage={scraperControlMessage}
                   scraperSubmitting={scraperSubmitting}
                   scraperIntervalDays={scraperIntervalDays}
+                  scraperMaxListingAgeYears={scraperMaxListingAgeYears}
                   scraperIntervalDirty={scraperIntervalDirty}
                   scraperStatusClassName={scraperStatusClassName}
                   scraperStatusLabel={scraperStatusLabel}
@@ -1948,6 +2001,7 @@ export default function AdminDashboard() {
                   scraperRecentLog={scraperRecentLog}
                   siteTotals={siteTotals}
                   handleScraperIntervalChange={handleScraperIntervalChange}
+                  handleScraperMaxListingAgeChange={handleScraperMaxListingAgeChange}
                   handleSaveScraperConfig={handleSaveScraperConfig}
                   handleStartScraper={handleStartScraper}
                   handleStartListingCleaner={handleStartListingCleaner}
