@@ -121,10 +121,10 @@ const Properties = () => {
     setLoading(true);
     setError('');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const rows = await fetchPropertyRows({ limit: 5000, signal: controller.signal });
+      const rows = await fetchPropertyRows({ all: true, signal: controller.signal });
       setProperties(rows);
     } catch (err) {
       console.error('Impossible de charger les biens :', err);
