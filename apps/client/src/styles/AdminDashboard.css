@@ -654,12 +654,16 @@
 }
 
 .admin-users-card,
-.admin-properties-card,
 .admin-reports-card {
   display: flex;
   flex-direction: column;
   height: calc(100dvh - 170px);
   min-height: 420px;
+}
+
+.admin-properties-card {
+  display: flex;
+  flex-direction: column;
 }
 
 .admin-users-header {
@@ -1655,16 +1659,13 @@
 
 .admin-properties-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 20px;
   margin-top: 14px;
 }
 
 .admin-properties-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 8px 4px 0;
+  overflow: visible;
 }
 
 .admin-properties-scroll .admin-properties-grid {
