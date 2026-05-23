@@ -1,4 +1,5 @@
 import { dbPool } from "../config/db.js";
+import { generateInternalRib } from "../utils/rib.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
 
@@ -175,6 +176,86 @@ async function createPasswordResetTokensTable() {
   `);
 }
 
+async function ribExists(connection, rib) {
+  const [rows] = await connection.query(
+    "SELECT id FROM users WHERE rib_bancaire = ? LIMIT 1",
+    [rib]
+  );
+  return rows.length > 0;
+}
+
+async function generateUniqueRib(connection, userId) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const rib = generateInternalRib(userId);
+    if (!(await ribExists(connection, rib))) {
+      return rib;
+    }
+  }
+
+  throw new Error(`Unable to generate a unique RIB for user ${userId}`);
+}
+
+async function assertNoDuplicateRibs() {
+  const [rows] = await dbPool.query(
+    `
+    SELECT rib_bancaire
+    FROM users
+    WHERE rib_bancaire IS NOT NULL
+    GROUP BY rib_bancaire
+    HAVING COUNT(*) > 1
+    LIMIT 1
+    `
+  );
+
+  if (rows.length) {
+    throw new Error(`Duplicate RIB found before unique constraint: ${rows[0].rib_bancaire}`);
+  }
+}
+
+async function addUsersRibBancaireColumnAndBackfillClients() {
+  if (!(await tableExists("users"))) {
+    return;
+  }
+
+  await addColumnIfMissing("users", "rib_bancaire", "rib_bancaire VARCHAR(50) NULL AFTER email");
+
+  const connection = await dbPool.getConnection();
+  try {
+    const [clients] = await connection.query(
+      `
+      SELECT id
+      FROM users
+      WHERE role = 'client'
+        AND rib_bancaire IS NULL
+      ORDER BY id ASC
+      `
+    );
+
+    for (const client of clients) {
+      const rib = await generateUniqueRib(connection, client.id);
+      await connection.query(
+        `
+        UPDATE users
+        SET rib_bancaire = ?
+        WHERE id = ?
+          AND role = 'client'
+          AND rib_bancaire IS NULL
+        `,
+        [rib, client.id]
+      );
+    }
+  } finally {
+    connection.release();
+  }
+
+  await assertNoDuplicateRibs();
+  await addIndexIfMissing(
+    "users",
+    "unique_users_rib_bancaire",
+    "ALTER TABLE users ADD CONSTRAINT unique_users_rib_bancaire UNIQUE (rib_bancaire)"
+  );
+}
+
 async function createScraperRunTables() {
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS scraper_run_history (
@@ -344,6 +425,11 @@ const migrations = [
     up: async () => {
       await addColumnIfMissing("properties", "images_json", "images_json LONGTEXT NULL");
     },
+  },
+  {
+    version: "202605230002",
+    name: "users-rib-bancaire-client-backfill",
+    up: addUsersRibBancaireColumnAndBackfillClients,
   },
 ];
 
