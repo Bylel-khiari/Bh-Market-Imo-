@@ -1,8 +1,12 @@
 import bcrypt from "bcrypt";
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
+import { generateInternalRib, isValidRib, normalizeRib } from "../utils/rib.js";
 
 const VALID_ROLES = ["client", "agent_bancaire", "admin"];
+const CLIENT_ROLE = "client";
+const RIB_ALREADY_USED_MESSAGE = "Ce RIB bancaire est deja utilise par un autre client.";
+const CLIENT_RIB_REQUIRED_MESSAGE = "Le RIB bancaire est obligatoire pour un compte client.";
 
 async function syncUserProfileByRole(connection, userId, role, payload = {}) {
   await connection.query("DELETE FROM client_profiles WHERE user_id = ?", [userId]);
@@ -28,11 +32,65 @@ async function syncUserProfileByRole(connection, userId, role, payload = {}) {
   await connection.query("INSERT INTO admin_profiles (user_id) VALUES (?)", [userId]);
 }
 
+function hasOwn(payload, key) {
+  return Object.prototype.hasOwnProperty.call(payload, key);
+}
+
+function isDuplicateRibDatabaseError(error) {
+  return (
+    error?.code === "ER_DUP_ENTRY" &&
+    String(error?.message || "").toLowerCase().includes("rib")
+  );
+}
+
+async function ensureRibIsUnique(connection, rib, excludeUserId = null) {
+  const params = [rib];
+  let query = "SELECT id FROM users WHERE rib_bancaire = ?";
+
+  if (excludeUserId) {
+    query += " AND id <> ?";
+    params.push(excludeUserId);
+  }
+
+  query += " LIMIT 1";
+  const [rows] = await connection.query(query, params);
+
+  if (rows.length) {
+    throw httpError(409, RIB_ALREADY_USED_MESSAGE);
+  }
+}
+
+async function generateUniqueClientRib(connection, userId) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const rib = generateInternalRib(userId);
+    const [rows] = await connection.query(
+      "SELECT id FROM users WHERE rib_bancaire = ? LIMIT 1",
+      [rib]
+    );
+
+    if (!rows.length) {
+      return rib;
+    }
+  }
+
+  throw httpError(500, "Unable to generate a unique RIB bancaire");
+}
+
+function normalizeAndValidateClientRib(value) {
+  const normalizedRib = normalizeRib(value);
+
+  if (!isValidRib(normalizedRib)) {
+    throw httpError(400, CLIENT_RIB_REQUIRED_MESSAGE);
+  }
+
+  return normalizedRib;
+}
+
 export async function fetchUsers({ limit = 50 } = {}) {
   const boundedLimit = Math.min(Math.max(Number(limit) || 50, 1), 500);
   const [rows] = await dbPool.query(
     `
-    SELECT id, name, email, role, created_at
+    SELECT id, name, email, rib_bancaire, role, created_at
     FROM users
     ORDER BY id DESC
     LIMIT ${boundedLimit}
@@ -47,6 +105,8 @@ export async function createUserByAdmin(payload = {}) {
     email,
     password,
     role = "client",
+    rib_bancaire = null,
+    generate_rib_bancaire = false,
     address = null,
     phone = null,
     matricule = null,
@@ -65,6 +125,11 @@ export async function createUserByAdmin(payload = {}) {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
+  const isClientRole = role === CLIENT_ROLE;
+  const shouldGenerateRib = Boolean(generate_rib_bancaire);
+  const normalizedRib = isClientRole && !shouldGenerateRib
+    ? normalizeAndValidateClientRib(rib_bancaire)
+    : null;
   const hashedPassword = await bcrypt.hash(String(password), 10);
   const connection = await dbPool.getConnection();
 
@@ -80,12 +145,25 @@ export async function createUserByAdmin(payload = {}) {
       throw httpError(409, "Email already in use");
     }
 
+    if (normalizedRib) {
+      await ensureRibIsUnique(connection, normalizedRib);
+    }
+
     const [insertResult] = await connection.query(
-      "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
-      [String(name).trim(), normalizedEmail, hashedPassword, role]
+      "INSERT INTO users (name, email, rib_bancaire, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+      [String(name).trim(), normalizedEmail, isClientRole ? normalizedRib : null, hashedPassword, role]
     );
 
     const userId = insertResult.insertId;
+
+    if (isClientRole && shouldGenerateRib) {
+      const generatedRib = await generateUniqueClientRib(connection, userId);
+      await connection.query("UPDATE users SET rib_bancaire = ? WHERE id = ?", [
+        generatedRib,
+        userId,
+      ]);
+    }
+
     await syncUserProfileByRole(connection, userId, role, {
       address,
       phone,
@@ -93,7 +171,7 @@ export async function createUserByAdmin(payload = {}) {
     });
 
     const [userRows] = await connection.query(
-      "SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, name, email, rib_bancaire, role, created_at FROM users WHERE id = ? LIMIT 1",
       [userId]
     );
 
@@ -101,6 +179,9 @@ export async function createUserByAdmin(payload = {}) {
     return userRows[0];
   } catch (error) {
     await connection.rollback();
+    if (isDuplicateRibDatabaseError(error)) {
+      throw httpError(409, RIB_ALREADY_USED_MESSAGE);
+    }
     throw error;
   } finally {
     connection.release();
@@ -118,6 +199,8 @@ export async function updateUserByAdmin(userId, payload = {}) {
     email,
     password,
     role,
+    rib_bancaire,
+    generate_rib_bancaire = false,
     address = null,
     phone = null,
     matricule = null,
@@ -133,7 +216,7 @@ export async function updateUserByAdmin(userId, payload = {}) {
     await connection.beginTransaction();
 
     const [currentRows] = await connection.query(
-      "SELECT id, email, role FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, email, role, rib_bancaire FROM users WHERE id = ? LIMIT 1",
       [normalizedUserId]
     );
 
@@ -143,6 +226,8 @@ export async function updateUserByAdmin(userId, payload = {}) {
 
     const currentUser = currentRows[0];
     const nextRole = role || currentUser.role;
+    const shouldGenerateRib = Boolean(generate_rib_bancaire);
+    const hasRibPayload = hasOwn(payload, "rib_bancaire");
     const updates = [];
     const params = [];
 
@@ -178,6 +263,28 @@ export async function updateUserByAdmin(userId, payload = {}) {
       params.push(role);
     }
 
+    if (nextRole === CLIENT_ROLE) {
+      let nextRib = currentUser.rib_bancaire || null;
+
+      if (shouldGenerateRib) {
+        nextRib = await generateUniqueClientRib(connection, normalizedUserId);
+      } else if (hasRibPayload) {
+        nextRib = normalizeAndValidateClientRib(rib_bancaire);
+      }
+
+      if (!nextRib) {
+        throw httpError(400, CLIENT_RIB_REQUIRED_MESSAGE);
+      }
+
+      if (nextRib !== currentUser.rib_bancaire) {
+        await ensureRibIsUnique(connection, nextRib, normalizedUserId);
+        updates.push("rib_bancaire = ?");
+        params.push(nextRib);
+      }
+    } else if (currentUser.rib_bancaire || role) {
+      updates.push("rib_bancaire = NULL");
+    }
+
     if (updates.length) {
       await connection.query(
         `UPDATE users SET ${updates.join(", ")} WHERE id = ?`,
@@ -192,7 +299,7 @@ export async function updateUserByAdmin(userId, payload = {}) {
     });
 
     const [userRows] = await connection.query(
-      "SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, name, email, rib_bancaire, role, created_at FROM users WHERE id = ? LIMIT 1",
       [normalizedUserId]
     );
 
@@ -200,6 +307,9 @@ export async function updateUserByAdmin(userId, payload = {}) {
     return userRows[0];
   } catch (error) {
     await connection.rollback();
+    if (isDuplicateRibDatabaseError(error)) {
+      throw httpError(409, RIB_ALREADY_USED_MESSAGE);
+    }
     throw error;
   } finally {
     connection.release();

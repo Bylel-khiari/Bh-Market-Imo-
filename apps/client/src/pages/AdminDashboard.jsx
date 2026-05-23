@@ -210,6 +210,47 @@ const ROLE_LABELS = {
   agent_bancaire: 'Agent bancaire',
   admin: 'Administrateur',
 };
+const PASSWORD_CHARSETS = [
+  'ABCDEFGHJKLMNPQRSTUVWXYZ',
+  'abcdefghijkmnopqrstuvwxyz',
+  '23456789',
+  '!@#$%*-_',
+];
+
+function randomIndex(max) {
+  const cryptoApi = typeof window !== 'undefined' ? window.crypto : null;
+  if (cryptoApi?.getRandomValues) {
+    const buffer = new Uint32Array(1);
+    cryptoApi.getRandomValues(buffer);
+    return buffer[0] % max;
+  }
+
+  return Math.floor(Math.random() * max);
+}
+
+function shuffleCharacters(characters) {
+  const items = [...characters];
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomIndex(index + 1);
+    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+  }
+  return items.join('');
+}
+
+function generateSecurePassword(length = 14) {
+  const allCharacters = PASSWORD_CHARSETS.join('');
+  const characters = PASSWORD_CHARSETS.map((charset) => charset[randomIndex(charset.length)]);
+
+  while (characters.length < length) {
+    characters.push(allCharacters[randomIndex(allCharacters.length)]);
+  }
+
+  return shuffleCharacters(characters);
+}
+
+function normalizeRibInput(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toUpperCase();
+}
 
 function createEmptyUserForm() {
   return {
@@ -217,6 +258,8 @@ function createEmptyUserForm() {
     email: '',
     password: '',
     role: 'client',
+    rib_bancaire: '',
+    generate_rib_bancaire: false,
     address: '',
     phone: '',
     matricule: '',
@@ -774,6 +817,8 @@ export default function AdminDashboard() {
       email: user.email || '',
       password: '',
       role: user.role || 'client',
+      rib_bancaire: user.rib_bancaire || '',
+      generate_rib_bancaire: false,
       address: '',
       phone: '',
       matricule: '',
@@ -783,8 +828,28 @@ export default function AdminDashboard() {
   };
 
   const handleFormChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, checked, type } = event.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+
+    setFormData((prev) => {
+      const next = { ...prev, [name]: nextValue };
+
+      if (name === 'role' && value !== 'client') {
+        next.rib_bancaire = '';
+        next.generate_rib_bancaire = false;
+      }
+
+      if (name === 'generate_rib_bancaire' && checked) {
+        next.rib_bancaire = '';
+      }
+
+      return next;
+    });
+  };
+
+  const handleGeneratePassword = () => {
+    setFormData((prev) => ({ ...prev, password: generateSecurePassword() }));
+    setFormMessage('Mot de passe genere. Pensez a le communiquer au client.');
   };
 
   const buildPayload = () => {
@@ -796,6 +861,10 @@ export default function AdminDashboard() {
 
     if (formData.password) payload.password = formData.password;
     if (formData.role === 'client') {
+      payload.generate_rib_bancaire = Boolean(formData.generate_rib_bancaire);
+      if (!payload.generate_rib_bancaire) {
+        payload.rib_bancaire = normalizeRibInput(formData.rib_bancaire);
+      }
       payload.address = formData.address.trim() || null;
       payload.phone = formData.phone.trim() || null;
     }
@@ -816,6 +885,15 @@ export default function AdminDashboard() {
 
     if (formMode === 'create' && formData.password.length < 6) {
       setFormMessage('Le mot de passe doit contenir au moins 6 caracteres.');
+      return;
+    }
+
+    if (
+      formData.role === 'client' &&
+      !formData.generate_rib_bancaire &&
+      !normalizeRibInput(formData.rib_bancaire)
+    ) {
+      setFormMessage('Le RIB bancaire est obligatoire pour un compte client.');
       return;
     }
 
@@ -1599,7 +1677,7 @@ export default function AdminDashboard() {
     const query = userSearch.trim().toLowerCase();
     if (!query) return usersSorted;
     return usersSorted.filter((user) => {
-      const haystack = `${user?.name || ''} ${user?.email || ''} ${user?.role || ''}`.toLowerCase();
+      const haystack = `${user?.name || ''} ${user?.email || ''} ${user?.rib_bancaire || ''} ${user?.role || ''}`.toLowerCase();
       return haystack.includes(query);
     });
   }, [userSearch, usersSorted]);
@@ -2131,7 +2209,7 @@ export default function AdminDashboard() {
               />
               <input
                 name="password"
-                type="password"
+                type="text"
                 placeholder={
                   formMode === 'create'
                     ? 'Mot de passe (min. 6)'
@@ -2141,6 +2219,14 @@ export default function AdminDashboard() {
                 onChange={handleFormChange}
                 disabled={submitting}
               />
+              <button
+                type="button"
+                className="admin-secondary"
+                onClick={handleGeneratePassword}
+                disabled={submitting}
+              >
+                Generer mot de passe
+              </button>
               <select
                 name="role"
                 value={formData.role}
@@ -2153,6 +2239,26 @@ export default function AdminDashboard() {
               </select>
               {formData.role === 'client' && (
                 <>
+                  <label className="admin-field-block">
+                    <span className="admin-field-label">RIB bancaire</span>
+                    <input
+                      name="rib_bancaire"
+                      placeholder="RIB-000001-8392"
+                      value={formData.rib_bancaire}
+                      onChange={handleFormChange}
+                      disabled={submitting || formData.generate_rib_bancaire}
+                    />
+                  </label>
+                  <label className="admin-checkbox-line">
+                    <input
+                      name="generate_rib_bancaire"
+                      type="checkbox"
+                      checked={formData.generate_rib_bancaire}
+                      onChange={handleFormChange}
+                      disabled={submitting}
+                    />
+                    <span>Generer automatiquement le RIB</span>
+                  </label>
                   <input
                     name="address"
                     placeholder="Adresse (optionnel)"

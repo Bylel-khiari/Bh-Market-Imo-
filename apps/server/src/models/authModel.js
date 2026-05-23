@@ -7,6 +7,7 @@ import {
 } from "../services/passwordResetMailer.js";
 import { signAccessToken } from "../utils/jwt.js";
 import { httpError } from "../utils/httpError.js";
+import { isValidRib, normalizeRib } from "../utils/rib.js";
 
 const PASSWORD_RESET_TOKEN_BYTES = 32;
 const DEFAULT_PASSWORD_RESET_TTL_MINUTES = 30;
@@ -65,16 +66,46 @@ function normalizeDate(value) {
 }
 
 export async function loginUser(payload = {}) {
-  const { email, password } = payload;
-  if (!email || !password) {
-    throw httpError(400, "email and password are required");
+  const { password } = payload;
+  const rawIdentifier = payload.identifier ?? payload.rib_bancaire ?? payload.email;
+
+  if (!rawIdentifier || !password) {
+    throw httpError(400, "identifier and password are required");
   }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
-  const [rows] = await dbPool.execute(
-    "SELECT id, name, email, role, password_hash, created_at FROM users WHERE email = ? LIMIT 1",
-    [normalizedEmail]
-  );
+  const identifier = String(rawIdentifier).trim();
+  const usesEmail = identifier.includes("@");
+  let rows = [];
+
+  if (usesEmail) {
+    const normalizedEmail = identifier.toLowerCase();
+    [rows] = await dbPool.execute(
+      `
+      SELECT id, name, email, role, password_hash, created_at
+      FROM users
+      WHERE email = ?
+        AND role IN ('admin', 'agent_bancaire')
+      LIMIT 1
+      `,
+      [normalizedEmail]
+    );
+  } else {
+    const normalizedRib = normalizeRib(identifier);
+    if (!isValidRib(normalizedRib)) {
+      throw httpError(401, "Invalid credentials");
+    }
+
+    [rows] = await dbPool.execute(
+      `
+      SELECT id, name, email, role, password_hash, created_at
+      FROM users
+      WHERE rib_bancaire = ?
+        AND role = 'client'
+      LIMIT 1
+      `,
+      [normalizedRib]
+    );
+  }
 
   if (!rows.length) {
     throw httpError(401, "Invalid credentials");

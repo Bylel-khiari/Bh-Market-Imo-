@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaUser, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
+import { FaUniversity, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import { loginApi, saveAuthSession } from '../lib/auth';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
@@ -34,7 +34,7 @@ const Login = () => {
     e.preventDefault();
 
     if (!identifier.trim() || !password.trim()) {
-      setErrorMessage('Veuillez saisir votre e-mail et votre mot de passe.');
+      setErrorMessage('Veuillez saisir votre identifiant et votre mot de passe.');
       return;
     }
 
@@ -42,7 +42,7 @@ const Login = () => {
     setErrorMessage('');
 
     try {
-      const payload = await loginApi({ email: identifier.trim(), password });
+      const payload = await loginApi({ identifier: identifier.trim(), password });
 
       saveAuthSession({ token: payload.token, user: payload.user });
       navigate(resolveDestination(payload.user), { replace: true });
@@ -103,13 +103,14 @@ const Login = () => {
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-input-group">
               <div className="login-input-icon">
-                <FaUser />
+                <FaUniversity />
               </div>
               <input
-                type="email"
-                placeholder="Adresse e-mail"
+                type="text"
+                placeholder="RIB bancaire ou e-mail staff"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
               />
             </div>
 

@@ -7,7 +7,12 @@ import {
   FaFileAlt,
 } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getAuthSession, safeRecordClientActivity, submitCreditApplicationApi } from '../lib/auth';
+import {
+  fetchClientProfileApi,
+  getAuthSession,
+  safeRecordClientActivity,
+  submitCreditApplicationApi,
+} from '../lib/auth';
 
 // Document types configuration - must match backend documentTypes.js
 const DOCUMENT_TYPES = {
@@ -106,7 +111,7 @@ function createEmptyFormData(authSession) {
     email: authSession?.user?.email || '',
     phone: '',
     cin: '',
-    rib: '',
+    rib: authSession?.user?.rib_bancaire || '',
     scoringAnnualIncome: '',
     scoringAnnualCharges: '',
     familySituation: '',
@@ -286,6 +291,9 @@ export default function CreditImmobilierBHPortal() {
       socioCategory: params.get('socioCategory') || '',
     };
   }, [params]);
+  const authUserName = authSession?.user?.name || '';
+  const authUserEmail = authSession?.user?.email || '';
+  const authUserRib = authSession?.user?.rib_bancaire || '';
 
   useEffect(() => {
     const bootstrapId = 'bh-bootstrap-css';
@@ -315,6 +323,7 @@ export default function CreditImmobilierBHPortal() {
         ...prev,
         fullName: prev.fullName || nextSession?.user?.name || '',
         email: prev.email || nextSession?.user?.email || '',
+        rib: nextSession?.user?.rib_bancaire || prev.rib,
       }));
     };
 
@@ -327,8 +336,59 @@ export default function CreditImmobilierBHPortal() {
       ...prev,
       fullName: prev.fullName || authSession?.user?.name || '',
       email: prev.email || authSession?.user?.email || '',
+      rib: authSession?.user?.rib_bancaire || prev.rib,
     }));
   }, [authSession]);
+
+  useEffect(() => {
+    if (!authSession?.token || authSession?.user?.role !== 'client') {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadClientProfile() {
+      try {
+        const payload = await fetchClientProfileApi(authSession.token);
+        const profile = payload?.profile || {};
+        const profileRib = profile.rib_bancaire || '';
+
+        if (cancelled) return;
+
+        setAuthSession((prev) => (
+          prev && profileRib && prev.user?.rib_bancaire !== profileRib
+            ? {
+                ...prev,
+                user: {
+                  ...prev.user,
+                  rib_bancaire: profileRib,
+                },
+              }
+            : prev
+        ));
+
+        setFormData((prev) => ({
+          ...prev,
+          fullName: prev.fullName || profile.name || authUserName,
+          email: prev.email || profile.email || authUserEmail,
+          rib: profileRib || prev.rib,
+        }));
+      } catch {
+        if (!cancelled) {
+          setFormData((prev) => ({
+            ...prev,
+            rib: authUserRib || prev.rib,
+          }));
+        }
+      }
+    }
+
+    loadClientProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authSession?.token, authSession?.user?.role, authUserEmail, authUserName, authUserRib]);
 
   useEffect(() => {
     const annualIncome = calculateAnnualIncome(propertyContext.income, propertyContext.incomePeriod);
@@ -512,6 +572,10 @@ export default function CreditImmobilierBHPortal() {
   };
 
   const requiredDocumentsList = REQUIRED_DOCUMENT_KEYS.map(key => DOCUMENT_TYPES[key]);
+  const isClientSession = authSession?.user?.role === 'client';
+  const ribHelpText = isClientSession
+    ? (formData.rib ? 'RIB du compte connecte utilise automatiquement.' : 'Chargement du RIB du compte connecte...')
+    : 'Veuillez renseigner le compte a debiter.';
 
   const steps = [
     'Simulation de la capacite de remboursement',
@@ -1298,9 +1362,9 @@ export default function CreditImmobilierBHPortal() {
                       placeholder="Ex: 04 123 000 12345678901 23"
                       value={formData.rib}
                       onChange={handleInputChange}
-                      disabled={submitting}
+                      disabled={submitting || isClientSession}
                     />
-                    <div className="small text-secondary mt-1">Veuillez renseigner le compte à débiter.</div>
+                    <div className="small text-secondary mt-1">{ribHelpText}</div>
                   </div>
 
                   <div className="col-12">

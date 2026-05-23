@@ -11,13 +11,30 @@ const clientActivityEventType = z.enum([
   "credit_application_submit",
   "map_region_select",
 ]);
+const ribBancaireSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z
+    .string()
+    .trim()
+    .min(8)
+    .max(50)
+    .regex(/^[a-zA-Z0-9-\s]+$/, "Format de RIB bancaire invalide")
+    .nullable()
+    .optional()
+);
 
 export const authLoginBodySchema = z
   .object({
-    email: z.string().trim().email().max(190),
+    identifier: z.string().trim().min(1).max(190).optional(),
+    email: z.string().trim().min(1).max(190).optional(),
+    rib_bancaire: z.string().trim().min(1).max(50).optional(),
     password: z.string().min(1).max(128),
   })
-  .strict();
+  .strict()
+  .refine((data) => data.identifier || data.email || data.rib_bancaire, {
+    message: "Identifier is required",
+    path: ["identifier"],
+  });
 
 export const authChangePasswordBodySchema = z
   .object({
@@ -156,6 +173,8 @@ export const adminCreateUserBodySchema = z
     email: z.string().trim().email().max(190),
     password: z.string().min(6).max(128),
     role: adminRole.optional(),
+    rib_bancaire: ribBancaireSchema,
+    generate_rib_bancaire: z.boolean().optional(),
     address: z.string().trim().max(255).optional().nullable(),
     phone: z.string().trim().max(40).optional().nullable(),
     matricule: z.string().trim().max(80).optional().nullable(),
@@ -168,6 +187,8 @@ export const adminUpdateUserBodySchema = z
     email: z.string().trim().email().max(190).optional(),
     password: z.string().min(6).max(128).optional(),
     role: adminRole.optional(),
+    rib_bancaire: ribBancaireSchema,
+    generate_rib_bancaire: z.boolean().optional(),
     address: z.string().trim().max(255).optional().nullable(),
     phone: z.string().trim().max(40).optional().nullable(),
     matricule: z.string().trim().max(80).optional().nullable(),
@@ -297,7 +318,7 @@ export const creditApplicationCreateBodySchema = z
     email: z.string().trim().email().max(190),
     phone: z.string().trim().min(8).max(40),
     cin: z.string().trim().min(4).max(40),
-    rib: z.string().trim().min(8).max(64),
+    rib: z.string().trim().min(8).max(64).optional().nullable(),
     funding_type: z.string().trim().max(64).optional().nullable(),
     socio_category: z.string().trim().max(64).optional().nullable(),
     property_title: z.string().trim().max(255).optional().nullable(),

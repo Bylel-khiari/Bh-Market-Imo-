@@ -299,6 +299,10 @@ export async function fetchClientCreditApplicationsApi(token, limit = 20) {
   return authorizedJsonRequest(`/api/client/credit-applications?limit=${limit}`, token);
 }
 
+export async function fetchClientProfileApi(token) {
+  return authorizedJsonRequest('/api/client/profile', token);
+}
+
 export async function fetchAdminUsersApi(token, limit = 100) {
   return authorizedJsonRequest(`/api/admin/users?limit=${limit}`, token);
 }

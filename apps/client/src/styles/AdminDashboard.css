@@ -543,6 +543,23 @@
   font-family: inherit;
 }
 
+.admin-checkbox-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: #1e334a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-checkbox-line input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #cc0000;
+}
+
 .admin-form-actions {
   display: flex;
   gap: 8px;
@@ -931,6 +948,13 @@
   margin: 3px 0 0;
   font-size: 12px;
   color: #6c8298;
+}
+
+.admin-user-rib {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #38556f;
+  word-break: break-word;
 }
 
 .admin-user-meta {

@@ -29,7 +29,7 @@ export default function AdminUsersSection({
           <div className="admin-users-toolbar">
             <input
               className="admin-search-input"
-              placeholder="Rechercher par nom, e-mail ou rôle"
+              placeholder="Rechercher par nom, e-mail, RIB ou role"
               value={userSearch}
               onChange={(event) => setUserSearch(event.target.value)}
             />
@@ -58,6 +58,11 @@ export default function AdminUsersSection({
                     <div>
                       <p className="admin-user-name">{user.name || '-'}</p>
                       <p className="admin-user-email">{user.email || '-'}</p>
+                      {user.role === 'client' && (
+                        <p className="admin-user-rib">
+                          RIB {user.rib_bancaire || 'non genere'}
+                        </p>
+                      )}
                       <p className="admin-user-id">ID #{user.id}</p>
                     </div>
                   </div>

@@ -7,6 +7,7 @@ import {
   updateCreditApplicationScoring,
   updateCreditApplicationReview,
 } from "../models/creditApplicationModel.js";
+import { fetchClientProfile } from "../models/clientModel.js";
 import {
   CLIENT_ACTIVITY_EVENT_TYPES,
   recordClientActivityLog,
@@ -49,6 +50,13 @@ function toScoringApplicationData(application) {
 }
 
 export async function submitCreditApplication(req, res) {
+  const clientProfile = await fetchClientProfile(req.user?.sub);
+  const connectedClientRib = String(clientProfile?.rib_bancaire || "").trim();
+
+  if (!connectedClientRib) {
+    throw httpError(400, "Aucun RIB bancaire n'est associe a ce compte client.");
+  }
+
   const persistedDocuments = await persistCreditApplicationDocuments(req.body?.documents);
 
   // Prepare application data
@@ -59,7 +67,7 @@ export async function submitCreditApplication(req, res) {
     email: req.body?.email,
     phone: req.body?.phone,
     cin: req.body?.cin,
-    rib: req.body?.rib,
+    rib: connectedClientRib,
     fundingType: req.body?.funding_type,
     socioCategory: req.body?.socio_category,
     propertyTitle: req.body?.property_title,

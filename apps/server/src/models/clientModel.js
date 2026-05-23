@@ -7,6 +7,7 @@ export async function fetchClientProfile(userId) {
       u.id,
       u.name,
       u.email,
+      u.rib_bancaire,
       u.role,
       cp.address,
       cp.phone,
