@@ -39,14 +39,6 @@ function toClientCreditApplication(application) {
     compliance_summary,
     agent_note,
     decision_motif,
-    gross_income_value,
-    income_period,
-    revenu_annuel,
-    charges_impayees,
-    situation_familiale,
-    situation_contractuelle,
-    other_monthly_charges,
-    debt_ratio,
     typed_documents,
     ...clientApplication
   } = application;
@@ -54,9 +46,9 @@ function toClientCreditApplication(application) {
   return {
     ...clientApplication,
     typed_documents: Array.isArray(typed_documents)
-      ? typed_documents.map(({ storage_path, ...document }) => ({
+      ? typed_documents.map(({ db_document_id, storage_path, content_buffer, ...document }) => ({
           ...document,
-          has_file: Boolean(storage_path),
+          has_file: Boolean(db_document_id),
         }))
       : [],
     statusMessage: getStatusMessage(application),
@@ -68,10 +60,10 @@ function toAgentCreditApplication(application) {
   if (!application) return null;
 
   const typedDocuments = Array.isArray(application.typed_documents)
-    ? application.typed_documents.map(({ storage_path, ...document }, index) => ({
+    ? application.typed_documents.map(({ db_document_id, storage_path, content_buffer, ...document }, index) => ({
         ...document,
-        has_file: Boolean(storage_path),
-        view_url: storage_path
+        has_file: Boolean(db_document_id),
+        view_url: db_document_id
           ? `/api/agent/credit-applications/${application.id}/documents/${index}`
           : null,
       }))
@@ -128,5 +120,12 @@ export function renderUpdatedCreditApplication(res, application) {
   return res.json({
     message: "Demande de crédit mise à jour avec succès.",
     application: toAgentCreditApplication(application),
+  });
+}
+
+export function renderUpdatedClientCreditApplication(res, application) {
+  return res.json({
+    message: "Votre demande de credit a ete mise a jour avec succes.",
+    application: toClientCreditApplication(application),
   });
 }

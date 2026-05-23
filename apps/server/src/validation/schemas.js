@@ -247,6 +247,15 @@ const creditApplicationStatusSchema = z.enum([
   "REFUSE",
 ]);
 
+const creditApplicationDocumentBodySchema = z.object({
+  type: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(200),
+  content_type: z.string().trim().max(120).optional().nullable(),
+  size: z.coerce.number().int().min(0).max(20 * 1024 * 1024).optional().nullable(),
+  data: z.string().max(12 * 1024 * 1024).optional().nullable(),
+  extracted_text: z.string().trim().max(4000).optional().nullable(),
+});
+
 export const adminCreateScrapeSiteBodySchema = z
   .object(scrapeSiteBaseSchema)
   .strict();
@@ -339,20 +348,45 @@ export const creditApplicationCreateBodySchema = z
     estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
     debt_ratio: z.coerce.number().finite().min(0).optional().nullable(),
     documents: z
-      .array(
-        z.object({
-          type: z.string().trim().min(1).max(64),
-          name: z.string().trim().min(1).max(200),
-          content_type: z.string().trim().max(120).optional().nullable(),
-          size: z.coerce.number().int().min(0).max(20 * 1024 * 1024).optional().nullable(),
-          data: z.string().max(12 * 1024 * 1024).optional().nullable(),
-          extracted_text: z.string().trim().max(4000).optional().nullable(),
-        })
-      )
+      .array(creditApplicationDocumentBodySchema)
       .min(1, "At least one document is required")
       .max(40),
   })
   .strict();
+
+export const creditApplicationUpdateBodySchema = z
+  .object({
+    property_id: z.coerce.number().int().positive().optional().nullable(),
+    full_name: z.string().trim().min(2).max(160).optional(),
+    email: z.string().trim().email().max(190).optional(),
+    phone: z.string().trim().min(8).max(40).optional(),
+    cin: z.string().trim().min(4).max(40).optional(),
+    rib: z.string().trim().min(8).max(64).optional().nullable(),
+    funding_type: z.string().trim().max(64).optional().nullable(),
+    socio_category: z.string().trim().max(64).optional().nullable(),
+    property_title: z.string().trim().max(255).optional().nullable(),
+    property_location: z.string().trim().max(255).optional().nullable(),
+    property_price_value: z.coerce.number().finite().min(0).optional().nullable(),
+    property_price_raw: z.string().trim().max(255).optional().nullable(),
+    requested_amount: z.coerce.number().finite().min(0).optional().nullable(),
+    personal_contribution: z.coerce.number().finite().min(0).optional().nullable(),
+    gross_income: z.coerce.number().finite().min(0).optional().nullable(),
+    income_period: z.enum(["monthly", "annual"]).optional().nullable(),
+    revenu_annuel: z.coerce.number().finite().min(0).optional().nullable(),
+    charges_impayees: z.coerce.number().finite().min(0).optional().nullable(),
+    situation_familiale: z.string().trim().max(80).optional().nullable(),
+    situation_contractuelle: z.string().trim().max(80).optional().nullable(),
+    other_monthly_charges: z.coerce.number().finite().min(0).optional().nullable(),
+    duration_months: z.coerce.number().int().min(12).max(360).optional().nullable(),
+    estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
+    estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
+    debt_ratio: z.coerce.number().finite().min(0).optional().nullable(),
+    documents: z.array(creditApplicationDocumentBodySchema).max(40).optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });
 
 export const creditApplicationListQuerySchema = z
   .object({

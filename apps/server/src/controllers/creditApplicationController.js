@@ -4,6 +4,7 @@ import {
   fetchAgentCreditApplications,
   fetchCreditApplicationById,
   fetchClientCreditApplications,
+  updateClientCreditApplication,
   updateCreditApplicationScoring,
   updateCreditApplicationReview,
 } from "../models/creditApplicationModel.js";
@@ -16,6 +17,7 @@ import {
   renderAgentCreditApplicationList,
   renderClientCreditApplicationList,
   renderCreatedCreditApplication,
+  renderUpdatedClientCreditApplication,
   renderUpdatedCreditApplication,
 } from "../views/creditApplicationView.js";
 import {
@@ -152,6 +154,58 @@ export async function listMyCreditApplications(req, res) {
   });
 
   return renderClientCreditApplicationList(res, { applications });
+}
+
+export async function updateMyCreditApplication(req, res) {
+  const clientProfile = await fetchClientProfile(req.user?.sub);
+  const connectedClientRib = String(clientProfile?.rib_bancaire || "").trim();
+
+  if (!connectedClientRib) {
+    throw httpError(400, "Aucun RIB bancaire n'est associe a ce compte client.");
+  }
+
+  const persistedDocuments = await persistCreditApplicationDocuments(req.body?.documents);
+
+  try {
+    const { application, replacedDocuments } = await updateClientCreditApplication(req.params.id, {
+      clientUserId: req.user?.sub,
+      propertyId: req.body?.property_id,
+      fullName: req.body?.full_name,
+      email: req.body?.email,
+      phone: req.body?.phone,
+      cin: req.body?.cin,
+      rib: connectedClientRib,
+      fundingType: req.body?.funding_type,
+      socioCategory: req.body?.socio_category,
+      propertyTitle: req.body?.property_title,
+      propertyLocation: req.body?.property_location,
+      propertyPriceValue: req.body?.property_price_value,
+      propertyPriceRaw: req.body?.property_price_raw,
+      requestedAmount: req.body?.requested_amount,
+      personalContribution: req.body?.personal_contribution,
+      grossIncome: req.body?.gross_income,
+      incomePeriod: req.body?.income_period,
+      revenuAnnuel: req.body?.revenu_annuel,
+      chargesImpayees: req.body?.charges_impayees,
+      familySituation: req.body?.situation_familiale,
+      contractType: req.body?.situation_contractuelle,
+      otherMonthlyCharges: req.body?.other_monthly_charges,
+      durationMonths: req.body?.duration_months,
+      estimatedMonthlyPayment: req.body?.estimated_monthly_payment,
+      estimatedRate: req.body?.estimated_rate,
+      debtRatio: req.body?.debt_ratio,
+      documents: persistedDocuments,
+    });
+
+    cleanupPersistedCreditApplicationDocuments(replacedDocuments).catch((cleanupError) => {
+      console.error("Failed to cleanup replaced credit application documents:", cleanupError.message);
+    });
+
+    return renderUpdatedClientCreditApplication(res, application);
+  } catch (error) {
+    await cleanupPersistedCreditApplicationDocuments(persistedDocuments);
+    throw error;
+  }
 }
 
 export async function listAgentCreditApplications(req, res) {

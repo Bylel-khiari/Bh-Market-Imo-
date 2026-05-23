@@ -1,11 +1,30 @@
+import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 import { validateDocumentCompleteness, isValidDocumentType } from "../utils/documentTypes.js";
 
 const CREDIT_APPLICATION_TABLE = "credit_applications";
 const CREDIT_APPLICATION_HISTORY_TABLE = "credit_application_history";
+const CREDIT_APPLICATION_DOCUMENT_TABLE = "credit_application_documents";
+const CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE = "credit_application_document_chunks";
 const PROPERTY_TABLE = "properties";
 const MAX_AGENT_APPLICATIONS_LIMIT = Number(process.env.AGENT_CREDIT_APPLICATIONS_MAX_LIMIT || 500);
+const CONFIGURED_CLIENT_EDIT_WINDOW_MINUTES = Number(
+  process.env.CLIENT_CREDIT_APPLICATION_EDIT_WINDOW_MINUTES || 30
+);
+const CLIENT_EDIT_WINDOW_MINUTES = Number.isFinite(CONFIGURED_CLIENT_EDIT_WINDOW_MINUTES)
+  ? CONFIGURED_CLIENT_EDIT_WINDOW_MINUTES
+  : 30;
+const CLIENT_EDIT_WINDOW_MS = Math.max(CLIENT_EDIT_WINDOW_MINUTES, 0) * 60 * 1000;
+const DEFAULT_LEGACY_UPLOAD_ROOT = fileURLToPath(
+  new URL("../../uploads/credit-applications/", import.meta.url)
+);
+const LEGACY_UPLOAD_ROOT = path.resolve(
+  process.env.CREDIT_APPLICATION_UPLOAD_DIR || DEFAULT_LEGACY_UPLOAD_ROOT
+);
+const DOCUMENT_CHUNK_BYTES = Number(process.env.CREDIT_APPLICATION_DOCUMENT_CHUNK_BYTES || 512 * 1024);
 
 const CREDIT_APPLICATION_STATUSES = new Set([
   "SOUMIS",
@@ -43,6 +62,21 @@ function normalizeOptionalString(value) {
   return trimmed || null;
 }
 
+function normalizeRequiredPatchString(value, currentValue, fieldName) {
+  const normalizedValue =
+    value === undefined ? normalizeOptionalString(currentValue) : normalizeOptionalString(value);
+
+  if (!normalizedValue) {
+    throw httpError(400, `Missing required credit application field: ${fieldName}`);
+  }
+
+  return normalizedValue;
+}
+
+function normalizePatchOptionalString(value, currentValue) {
+  return value === undefined ? normalizeOptionalString(currentValue) : normalizeOptionalString(value);
+}
+
 function normalizeOptionalNumber(value) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -52,9 +86,17 @@ function normalizeOptionalNumber(value) {
   return Number.isFinite(normalizedValue) ? normalizedValue : null;
 }
 
+function normalizePatchOptionalNumber(value, currentValue) {
+  return value === undefined ? normalizeOptionalNumber(currentValue) : normalizeOptionalNumber(value);
+}
+
 function normalizeOptionalInteger(value) {
   const normalizedValue = normalizeOptionalNumber(value);
   return normalizedValue === null ? null : Math.trunc(normalizedValue);
+}
+
+function normalizePatchOptionalInteger(value, currentValue) {
+  return value === undefined ? normalizeOptionalInteger(currentValue) : normalizeOptionalInteger(value);
 }
 
 function normalizeDocumentNames(documents) {
@@ -78,6 +120,39 @@ function normalizeCreditApplicationStatus(status) {
   const rawStatus = String(status || "").trim();
   const legacyStatus = LEGACY_STATUS_MAP[rawStatus.toLowerCase()];
   return legacyStatus || rawStatus.toUpperCase();
+}
+
+function normalizeMimeType(value) {
+  const mimeType = String(value || "").trim().toLowerCase();
+  return mimeType || null;
+}
+
+function inferMimeTypeFromName(name) {
+  const ext = path.extname(String(name || "")).toLowerCase();
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  return "application/octet-stream";
+}
+
+function resolveLegacyStoredDocumentPath(storagePath) {
+  const normalizedStoragePath = String(storagePath || "").replace(/\\/g, "/");
+  const resolvedPath = path.resolve(LEGACY_UPLOAD_ROOT, normalizedStoragePath);
+
+  if (!resolvedPath.startsWith(`${LEGACY_UPLOAD_ROOT}${path.sep}`)) {
+    return null;
+  }
+
+  return resolvedPath;
+}
+
+function getTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function serializeDocumentNames(documents) {
@@ -112,8 +187,8 @@ function normalizeTypedDocuments(documents) {
       const type = String(doc.type || "").trim().toUpperCase();
       const name = String(doc.name || "").trim();
       const mimeType = normalizeOptionalString(doc.mime_type || doc.content_type);
-      const storagePath = normalizeOptionalString(doc.storage_path);
       const sizeBytes = normalizeOptionalInteger(doc.size_bytes ?? doc.size);
+      const dbDocumentId = normalizeOptionalInteger(doc.db_document_id);
 
       if (!type || !name) {
         return null;
@@ -128,7 +203,7 @@ function normalizeTypedDocuments(documents) {
         name,
         ...(mimeType ? { mime_type: mimeType } : {}),
         ...(Number.isInteger(sizeBytes) && sizeBytes >= 0 ? { size_bytes: sizeBytes } : {}),
-        ...(storagePath ? { storage_path: storagePath } : {}),
+        ...(Number.isInteger(dbDocumentId) && dbDocumentId > 0 ? { db_document_id: dbDocumentId } : {}),
       };
     })
     .filter(Boolean)
@@ -152,6 +227,30 @@ function parseTypedDocuments(rawValue) {
   } catch {
     return [];
   }
+}
+
+function mergeTypedDocuments(existingDocuments, incomingDocuments) {
+  const mergedByType = new Map();
+
+  normalizeTypedDocuments(existingDocuments).forEach((document) => {
+    mergedByType.set(document.type, document);
+  });
+
+  normalizeTypedDocuments(incomingDocuments).forEach((document) => {
+    mergedByType.set(document.type, document);
+  });
+
+  return Array.from(mergedByType.values()).slice(0, 40);
+}
+
+function getReplacedTypedDocuments(existingDocuments, incomingDocuments) {
+  const existingByType = new Map(
+    normalizeTypedDocuments(existingDocuments).map((document) => [document.type, document])
+  );
+
+  return normalizeTypedDocuments(incomingDocuments)
+    .map((document) => existingByType.get(document.type))
+    .filter((document) => document?.db_document_id);
 }
 
 async function ensureCreditApplicationColumn(columnName, columnDefinition) {
@@ -196,6 +295,48 @@ function isDecisionStatus(status) {
   return normalizedStatus === "ACCEPTE" || normalizedStatus === "REFUSE";
 }
 
+function getClientEditWindowState(row, now = Date.now()) {
+  const createdAtTimestamp = getTimestamp(row?.created_at);
+  const deadlineTimestamp = createdAtTimestamp ? createdAtTimestamp + CLIENT_EDIT_WINDOW_MS : 0;
+  const remainingMs = Math.max(deadlineTimestamp - now, 0);
+  const normalizedStatus = normalizeCreditApplicationStatus(row?.status);
+  const hasFinalDecision = isDecisionStatus(normalizedStatus);
+
+  return {
+    deadlineAt: deadlineTimestamp ? new Date(deadlineTimestamp).toISOString() : null,
+    remainingSeconds: Math.ceil(remainingMs / 1000),
+    canEdit: Boolean(deadlineTimestamp && remainingMs > 0 && !hasFinalDecision),
+    lockedReason: hasFinalDecision
+      ? "decision_finale"
+      : remainingMs > 0
+        ? null
+        : "delai_expire",
+  };
+}
+
+function assertClientCanEditCreditApplication(row, clientUserId) {
+  const normalizedClientUserId = Number(clientUserId);
+
+  if (!row) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  if (!normalizedClientUserId || Number(row.client_id) !== normalizedClientUserId) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  const editWindow = getClientEditWindowState(row);
+
+  if (!editWindow.canEdit) {
+    throw httpError(
+      403,
+      editWindow.lockedReason === "decision_finale"
+        ? "Cette demande ne peut plus etre modifiee car une decision bancaire finale existe."
+        : "Le delai de modification de 30 minutes est expire."
+    );
+  }
+}
+
 function buildDecisionMotif(status, { agentNote, complianceSummary, complianceScore } = {}) {
   const explicitMotif =
     normalizeOptionalString(agentNote) || normalizeOptionalString(complianceSummary);
@@ -228,6 +369,7 @@ function toPublicCreditApplication(row) {
   const documents = parseDocumentNames(row.document_names_json);
   const typedDocuments = parseTypedDocuments(row.documents_json);
   const normalizedStatus = normalizeCreditApplicationStatus(row.status);
+  const clientEditWindow = getClientEditWindowState(row);
   const decisionMotif =
     row.decision_motif ||
     (isDecisionStatus(normalizedStatus)
@@ -284,6 +426,10 @@ function toPublicCreditApplication(row) {
     reviewed_at: row.reviewed_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    client_edit_deadline_at: clientEditWindow.deadlineAt,
+    client_edit_remaining_seconds: clientEditWindow.remainingSeconds,
+    can_client_edit: clientEditWindow.canEdit,
+    client_edit_locked_reason: clientEditWindow.lockedReason,
   };
 }
 
@@ -312,6 +458,200 @@ async function appendCreditApplicationHistory(
     `,
     [applicationId, action, previousStatus, nextStatus, comment, agentUserId]
   );
+}
+
+async function insertCreditApplicationDocumentRows(executor, applicationId, documents) {
+  const normalizedApplicationId = Number(applicationId);
+  const storedDocuments = [];
+
+  for (const document of Array.isArray(documents) ? documents : []) {
+    const normalizedDocument = normalizeTypedDocuments([document])[0];
+
+    if (!normalizedDocument) {
+      continue;
+    }
+
+    const contentBuffer = document?.content_buffer;
+
+    if (!Buffer.isBuffer(contentBuffer)) {
+      storedDocuments.push(normalizedDocument);
+      continue;
+    }
+
+    const [result] = await executor.execute(
+      `
+      INSERT INTO ${CREDIT_APPLICATION_DOCUMENT_TABLE} (
+        application_id,
+        document_type,
+        file_name,
+        mime_type,
+        size_bytes,
+        content
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        normalizedApplicationId,
+        normalizedDocument.type,
+        normalizedDocument.name,
+        normalizedDocument.mime_type || null,
+        normalizedDocument.size_bytes || contentBuffer.length,
+        null,
+      ]
+    );
+
+    const documentId = result.insertId;
+    for (let offset = 0, chunkIndex = 0; offset < contentBuffer.length; offset += DOCUMENT_CHUNK_BYTES, chunkIndex += 1) {
+      await executor.execute(
+        `
+        INSERT INTO ${CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE} (
+          document_id,
+          chunk_index,
+          content_chunk
+        )
+        VALUES (?, ?, ?)
+        `,
+        [documentId, chunkIndex, contentBuffer.subarray(offset, offset + DOCUMENT_CHUNK_BYTES)]
+      );
+    }
+
+    storedDocuments.push({
+      ...normalizedDocument,
+      db_document_id: documentId,
+    });
+  }
+
+  return storedDocuments;
+}
+
+async function deleteCreditApplicationDocumentRows(executor, documents) {
+  const documentIds = normalizeTypedDocuments(documents)
+    .map((document) => Number(document.db_document_id))
+    .filter((documentId) => Number.isInteger(documentId) && documentId > 0);
+
+  if (documentIds.length === 0) {
+    return;
+  }
+
+  const placeholders = documentIds.map(() => "?").join(", ");
+  await executor.execute(
+    `
+    DELETE FROM ${CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE}
+    WHERE document_id IN (${placeholders})
+    `,
+    documentIds
+  );
+  await executor.execute(
+    `
+    DELETE FROM ${CREDIT_APPLICATION_DOCUMENT_TABLE}
+    WHERE id IN (${placeholders})
+    `,
+    documentIds
+  );
+}
+
+async function migrateLegacyCreditApplicationDocumentsToDatabase() {
+  const [rows] = await dbPool.execute(
+    `
+    SELECT id, documents_json
+    FROM ${CREDIT_APPLICATION_TABLE}
+    WHERE documents_json LIKE '%storage_path%'
+    LIMIT 500
+    `
+  );
+
+  for (const row of rows || []) {
+    const documents = parseTypedDocuments(row.documents_json);
+    if (!documents.length) {
+      continue;
+    }
+
+    const nextDocuments = [];
+    let hasChanges = false;
+
+    for (const document of documents) {
+      const normalizedDocument = normalizeTypedDocuments([document])[0];
+
+      if (!normalizedDocument || normalizedDocument.db_document_id || !document.storage_path) {
+        if (normalizedDocument) {
+          nextDocuments.push(normalizedDocument);
+        }
+        continue;
+      }
+
+      const filePath = resolveLegacyStoredDocumentPath(document.storage_path);
+      const content = filePath ? await readFile(filePath).catch(() => null) : null;
+
+      if (!content?.length) {
+        nextDocuments.push(normalizedDocument);
+        continue;
+      }
+
+      const mimeType =
+        normalizeMimeType(normalizedDocument.mime_type) ||
+        inferMimeTypeFromName(normalizedDocument.name);
+      const [insertResult] = await dbPool.execute(
+        `
+        INSERT INTO ${CREDIT_APPLICATION_DOCUMENT_TABLE} (
+          application_id,
+          document_type,
+          file_name,
+          mime_type,
+          size_bytes,
+          content
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [
+          row.id,
+          normalizedDocument.type,
+          normalizedDocument.name,
+          mimeType,
+          Number(normalizedDocument.size_bytes || content.length),
+          null,
+        ]
+      );
+      const documentId = insertResult.insertId;
+
+      for (let offset = 0, chunkIndex = 0; offset < content.length; offset += DOCUMENT_CHUNK_BYTES, chunkIndex += 1) {
+        await dbPool.execute(
+          `
+          INSERT INTO ${CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE} (
+            document_id,
+            chunk_index,
+            content_chunk
+          )
+          VALUES (?, ?, ?)
+          `,
+          [documentId, chunkIndex, content.subarray(offset, offset + DOCUMENT_CHUNK_BYTES)]
+        );
+      }
+
+      nextDocuments.push({
+        ...normalizedDocument,
+        mime_type: mimeType,
+        size_bytes: Number(normalizedDocument.size_bytes || content.length),
+        db_document_id: documentId,
+      });
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      await dbPool.execute(
+        `
+        UPDATE ${CREDIT_APPLICATION_TABLE}
+        SET document_names_json = ?,
+            documents_json = ?
+        WHERE id = ?
+        `,
+        [
+          serializeDocumentNames(nextDocuments),
+          serializeTypedDocuments(nextDocuments),
+          row.id,
+        ]
+      );
+    }
+  }
 }
 
 async function ensureCreditApplicationTables() {
@@ -385,6 +725,40 @@ async function ensureCreditApplicationTables() {
   await ensureCreditApplicationColumn("other_monthly_charges", "DECIMAL(14, 2) NULL");
   await ensureCreditApplicationColumn("decision_motif", "TEXT NULL");
   await ensureCreditApplicationColumn("client_notified_at", "DATETIME NULL");
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS ${CREDIT_APPLICATION_DOCUMENT_TABLE} (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      application_id BIGINT UNSIGNED NOT NULL,
+      document_type VARCHAR(64) NOT NULL,
+      file_name VARCHAR(200) NOT NULL,
+      mime_type VARCHAR(120) NULL,
+      size_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+      content LONGBLOB NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_credit_application_documents_application_id (application_id),
+      KEY idx_credit_application_documents_type (application_id, document_type)
+    )
+  `);
+  await dbPool.query(`
+    ALTER TABLE ${CREDIT_APPLICATION_DOCUMENT_TABLE}
+    MODIFY COLUMN content LONGBLOB NULL
+  `);
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS ${CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE} (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      document_id BIGINT UNSIGNED NOT NULL,
+      chunk_index SMALLINT UNSIGNED NOT NULL,
+      content_chunk MEDIUMBLOB NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_credit_application_document_chunks_order (document_id, chunk_index),
+      KEY idx_credit_application_document_chunks_document_id (document_id)
+    )
+  `);
+
+  await migrateLegacyCreditApplicationDocumentsToDatabase();
 
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS ${CREDIT_APPLICATION_HISTORY_TABLE} (
@@ -716,13 +1090,33 @@ export async function createCreditApplication({
       ]
     );
 
+    const storedTypedDocuments = await insertCreditApplicationDocumentRows(
+      connection,
+      result.insertId,
+      documents
+    );
+
+    await connection.execute(
+      `
+      UPDATE ${CREDIT_APPLICATION_TABLE}
+      SET document_names_json = ?,
+          documents_json = ?
+      WHERE id = ?
+      `,
+      [
+        serializeDocumentNames(storedTypedDocuments),
+        serializeTypedDocuments(storedTypedDocuments),
+        result.insertId,
+      ]
+    );
+
     await appendCreditApplicationHistory(connection, {
       applicationId: result.insertId,
       action: "created",
       previousStatus: null,
       nextStatus: applicationStatus,
-      comment: normalizedTypedDocuments.length
-        ? `Documents fournis: ${normalizedTypedDocuments.map(d => `${d.type} (${d.name})`).join(", ")}`
+      comment: storedTypedDocuments.length
+        ? `Documents fournis: ${storedTypedDocuments.map(d => `${d.type} (${d.name})`).join(", ")}`
         : "Application created",
       agentUserId: null,
     });
@@ -731,6 +1125,264 @@ export async function createCreditApplication({
 
     const row = await findCreditApplicationRowById(result.insertId);
     return toPublicCreditApplication(row);
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    throw error;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export async function updateClientCreditApplication(
+  applicationId,
+  {
+    clientUserId,
+    propertyId,
+    fullName,
+    email,
+    phone,
+    cin,
+    rib,
+    fundingType,
+    socioCategory,
+    propertyTitle,
+    propertyLocation,
+    propertyPriceValue,
+    propertyPriceRaw,
+    requestedAmount,
+    personalContribution,
+    grossIncome,
+    incomePeriod,
+    revenuAnnuel,
+    chargesImpayees,
+    familySituation,
+    contractType,
+    otherMonthlyCharges,
+    durationMonths,
+    estimatedMonthlyPayment,
+    estimatedRate,
+    debtRatio,
+    documents,
+  }
+) {
+  const normalizedApplicationId = Number(applicationId);
+  const normalizedClientUserId = Number(clientUserId);
+
+  if (!normalizedApplicationId) {
+    throw httpError(400, "Invalid credit application id");
+  }
+
+  if (!normalizedClientUserId) {
+    throw httpError(401, "Invalid client session");
+  }
+
+  const currentRow = await findCreditApplicationRowById(normalizedApplicationId);
+  assertClientCanEditCreditApplication(currentRow, normalizedClientUserId);
+
+  const normalizedPropertyId =
+    propertyId === undefined
+      ? normalizeOptionalInteger(currentRow.property_id)
+      : normalizeOptionalInteger(propertyId);
+  const normalizedFullName = normalizeRequiredPatchString(fullName, currentRow.full_name, "full_name");
+  const normalizedEmail = normalizeRequiredPatchString(email, currentRow.email, "email");
+  const normalizedPhone = normalizeRequiredPatchString(phone, currentRow.phone, "phone");
+  const normalizedCin = normalizeRequiredPatchString(cin, currentRow.cin, "cin");
+  const normalizedRib = normalizeRequiredPatchString(rib, currentRow.rib, "rib");
+  const normalizedFundingType = normalizePatchOptionalString(fundingType, currentRow.funding_type);
+  const normalizedSocioCategory = normalizePatchOptionalString(socioCategory, currentRow.socio_category);
+  const normalizedRequestedAmount = normalizePatchOptionalNumber(
+    requestedAmount,
+    currentRow.requested_amount
+  );
+  const normalizedPersonalContribution = normalizePatchOptionalNumber(
+    personalContribution,
+    currentRow.personal_contribution_value
+  );
+  const normalizedGrossIncome = normalizePatchOptionalNumber(grossIncome, currentRow.gross_income_value);
+  const normalizedIncomePeriod = normalizePatchOptionalString(incomePeriod, currentRow.income_period);
+  const normalizedScoringAnnualIncome = normalizePatchOptionalNumber(
+    revenuAnnuel,
+    currentRow.scoring_annual_income
+  );
+  const normalizedScoringAnnualCharges = normalizePatchOptionalNumber(
+    chargesImpayees,
+    currentRow.scoring_annual_charges
+  );
+  const normalizedFamilySituation = normalizePatchOptionalString(
+    familySituation,
+    currentRow.family_situation
+  );
+  const normalizedContractType = normalizePatchOptionalString(contractType, currentRow.contract_type);
+  const normalizedOtherMonthlyCharges = normalizePatchOptionalNumber(
+    otherMonthlyCharges,
+    currentRow.other_monthly_charges
+  );
+  const normalizedDurationMonths = normalizePatchOptionalInteger(
+    durationMonths,
+    currentRow.duration_months
+  );
+  const normalizedEstimatedMonthlyPayment = normalizePatchOptionalNumber(
+    estimatedMonthlyPayment,
+    currentRow.estimated_monthly_payment
+  );
+  const normalizedEstimatedRate = normalizePatchOptionalNumber(estimatedRate, currentRow.estimated_rate);
+  const normalizedDebtRatio = normalizePatchOptionalNumber(debtRatio, currentRow.debt_ratio);
+
+  let propertySnapshot = null;
+
+  if (propertyId !== undefined && normalizedPropertyId) {
+    propertySnapshot = await findPropertySnapshotById(normalizedPropertyId);
+
+    if (!propertySnapshot) {
+      throw httpError(404, "Selected property not found");
+    }
+  }
+
+  const normalizedPropertyTitle =
+    propertySnapshot?.property_title ||
+    normalizePatchOptionalString(
+      propertyTitle,
+      currentRow.property_title_snapshot || currentRow.property_title
+    );
+  const normalizedPropertyLocation =
+    propertySnapshot?.property_location ||
+    normalizePatchOptionalString(
+      propertyLocation,
+      currentRow.property_location_snapshot || currentRow.property_location
+    );
+  const normalizedPropertyPriceValue =
+    normalizeOptionalNumber(propertySnapshot?.property_price_value) ??
+    normalizePatchOptionalNumber(propertyPriceValue, currentRow.property_price_value);
+  const normalizedPropertyPriceRaw =
+    propertySnapshot?.property_price_raw ||
+    normalizePatchOptionalString(propertyPriceRaw, currentRow.property_price_raw);
+
+  const currentTypedDocuments = parseTypedDocuments(currentRow.documents_json);
+  const normalizedIncomingDocuments = normalizeTypedDocuments(documents);
+  const nextTypedDocumentsForValidation = normalizedIncomingDocuments.length
+    ? mergeTypedDocuments(currentTypedDocuments, normalizedIncomingDocuments)
+    : currentTypedDocuments;
+  const replacedDocuments = normalizedIncomingDocuments.length
+    ? getReplacedTypedDocuments(currentTypedDocuments, normalizedIncomingDocuments)
+    : [];
+
+  const documentCompletion = validateDocumentCompleteness(nextTypedDocumentsForValidation);
+  if (!documentCompletion.isComplete) {
+    throw httpError(400, `Missing required documents: ${documentCompletion.missing.join(", ")}`);
+  }
+
+  const nextStatus = "SOUMIS";
+  const currentStatus = normalizeCreditApplicationStatus(currentRow.status);
+  let connection = null;
+
+  try {
+    connection = await dbPool.getConnection();
+    await connection.beginTransaction();
+
+    const storedIncomingDocuments = normalizedIncomingDocuments.length
+      ? await insertCreditApplicationDocumentRows(connection, normalizedApplicationId, documents)
+      : [];
+    const mergedTypedDocuments = storedIncomingDocuments.length
+      ? mergeTypedDocuments(currentTypedDocuments, storedIncomingDocuments)
+      : currentTypedDocuments;
+
+    await deleteCreditApplicationDocumentRows(connection, replacedDocuments);
+
+    await connection.execute(
+      `
+      UPDATE ${CREDIT_APPLICATION_TABLE}
+      SET property_id = ?,
+          full_name = ?,
+          email = ?,
+          phone = ?,
+          cin = ?,
+          rib = ?,
+          funding_type = ?,
+          socio_category = ?,
+          property_title_snapshot = ?,
+          property_location_snapshot = ?,
+          property_price_value = ?,
+          property_price_raw = ?,
+          requested_amount = ?,
+          personal_contribution_value = ?,
+          gross_income_value = ?,
+          income_period = ?,
+          scoring_annual_income = ?,
+          scoring_annual_charges = ?,
+          family_situation = ?,
+          contract_type = ?,
+          other_monthly_charges = ?,
+          duration_months = ?,
+          estimated_monthly_payment = ?,
+          estimated_rate = ?,
+          debt_ratio = ?,
+          status = ?,
+          compliance_score = NULL,
+          compliance_summary = NULL,
+          decision_motif = NULL,
+          client_notified_at = NULL,
+          reviewed_at = NULL,
+          document_names_json = ?,
+          documents_json = ?
+      WHERE id = ?
+      `,
+      [
+        normalizedPropertyId,
+        normalizedFullName,
+        normalizedEmail,
+        normalizedPhone,
+        normalizedCin,
+        normalizedRib,
+        normalizedFundingType,
+        normalizedSocioCategory,
+        normalizedPropertyTitle,
+        normalizedPropertyLocation,
+        normalizedPropertyPriceValue,
+        normalizedPropertyPriceRaw,
+        normalizedRequestedAmount,
+        normalizedPersonalContribution,
+        normalizedGrossIncome,
+        normalizedIncomePeriod,
+        normalizedScoringAnnualIncome,
+        normalizedScoringAnnualCharges,
+        normalizedFamilySituation,
+        normalizedContractType,
+        normalizedOtherMonthlyCharges,
+        normalizedDurationMonths,
+        normalizedEstimatedMonthlyPayment,
+        normalizedEstimatedRate,
+        normalizedDebtRatio,
+        nextStatus,
+        serializeDocumentNames(mergedTypedDocuments),
+        serializeTypedDocuments(mergedTypedDocuments),
+        normalizedApplicationId,
+      ]
+    );
+
+    await appendCreditApplicationHistory(connection, {
+      applicationId: normalizedApplicationId,
+      action: "client_updated",
+      previousStatus: currentStatus,
+      nextStatus,
+      comment: normalizedIncomingDocuments.length
+        ? `Demande modifiee par le client. Documents remplaces: ${normalizedIncomingDocuments
+            .map((document) => document.type)
+            .join(", ")}`
+        : "Demande modifiee par le client.",
+      agentUserId: null,
+    });
+
+    await connection.commit();
+
+    const updatedRow = await findCreditApplicationRowById(normalizedApplicationId);
+    return {
+      application: toPublicCreditApplication(updatedRow),
+      replacedDocuments: [],
+    };
   } catch (error) {
     if (connection) {
       await connection.rollback();

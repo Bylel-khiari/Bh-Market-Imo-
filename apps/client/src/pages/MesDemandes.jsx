@@ -5,13 +5,16 @@ import {
   FaCalendarAlt,
   FaCheckCircle,
   FaClock,
+  FaCloudUploadAlt,
   FaClipboardList,
+  FaEdit,
   FaExclamationTriangle,
   FaFileAlt,
   FaHome,
   FaLock,
   FaMapMarkerAlt,
   FaMoneyBillWave,
+  FaSave,
   FaTimesCircle,
   FaUniversity,
   FaUser,
@@ -21,10 +24,55 @@ import {
   fetchClientCreditApplicationsApi,
   getAuthSession,
   isAuthError,
+  updateClientCreditApplicationApi,
 } from '../lib/auth';
 import '../styles/MesDemandes.css';
 
 const FINAL_STATUSES = new Set(['ACCEPTE', 'REFUSE']);
+const CLIENT_EDIT_WINDOW_MS = 30 * 60 * 1000;
+const ACCEPTED_UPLOAD_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+const MAX_UPLOAD_DOCUMENT_BYTES = 8 * 1024 * 1024;
+
+const DOCUMENT_TYPES = {
+  BH_FORM: {
+    key: 'BH_FORM',
+    label: 'Formulaire BH Habitat',
+    description: 'Demande de Credit Habitat',
+    fileInputId: 'edit-doc-bh-form',
+  },
+  ID_COPY: {
+    key: 'ID_COPY',
+    label: "Piece d'identite",
+    description: 'Copie CIN ou passeport',
+    fileInputId: 'edit-doc-id-copy',
+  },
+  INCOME_PROOF: {
+    key: 'INCOME_PROOF',
+    label: 'Justificatifs de revenus',
+    description: 'Fiches de paie, declaration fiscale ou attestation',
+    fileInputId: 'edit-doc-income-proof',
+  },
+  PROPERTY_DOCS: {
+    key: 'PROPERTY_DOCS',
+    label: 'Documents du bien',
+    description: 'Promesse de vente, titre ou documents immobiliers',
+    fileInputId: 'edit-doc-property-docs',
+  },
+  BANK_STATEMENTS: {
+    key: 'BANK_STATEMENTS',
+    label: 'Releves bancaires',
+    description: 'Releves des 3 a 6 derniers mois',
+    fileInputId: 'edit-doc-bank-statements',
+  },
+  EMPLOYMENT_CONTRACT: {
+    key: 'EMPLOYMENT_CONTRACT',
+    label: 'Situation professionnelle',
+    description: "Contrat de travail ou justificatif d'activite",
+    fileInputId: 'edit-doc-employment-contract',
+  },
+};
+
+const REQUIRED_DOCUMENTS = Object.values(DOCUMENT_TYPES);
 
 const STATUS_META = {
   SOUMIS: {
@@ -72,6 +120,35 @@ function toTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function getClientEditDeadline(application) {
+  const serverDeadline = toTimestamp(application?.client_edit_deadline_at);
+  if (serverDeadline) return serverDeadline;
+
+  const createdAt = toTimestamp(application?.created_at);
+  return createdAt ? createdAt + CLIENT_EDIT_WINDOW_MS : 0;
+}
+
+function getClientEditRemainingMs(application, now) {
+  const deadline = getClientEditDeadline(application);
+  return Math.max(deadline - now, 0);
+}
+
+function canEditApplication(application, now) {
+  if (!application || FINAL_STATUSES.has(application.status)) return false;
+  if (application.can_client_edit === false) return false;
+  return getClientEditRemainingMs(application, now) > 0;
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return '00:00';
+
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 function formatDate(value) {
   if (!value) return 'Non renseigné';
 
@@ -97,6 +174,107 @@ function formatMoney(value, fallback = 'Non renseigné') {
 function displayValue(value, fallback = 'Non renseigné') {
   if (value === undefined || value === null || value === '') return fallback;
   return String(value);
+}
+
+function toInputValue(value) {
+  if (value === undefined || value === null || value === '') return '';
+  return String(value);
+}
+
+function toPositiveNumberOrNull(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function toPositiveIntegerOrNull(value) {
+  const amount = Number(value);
+  return Number.isInteger(amount) && amount > 0 ? amount : null;
+}
+
+function normalizeIncomePeriod(value) {
+  return value === 'monthly' || value === 'annual' ? value : null;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function isAcceptedDocumentFile(file) {
+  if (!file) return false;
+  const lowerName = String(file.name || '').toLowerCase();
+  return ACCEPTED_UPLOAD_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
+}
+
+function getDocumentContentType(file) {
+  if (file?.type) return file.type;
+  const lowerName = String(file?.name || '').toLowerCase();
+  if (lowerName.endsWith('.pdf')) return 'application/pdf';
+  if (lowerName.endsWith('.png')) return 'image/png';
+  if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) return 'image/jpeg';
+  return 'application/octet-stream';
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Impossible de lire le fichier.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildEditForm(application) {
+  return {
+    full_name: application?.full_name || application?.client_name || '',
+    email: application?.email || application?.client_account_email || '',
+    phone: application?.phone || '',
+    cin: application?.cin || '',
+    funding_type: application?.funding_type || '',
+    socio_category: application?.socio_category || '',
+    property_title: application?.property_title || '',
+    property_location: application?.property_location || '',
+    property_price_value: toInputValue(application?.property_price_value),
+    property_price_raw: application?.property_price_raw || '',
+    requested_amount: toInputValue(application?.requested_amount),
+    personal_contribution: toInputValue(application?.personal_contribution_value),
+    gross_income: toInputValue(application?.gross_income_value),
+    income_period: application?.income_period || '',
+    revenu_annuel: toInputValue(application?.revenu_annuel),
+    charges_impayees: toInputValue(application?.charges_impayees),
+    situation_familiale: application?.situation_familiale || '',
+    situation_contractuelle: application?.situation_contractuelle || '',
+    other_monthly_charges: toInputValue(application?.other_monthly_charges),
+    duration_months: toInputValue(application?.duration_months),
+    estimated_monthly_payment: toInputValue(application?.estimated_monthly_payment),
+    estimated_rate: toInputValue(application?.estimated_rate),
+    debt_ratio: toInputValue(application?.debt_ratio),
+  };
+}
+
+function getDocumentByType(documents, type) {
+  return (Array.isArray(documents) ? documents : []).find((document) => document?.type === type) || null;
+}
+
+function validateEditForm(data) {
+  const issues = [];
+
+  if (String(data.full_name || '').trim().length < 2) {
+    issues.push('Nom complet: minimum 2 caracteres');
+  }
+
+  if (!isValidEmail(data.email)) {
+    issues.push('Adresse e-mail: format invalide');
+  }
+
+  if (String(data.phone || '').trim().length < 8) {
+    issues.push('Numero de telephone: minimum 8 caracteres');
+  }
+
+  if (String(data.cin || '').trim().length < 4) {
+    issues.push('Numero de CIN: minimum 4 caracteres');
+  }
+
+  return issues;
 }
 
 function getClientBankMessage(application) {
@@ -156,6 +334,12 @@ const MesDemandes = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+  const [editingApplication, setEditingApplication] = useState(null);
+  const [editForm, setEditForm] = useState(() => buildEditForm(null));
+  const [editDocuments, setEditDocuments] = useState({});
+  const [editError, setEditError] = useState('');
+  const [submittingEdit, setSubmittingEdit] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -206,6 +390,14 @@ const MesDemandes = () => {
     };
   }, [navigate]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   const stats = useMemo(() => {
     const total = applications.length;
     const accepted = applications.filter((app) => app.status === 'ACCEPTE').length;
@@ -237,6 +429,162 @@ const MesDemandes = () => {
   const selectedDocuments = selectedApplication?.typed_documents?.length
     ? selectedApplication.typed_documents
     : (selectedApplication?.documents || []).map((name) => ({ name, type: 'Document' }));
+  const selectedEditRemainingMs = getClientEditRemainingMs(selectedApplication, now);
+  const selectedCanEdit = canEditApplication(selectedApplication, now);
+  const selectedEditCountdown = formatCountdown(selectedEditRemainingMs);
+  const selectedEditStateLabel = selectedCanEdit
+    ? `Modification possible: ${selectedEditCountdown}`
+    : 'Dossier verrouille';
+  const editingExistingDocuments = editingApplication?.typed_documents?.length
+    ? editingApplication.typed_documents
+    : (editingApplication?.documents || []).map((name) => ({ name, type: 'Document' }));
+  const editingCountdown = formatCountdown(getClientEditRemainingMs(editingApplication, now));
+
+  const openEditModal = (application) => {
+    if (!canEditApplication(application, now)) {
+      return;
+    }
+
+    setEditingApplication(application);
+    setEditForm(buildEditForm(application));
+    setEditDocuments({});
+    setEditError('');
+  };
+
+  const closeEditModal = () => {
+    if (submittingEdit) return;
+    setEditingApplication(null);
+    setEditDocuments({});
+    setEditError('');
+  };
+
+  const handleEditInputChange = (event) => {
+    const { name, value } = event.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditDocumentChange = (documentType, event) => {
+    const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+
+    if (file && !isAcceptedDocumentFile(file)) {
+      setEditError('Format non accepte. Utilisez PDF, JPG, PNG ou JPEG.');
+      event.target.value = '';
+      setEditDocuments((prev) => ({ ...prev, [documentType]: null }));
+      return;
+    }
+
+    if (file && file.size > MAX_UPLOAD_DOCUMENT_BYTES) {
+      setEditError('Chaque document doit faire moins de 8 Mo.');
+      event.target.value = '';
+      setEditDocuments((prev) => ({ ...prev, [documentType]: null }));
+      return;
+    }
+
+    setEditError('');
+    setEditDocuments((prev) => ({
+      ...prev,
+      [documentType]: file ? { name: file.name, file } : null,
+    }));
+  };
+
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    setEditError('');
+
+    if (!editingApplication) return;
+
+    if (!canEditApplication(editingApplication, Date.now())) {
+      setEditError('Le delai de modification de 30 minutes est expire.');
+      return;
+    }
+
+    const fieldIssues = validateEditForm(editForm);
+    if (fieldIssues.length > 0) {
+      setEditError(`Veuillez verifier: ${fieldIssues.join('; ')}.`);
+      return;
+    }
+
+    const session = getAuthSession();
+    if (!session?.token) {
+      navigate('/login');
+      return;
+    }
+
+    let documents = [];
+
+    try {
+      documents = await Promise.all(
+        Object.entries(editDocuments)
+          .filter(([, document]) => document?.file)
+          .map(async ([docType, document]) => ({
+            type: docType,
+            name: document.name,
+            content_type: getDocumentContentType(document.file),
+            size: document.file.size,
+            data: await readFileAsDataUrl(document.file),
+          })),
+      );
+    } catch (fileError) {
+      setEditError(fileError.message || 'Impossible de lire les documents selectionnes.');
+      return;
+    }
+
+    const payload = {
+      full_name: editForm.full_name.trim(),
+      email: editForm.email.trim(),
+      phone: editForm.phone.trim(),
+      cin: editForm.cin.trim(),
+      funding_type: editForm.funding_type || null,
+      socio_category: editForm.socio_category || null,
+      property_title: editForm.property_title || null,
+      property_location: editForm.property_location || null,
+      property_price_value: toPositiveNumberOrNull(editForm.property_price_value),
+      property_price_raw: editForm.property_price_raw || null,
+      requested_amount: toPositiveNumberOrNull(editForm.requested_amount),
+      personal_contribution: toPositiveNumberOrNull(editForm.personal_contribution),
+      gross_income: toPositiveNumberOrNull(editForm.gross_income),
+      income_period: normalizeIncomePeriod(editForm.income_period),
+      revenu_annuel: toPositiveNumberOrNull(editForm.revenu_annuel),
+      charges_impayees: toPositiveNumberOrNull(editForm.charges_impayees),
+      situation_familiale: editForm.situation_familiale || null,
+      situation_contractuelle: editForm.situation_contractuelle || null,
+      other_monthly_charges: toPositiveNumberOrNull(editForm.other_monthly_charges),
+      duration_months: toPositiveIntegerOrNull(Number(editForm.duration_months)),
+      estimated_monthly_payment: toPositiveNumberOrNull(editForm.estimated_monthly_payment),
+      estimated_rate: toPositiveNumberOrNull(editForm.estimated_rate),
+      debt_ratio: toPositiveNumberOrNull(editForm.debt_ratio),
+      ...(documents.length ? { documents } : {}),
+    };
+
+    try {
+      setSubmittingEdit(true);
+      const response = await updateClientCreditApplicationApi(editingApplication.id, payload, session.token);
+      const updatedApplication = response?.application;
+
+      if (updatedApplication) {
+        setApplications((prev) =>
+          prev.map((application) =>
+            application.id === updatedApplication.id ? updatedApplication : application,
+          ),
+        );
+        setSelectedId(updatedApplication.id);
+      }
+
+      setEditingApplication(null);
+      setEditDocuments({});
+      setEditError('');
+    } catch (requestError) {
+      if (isAuthError(requestError)) {
+        clearAuthSession();
+        navigate('/login');
+        return;
+      }
+
+      setEditError(requestError.message || 'Impossible de modifier cette demande.');
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
 
   return (
     <div className="mes-demandes-page">
@@ -248,8 +596,9 @@ const MesDemandes = () => {
             <p>Suivi bancaire des demandes de crédit déposées sur BH Market Imo.</p>
           </div>
           <div className="mes-demandes-header-actions">
-            <span className="mes-demandes-readonly-pill">
-              <FaLock /> Dossiers non modifiables
+            <span className={`mes-demandes-readonly-pill${selectedCanEdit ? ' is-editable' : ''}`}>
+              {selectedCanEdit ? <FaClock /> : <FaLock />}
+              {selectedApplication ? selectedEditStateLabel : 'Modification 30 min apres depot'}
             </span>
           </div>
         </header>
@@ -330,6 +679,8 @@ const MesDemandes = () => {
                   const meta = getStatusMeta(application.status);
                   const StatusIcon = meta.icon;
                   const isSelected = selectedApplication?.id === application.id;
+                  const applicationCanEdit = canEditApplication(application, now);
+                  const applicationCountdown = formatCountdown(getClientEditRemainingMs(application, now));
 
                   return (
                     <button
@@ -343,6 +694,9 @@ const MesDemandes = () => {
                       </span>
                       <strong>{getApplicationTitle(application)}</strong>
                       <small>{getClientDisplayName(application)}</small>
+                      <span className={`mes-demandes-list-timer${applicationCanEdit ? ' is-open' : ''}`}>
+                        {applicationCanEdit ? `Modifiable ${applicationCountdown}` : 'Verrouille'}
+                      </span>
                       <span className="mes-demandes-list-meta">
                         Déposé le {formatDate(application.created_at)}
                       </span>
@@ -359,9 +713,19 @@ const MesDemandes = () => {
                   <h2>{getApplicationTitle(selectedApplication)}</h2>
                   <p>Déposé le {formatDate(selectedApplication.created_at)}</p>
                 </div>
-                <span className={`mes-demandes-status status-${selectedStatus.tone}`}>
-                  <SelectedStatusIcon /> {selectedStatus.label}
-                </span>
+                <div className="mes-demandes-detail-actions">
+                  <span className={`mes-demandes-status status-${selectedStatus.tone}`}>
+                    <SelectedStatusIcon /> {selectedStatus.label}
+                  </span>
+                  <button
+                    type="button"
+                    className="mes-demandes-edit-button"
+                    onClick={() => openEditModal(selectedApplication)}
+                    disabled={!selectedCanEdit}
+                  >
+                    <FaEdit /> Modifier
+                  </button>
+                </div>
               </div>
 
               <div className="mes-demandes-decision-row">
@@ -376,6 +740,10 @@ const MesDemandes = () => {
                 <div>
                   <span>Date décision</span>
                   <strong>{formatDate(selectedApplication.reviewed_at || selectedApplication.updated_at)}</strong>
+                </div>
+                <div className={selectedCanEdit ? 'is-edit-window-open' : ''}>
+                  <span>Modification</span>
+                  <strong>{selectedCanEdit ? selectedEditCountdown : 'Verrouille'}</strong>
                 </div>
               </div>
 
@@ -445,6 +813,191 @@ const MesDemandes = () => {
             </section>
           </div>
         )}
+
+        {editingApplication ? (
+          <div className="mes-demandes-edit-backdrop" role="dialog" aria-modal="true" onClick={closeEditModal}>
+            <section className="mes-demandes-edit-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="mes-demandes-edit-head">
+                <div>
+                  <span className="mes-demandes-eyebrow">Modification client</span>
+                  <h2>{getApplicationTitle(editingApplication)}</h2>
+                  <p>Temps restant avant verrouillage: {editingCountdown}</p>
+                </div>
+                <button type="button" className="mes-demandes-edit-close" onClick={closeEditModal} disabled={submittingEdit}>
+                  X
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="mes-demandes-edit-form" noValidate>
+                <div className="mes-demandes-edit-section">
+                  <h3>Identite client</h3>
+                  <div className="mes-demandes-edit-grid">
+                    <label>
+                      <span>Nom complet</span>
+                      <input name="full_name" value={editForm.full_name} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Adresse e-mail</span>
+                      <input name="email" type="email" value={editForm.email} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Telephone</span>
+                      <input name="phone" value={editForm.phone} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>CIN</span>
+                      <input name="cin" value={editForm.cin} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mes-demandes-edit-section">
+                  <h3>Projet et financement</h3>
+                  <div className="mes-demandes-edit-grid">
+                    <label>
+                      <span>Bien immobilier</span>
+                      <input name="property_title" value={editForm.property_title} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Localisation</span>
+                      <input name="property_location" value={editForm.property_location} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Prix du bien</span>
+                      <input name="property_price_value" type="number" min="0" value={editForm.property_price_value} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Montant demande</span>
+                      <input name="requested_amount" type="number" min="0" value={editForm.requested_amount} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Apport</span>
+                      <input name="personal_contribution" type="number" min="0" value={editForm.personal_contribution} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Duree (mois)</span>
+                      <input name="duration_months" type="number" min="12" max="360" value={editForm.duration_months} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mes-demandes-edit-section">
+                  <h3>Donnees de scoring</h3>
+                  <div className="mes-demandes-edit-grid">
+                    <label>
+                      <span>Revenu declare</span>
+                      <input name="gross_income" type="number" min="0" value={editForm.gross_income} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Periode revenu</span>
+                      <select name="income_period" value={editForm.income_period} onChange={handleEditInputChange} disabled={submittingEdit}>
+                        <option value="">Non renseigne</option>
+                        <option value="monthly">Mensuel</option>
+                        <option value="annual">Annuel</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Revenu annuel</span>
+                      <input name="revenu_annuel" type="number" min="0" value={editForm.revenu_annuel} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Charges annuelles</span>
+                      <input name="charges_impayees" type="number" min="0" value={editForm.charges_impayees} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Autres mensualites</span>
+                      <input name="other_monthly_charges" type="number" min="0" value={editForm.other_monthly_charges} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Mensualite estimee</span>
+                      <input name="estimated_monthly_payment" type="number" min="0" value={editForm.estimated_monthly_payment} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Taux estime</span>
+                      <input name="estimated_rate" type="number" min="0" max="100" value={editForm.estimated_rate} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Taux endettement</span>
+                      <input name="debt_ratio" type="number" min="0" value={editForm.debt_ratio} onChange={handleEditInputChange} disabled={submittingEdit} />
+                    </label>
+                    <label>
+                      <span>Situation familiale</span>
+                      <select name="situation_familiale" value={editForm.situation_familiale} onChange={handleEditInputChange} disabled={submittingEdit}>
+                        <option value="">Non renseignee</option>
+                        <option value="celibataire">Celibataire</option>
+                        <option value="marie sans enfant">Marie sans enfant</option>
+                        <option value="marie avec enfant">Marie avec enfant</option>
+                        <option value="divorce">Divorce</option>
+                        <option value="veuf">Veuf</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Situation contractuelle</span>
+                      <select name="situation_contractuelle" value={editForm.situation_contractuelle} onChange={handleEditInputChange} disabled={submittingEdit}>
+                        <option value="">Non renseignee</option>
+                        <option value="fonctionnaire">Fonctionnaire</option>
+                        <option value="CDI">CDI</option>
+                        <option value="CDD">CDD</option>
+                        <option value="profession liberale">Profession liberale</option>
+                        <option value="independant">Independant</option>
+                        <option value="retraite">Retraite</option>
+                        <option value="stage">Stage</option>
+                        <option value="sans contrat">Sans contrat</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mes-demandes-edit-section">
+                  <h3>Pieces justificatives</h3>
+                  <div className="mes-demandes-edit-doc-grid">
+                    {REQUIRED_DOCUMENTS.map((documentType) => {
+                      const currentDocument = getDocumentByType(editingExistingDocuments, documentType.key);
+                      const replacementName = editDocuments[documentType.key]?.name;
+
+                      return (
+                        <article className={replacementName ? 'is-uploaded' : ''} key={documentType.key}>
+                          <div>
+                            <strong>{documentType.label}</strong>
+                            <small>{documentType.description}</small>
+                            <small>Actuel: {currentDocument?.name || 'Aucun document'}</small>
+                          </div>
+                          <label htmlFor={documentType.fileInputId}>
+                            <FaCloudUploadAlt />
+                            Remplacer
+                          </label>
+                          <input
+                            id={documentType.fileInputId}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(event) => handleEditDocumentChange(documentType.key, event)}
+                            disabled={submittingEdit}
+                          />
+                          <span>{replacementName || 'Aucun nouveau fichier'}</span>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {editError ? (
+                  <div className="mes-demandes-edit-error" role="alert">
+                    <FaExclamationTriangle /> {editError}
+                  </div>
+                ) : null}
+
+                <div className="mes-demandes-edit-footer">
+                  <button type="button" className="mes-demandes-edit-secondary" onClick={closeEditModal} disabled={submittingEdit}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="mes-demandes-edit-submit" disabled={submittingEdit || !canEditApplication(editingApplication, now)}>
+                    <FaSave /> {submittingEdit ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -125,6 +125,40 @@ async function createClientActivityLogTable() {
   `);
 }
 
+async function createCreditApplicationDocumentTable() {
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS credit_application_documents (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      application_id BIGINT UNSIGNED NOT NULL,
+      document_type VARCHAR(64) NOT NULL,
+      file_name VARCHAR(200) NOT NULL,
+      mime_type VARCHAR(120) NULL,
+      size_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+      content LONGBLOB NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_credit_application_documents_application_id (application_id),
+      KEY idx_credit_application_documents_type (application_id, document_type)
+    )
+  `);
+  await dbPool.query(`
+    ALTER TABLE credit_application_documents
+    MODIFY COLUMN content LONGBLOB NULL
+  `);
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS credit_application_document_chunks (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      document_id BIGINT UNSIGNED NOT NULL,
+      chunk_index SMALLINT UNSIGNED NOT NULL,
+      content_chunk MEDIUMBLOB NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_credit_application_document_chunks_order (document_id, chunk_index),
+      KEY idx_credit_application_document_chunks_document_id (document_id)
+    )
+  `);
+}
+
 async function createPasswordResetTokensTable() {
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -278,6 +312,11 @@ const migrations = [
     up: async () => {
       await addColumnIfMissing("credit_applications", "documents_json", "documents_json LONGTEXT NULL");
     },
+  },
+  {
+    version: "202605230001",
+    name: "credit-application-documents-db-storage",
+    up: createCreditApplicationDocumentTable,
   },
   {
     version: "202605030006",

@@ -1,16 +1,10 @@
-import crypto from "crypto";
-import { createReadStream } from "fs";
-import { mkdir, rm, stat, writeFile } from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { Readable } from "stream";
+import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
-const DEFAULT_UPLOAD_ROOT = fileURLToPath(
-  new URL("../../uploads/credit-applications/", import.meta.url)
-);
-const UPLOAD_ROOT = path.resolve(
-  process.env.CREDIT_APPLICATION_UPLOAD_DIR || DEFAULT_UPLOAD_ROOT
-);
+const CREDIT_APPLICATION_DOCUMENT_TABLE = "credit_application_documents";
+const CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE = "credit_application_document_chunks";
 const MAX_DOCUMENT_BYTES = Number(
   process.env.CREDIT_APPLICATION_DOCUMENT_MAX_BYTES || 8 * 1024 * 1024
 );
@@ -20,12 +14,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
 ]);
-
-const MIME_EXTENSIONS = {
-  "application/pdf": ".pdf",
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-};
 
 function sanitizeFilename(name) {
   const basename = path.basename(String(name || "document").trim());
@@ -50,15 +38,6 @@ function inferMimeTypeFromName(name) {
   return "";
 }
 
-function getFilenameExtension(name, mimeType) {
-  const ext = path.extname(String(name || "")).toLowerCase();
-  if ([".pdf", ".jpg", ".jpeg", ".png"].includes(ext)) {
-    return ext === ".jpeg" ? ".jpg" : ext;
-  }
-
-  return MIME_EXTENSIONS[mimeType] || ".bin";
-}
-
 function decodeDocumentData(value) {
   const rawValue = String(value || "");
   const base64 = rawValue.includes(",") ? rawValue.split(",").pop() : rawValue;
@@ -70,106 +49,113 @@ function decodeDocumentData(value) {
   return Buffer.from(base64, "base64");
 }
 
-function resolveStoredDocumentPath(storagePath) {
-  const normalizedStoragePath = String(storagePath || "").replace(/\\/g, "/");
-  const resolvedPath = path.resolve(UPLOAD_ROOT, normalizedStoragePath);
-
-  if (!resolvedPath.startsWith(`${UPLOAD_ROOT}${path.sep}`)) {
-    throw httpError(400, "Invalid document path");
-  }
-
-  return resolvedPath;
-}
-
 export async function persistCreditApplicationDocuments(documents) {
   if (!Array.isArray(documents) || documents.length === 0) {
     return [];
   }
 
-  const folderName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
-  const targetDir = path.join(UPLOAD_ROOT, folderName);
   const persistedDocuments = [];
 
-  try {
-    await mkdir(targetDir, { recursive: true });
+  for (const document of documents) {
+    const type = String(document?.type || "").trim().toUpperCase();
+    const originalName = sanitizeFilename(document?.name);
+    const mimeType =
+      normalizeMimeType(document?.content_type || document?.mime_type) ||
+      inferMimeTypeFromName(originalName);
+    const data = document?.data || document?.content || document?.base64;
 
-    for (const document of documents) {
-      const type = String(document?.type || "").trim().toUpperCase();
-      const originalName = sanitizeFilename(document?.name);
-      const mimeType =
-        normalizeMimeType(document?.content_type || document?.mime_type) ||
-        inferMimeTypeFromName(originalName);
-      const data = document?.data || document?.content || document?.base64;
-
-      if (!data) {
-        persistedDocuments.push({ type, name: originalName });
-        continue;
-      }
-
-      if (!mimeType) {
-        throw httpError(400, `Unsupported document type for ${originalName}`);
-      }
-
-      const buffer = decodeDocumentData(data);
-
-      if (buffer.length <= 0) {
-        throw httpError(400, `Document ${originalName} is empty`);
-      }
-
-      if (buffer.length > MAX_DOCUMENT_BYTES) {
-        throw httpError(413, `Document ${originalName} exceeds the maximum allowed size`);
-      }
-
-      const extension = getFilenameExtension(originalName, mimeType);
-      const storedName = `${type.toLowerCase()}_${crypto.randomBytes(10).toString("hex")}${extension}`;
-      const storagePath = `${folderName}/${storedName}`;
-      await writeFile(path.join(targetDir, storedName), buffer, { flag: "wx" });
-
-      persistedDocuments.push({
-        type,
-        name: originalName,
-        mime_type: mimeType,
-        size_bytes: buffer.length,
-        storage_path: storagePath,
-      });
+    if (!data) {
+      throw httpError(400, `Document content is missing for ${originalName}`);
     }
 
-    return persistedDocuments;
-  } catch (error) {
-    await rm(targetDir, { recursive: true, force: true }).catch(() => {});
-    throw error;
+    if (!mimeType) {
+      throw httpError(400, `Unsupported document type for ${originalName}`);
+    }
+
+    const buffer = decodeDocumentData(data);
+
+    if (buffer.length <= 0) {
+      throw httpError(400, `Document ${originalName} is empty`);
+    }
+
+    if (buffer.length > MAX_DOCUMENT_BYTES) {
+      throw httpError(413, `Document ${originalName} exceeds the maximum allowed size`);
+    }
+
+    persistedDocuments.push({
+      type,
+      name: originalName,
+      mime_type: mimeType,
+      size_bytes: buffer.length,
+      content_buffer: buffer,
+    });
   }
+
+  return persistedDocuments;
 }
 
 export async function cleanupPersistedCreditApplicationDocuments(documents) {
-  const storagePaths = (Array.isArray(documents) ? documents : [])
-    .map((document) => document?.storage_path)
-    .filter(Boolean);
-
-  await Promise.all(
-    storagePaths.map((storagePath) =>
-      rm(resolveStoredDocumentPath(storagePath), { force: true }).catch(() => {})
-    )
-  );
+  return documents;
 }
 
 export async function openStoredCreditApplicationDocument(document) {
-  if (!document?.storage_path) {
+  const documentId = Number(document?.db_document_id);
+
+  if (!documentId) {
     throw httpError(404, "Document file is not available");
   }
 
-  const filePath = resolveStoredDocumentPath(document.storage_path);
-  const fileStat = await stat(filePath).catch(() => null);
+  const [rows] = await dbPool.execute(
+    `
+    SELECT
+      file_name,
+      mime_type,
+      size_bytes,
+      content
+    FROM ${CREDIT_APPLICATION_DOCUMENT_TABLE}
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [documentId]
+  );
+  const row = rows?.[0];
 
-  if (!fileStat?.isFile()) {
-    throw httpError(404, "Document file was not found");
+  if (!row?.content) {
+    const [chunkRows] = await dbPool.execute(
+      `
+      SELECT content_chunk
+      FROM ${CREDIT_APPLICATION_DOCUMENT_CHUNK_TABLE}
+      WHERE document_id = ?
+      ORDER BY chunk_index ASC
+      `,
+      [documentId]
+    );
+    const chunks = (chunkRows || [])
+      .map((chunkRow) => chunkRow.content_chunk)
+      .filter(Boolean)
+      .map((chunk) => (Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+
+    if (!chunks.length) {
+      throw httpError(404, "Document file was not found");
+    }
+
+    const chunkedContent = Buffer.concat(chunks);
+
+    return {
+      stream: Readable.from(chunkedContent),
+      size: Number(row.size_bytes || chunkedContent.length),
+      mimeType: normalizeMimeType(row.mime_type) || "application/octet-stream",
+      filename: sanitizeFilename(row.file_name || document.name),
+    };
   }
 
+  const content = Buffer.isBuffer(row.content) ? row.content : Buffer.from(row.content);
+
   return {
-    stream: createReadStream(filePath),
-    size: fileStat.size,
-    mimeType: normalizeMimeType(document.mime_type) || "application/octet-stream",
-    filename: sanitizeFilename(document.name),
+    stream: Readable.from(content),
+    size: Number(row.size_bytes || content.length),
+    mimeType: normalizeMimeType(row.mime_type) || "application/octet-stream",
+    filename: sanitizeFilename(row.file_name || document.name),
   };
 }
 

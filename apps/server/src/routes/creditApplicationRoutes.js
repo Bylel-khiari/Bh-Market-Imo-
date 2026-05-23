@@ -5,6 +5,7 @@ import {
   scoreAgentCreditApplication,
   submitCreditApplication,
   updateAgentCreditApplication,
+  updateMyCreditApplication,
   viewAgentCreditApplicationDocument,
 } from "../controllers/creditApplicationController.js";
 import { requireAuth, requireRoles } from "../middleware/authMiddleware.js";
@@ -15,6 +16,7 @@ import {
   creditApplicationDocumentParamSchema,
   creditApplicationCreateBodySchema,
   creditApplicationListQuerySchema,
+  creditApplicationUpdateBodySchema,
   idParamSchema,
 } from "../validation/schemas.js";
 
@@ -34,6 +36,14 @@ router.get(
   requireRoles("client"),
   validateRequest({ query: creditApplicationListQuerySchema }),
   listMyCreditApplications
+);
+
+router.patch(
+  "/api/client/credit-applications/:id",
+  requireAuth,
+  requireRoles("client"),
+  validateRequest({ params: idParamSchema, body: creditApplicationUpdateBodySchema }),
+  updateMyCreditApplication
 );
 
 router.get(
