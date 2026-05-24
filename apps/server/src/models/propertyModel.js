@@ -558,7 +558,7 @@ export async function createPropertyByAdmin(payload = {}) {
         created_by_admin,
         admin_updated_at
       )
-      VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NOW())
+      VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NOW())
       `,
       [
         nextPropertyId,
