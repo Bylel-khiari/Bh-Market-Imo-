@@ -1,7 +1,23 @@
 const AUTH_STORAGE_KEY = 'bh_market_auth';
 export const AUTH_SESSION_CHANGED_EVENT = 'bh-market-auth-session-changed';
 const DEV_FRONTEND_PORTS = new Set(['3000', '3001', '3002', '3003', '3004', '3005', '5173']);
-const COOKIE_AUTH_SENTINEL = '__http_only_cookie__';
+const COOKIE_AUTH_MARKER_PREFIX = '__http_only_cookie__';
+
+function isCookieAuthMarker(token) {
+  return String(token || '').startsWith(COOKIE_AUTH_MARKER_PREFIX);
+}
+
+function createCookieAuthSessionMarker(session = {}) {
+  const user = session.user || {};
+  const role = String(user.role || 'unknown').replace(/[^a-z0-9_-]/gi, '_');
+  const userId = String(user.id || 'anonymous').replace(/[^a-z0-9_-]/gi, '_');
+  const randomPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  return `${COOKIE_AUTH_MARKER_PREFIX}:${role}:${userId}:${randomPart}`;
+}
 
 function notifyAuthSessionChanged(session) {
   if (typeof window === 'undefined') {
@@ -103,7 +119,7 @@ export async function authorizedJsonRequest(path, token, options = {}) {
   }
 
   const headers = new Headers(options.headers || {});
-  if (token !== COOKIE_AUTH_SENTINEL) {
+  if (!isCookieAuthMarker(token)) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
@@ -116,7 +132,7 @@ export async function authorizedBlobRequest(path, token, options = {}) {
   }
 
   const headers = new Headers(options.headers || {});
-  if (token !== COOKIE_AUTH_SENTINEL) {
+  if (!isCookieAuthMarker(token)) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
@@ -245,7 +261,7 @@ export async function safeRecordClientActivity(input) {
 export function saveAuthSession(session) {
   const safeSession = {
     ...session,
-    token: COOKIE_AUTH_SENTINEL,
+    token: createCookieAuthSessionMarker(session),
     authenticated: true,
     authMode: 'httpOnlyCookie',
   };
