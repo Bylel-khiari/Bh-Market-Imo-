@@ -259,14 +259,6 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="contact-info-source-card">
-              <span className="contact-info-card-label">Source</span>
-              <h3>Référence officielle</h3>
-              <p>Les informations de cette page s appuient sur les pages publiques BH Bank.</p>
-              <a href="https://www.bhbank.tn/" target="_blank" rel="noreferrer">
-                Visiter le site BH Bank
-              </a>
-            </div>
           </aside>
         </div>
       </div>

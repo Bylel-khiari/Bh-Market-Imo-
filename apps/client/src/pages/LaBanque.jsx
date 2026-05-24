@@ -183,17 +183,6 @@ export default function LaBanque() {
               </div>
             </div>
 
-            <div className="bank-info-source-card">
-              <span className="bank-info-card-label">Source</span>
-              <h3>Référence officielle</h3>
-              <p>
-                Les informations générales de cette page s’appuient sur la présentation publique de
-                BH Bank.
-              </p>
-              <a href="https://www.bhbank.tn/" target="_blank" rel="noreferrer">
-                Visiter le site BH Bank
-              </a>
-            </div>
           </aside>
         </div>
       </div>

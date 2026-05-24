@@ -188,8 +188,7 @@
 .bank-info-panel,
 .bank-info-overview-card,
 .bank-info-digital-card,
-.bank-info-contact-card,
-.bank-info-source-card {
+.bank-info-contact-card {
   background: #ffffff;
   border: 1px solid rgba(10, 34, 64, 0.06);
   border-radius: 14px;
@@ -297,8 +296,7 @@
 
 .bank-info-overview-card h3,
 .bank-info-digital-card h3,
-.bank-info-contact-card h3,
-.bank-info-source-card h3 {
+.bank-info-contact-card h3 {
   margin: 18px 0 0;
   color: #0a2240;
   font-size: 16px;
@@ -307,8 +305,7 @@
 
 .bank-info-overview-card p,
 .bank-info-digital-card p,
-.bank-info-contact-card p,
-.bank-info-source-card p {
+.bank-info-contact-card p {
   margin: 8px 0 0;
   color: #7a7f92;
   font-size: 13px;
@@ -341,8 +338,7 @@
   flex-shrink: 0;
 }
 
-.bank-info-contact-card,
-.bank-info-source-card {
+.bank-info-contact-card {
   padding: 24px;
 }
 
@@ -390,20 +386,6 @@
   line-height: 1.55;
 }
 
-.bank-info-source-card a {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 16px;
-  color: #ff0000;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.bank-info-source-card a:hover {
-  color: #cc0000;
-}
-
 @media (max-width: 1100px) {
   .bank-info-hero-grid,
   .bank-info-body-grid {
@@ -435,8 +417,7 @@
   .bank-info-panel,
   .bank-info-overview-card,
   .bank-info-digital-card,
-  .bank-info-contact-card,
-  .bank-info-source-card {
+  .bank-info-contact-card {
     padding: 20px;
   }
 }

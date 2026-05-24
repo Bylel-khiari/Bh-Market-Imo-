@@ -207,8 +207,7 @@
 .contact-info-route-card,
 .contact-info-entry-card,
 .contact-info-directory-card,
-.contact-info-mediator-card,
-.contact-info-source-card {
+.contact-info-mediator-card {
   background: #ffffff;
   border: 1px solid rgba(10, 34, 64, 0.06);
   border-radius: 14px;
@@ -300,8 +299,7 @@
 .contact-info-route-card h3,
 .contact-info-entry-card h3,
 .contact-info-directory-card h3,
-.contact-info-mediator-card h3,
-.contact-info-source-card h3 {
+.contact-info-mediator-card h3 {
   margin: 18px 0 0;
   color: #0a2240;
   font-size: 16px;
@@ -311,8 +309,7 @@
 .contact-info-route-card p,
 .contact-info-entry-card p,
 .contact-info-directory-card p,
-.contact-info-mediator-card p,
-.contact-info-source-card p {
+.contact-info-mediator-card p {
   margin: 8px 0 0;
   color: #7a7f92;
   font-size: 13px;
@@ -327,8 +324,7 @@
   font-weight: 600;
 }
 
-.contact-info-entry-card a,
-.contact-info-source-card a {
+.contact-info-entry-card a {
   display: inline-flex;
   align-items: center;
   margin-top: 16px;
@@ -338,14 +334,12 @@
   text-decoration: none;
 }
 
-.contact-info-entry-card a:hover,
-.contact-info-source-card a:hover {
+.contact-info-entry-card a:hover {
   color: #cc0000;
 }
 
 .contact-info-directory-card,
-.contact-info-mediator-card,
-.contact-info-source-card {
+.contact-info-mediator-card {
   padding: 24px;
 }
 
@@ -438,8 +432,7 @@
   .contact-info-route-card,
   .contact-info-entry-card,
   .contact-info-directory-card,
-  .contact-info-mediator-card,
-  .contact-info-source-card {
+  .contact-info-mediator-card {
     padding: 20px;
   }
 }
