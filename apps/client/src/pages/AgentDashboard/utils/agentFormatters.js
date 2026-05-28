@@ -6,20 +6,20 @@ export const POWER_BI_AGENT_DASHBOARD_TITLE = String(
 export const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous' },
   { value: 'SOUMIS', label: 'Soumis' },
-  { value: 'EN_VERIFICATION', label: 'En vÃ©rification' },
-  { value: 'DOCUMENTS_MANQUANTS', label: 'PiÃ¨ces manquantes' },
-  { value: 'EN_ETUDE', label: 'En Ã©tude' },
-  { value: 'ACCEPTE', label: 'AcceptÃ©s' },
-  { value: 'REFUSE', label: 'RefusÃ©s' },
+  { value: 'EN_VERIFICATION', label: 'En vérification' },
+  { value: 'DOCUMENTS_MANQUANTS', label: 'Pièces manquantes' },
+  { value: 'EN_ETUDE', label: 'En étude' },
+  { value: 'ACCEPTE', label: 'Acceptés' },
+  { value: 'REFUSE', label: 'Refusés' },
 ];
 
 export const STATUS_LABELS = {
   SOUMIS: 'Dossier soumis',
-  EN_VERIFICATION: 'En vÃ©rification',
-  DOCUMENTS_MANQUANTS: 'PiÃ¨ces manquantes',
-  EN_ETUDE: 'En Ã©tude',
-  ACCEPTE: 'AcceptÃ©',
-  REFUSE: 'RefusÃ©',
+  EN_VERIFICATION: 'En vérification',
+  DOCUMENTS_MANQUANTS: 'Pièces manquantes',
+  EN_ETUDE: 'En étude',
+  ACCEPTE: 'Accepté',
+  REFUSE: 'Refusé',
 };
 
 export const STATUS_COLORS = {
@@ -43,15 +43,15 @@ export const PIE_COLORS = ['#0d355a', '#c21f3a', '#d59a27', '#4f7b72', '#7886a0'
 export const SECTION_COPY = {
   overview: {
     title: 'Tableau de bord agent bancaire',
-    subtitle: 'Suivi prioritaire des dossiers de crÃ©dit, contrÃ´le de conformitÃ© et retours client.',
+    subtitle: 'Suivi prioritaire des dossiers de crédit, contrôle de conformité et retours client.',
   },
   applications: {
     title: 'Traitement des dossiers',
-    subtitle: 'Analyse dÃ©taillÃ©e, vÃ©rification des piÃ¨ces et mise Ã  jour du statut client.',
+    subtitle: 'Analyse détaillée, vérification des pièces et mise à jour du statut client.',
   },
   platform: {
     title: 'KPI plateforme',
-    subtitle: 'Lecture des biens, clients, rÃ©clamations dâ€™assistance et sources techniques utiles au traitement.',
+    subtitle: 'Lecture des biens, clients, réclamations d’assistance et sources techniques utiles au traitement.',
   },
   powerbi: {
     title: 'Dashboard Power BI',
@@ -103,7 +103,7 @@ export function formatNumber(value) {
 export function formatCurrency(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return 'Non renseignÃ©';
+    return 'Non renseigné';
   }
 
   return `${new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(Math.round(amount))} DT`;
@@ -223,7 +223,7 @@ export function getComplianceLabel(level) {
   if (level === 'solid') return 'Conforme';
   if (level === 'watch') return 'A surveiller';
   if (level === 'risk') return 'Risque';
-  return 'Score Ã  calculer';
+  return 'Score à calculer';
 }
 
 export function hasComplianceScore(application) {
@@ -236,7 +236,7 @@ export function hasComplianceScore(application) {
 
 export function formatComplianceScore(application) {
   if (!hasComplianceScore(application)) {
-    return 'Ã€ calculer';
+    return 'À calculer';
   }
 
   return `${Math.round(Number(application.compliance_score))}/100`;
@@ -244,7 +244,7 @@ export function formatComplianceScore(application) {
 
 export function getComplianceLabelForApplication(application) {
   if (!hasComplianceScore(application)) {
-    return 'Score Ã  calculer';
+    return 'Score à calculer';
   }
 
   return getComplianceLabel(application.compliance_level);

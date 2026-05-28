@@ -26,7 +26,7 @@ export default function PropertiesMapSection({
   if (!selectedProperty) {
     return (
       <aside className="details-panel">
-        <div className="properties-empty">Aucun bien sÃ©lectionnÃ© pour le moment.</div>
+        <div className="properties-empty">Aucun bien sélectionné pour le moment.</div>
       </aside>
     );
   }
@@ -71,7 +71,7 @@ export default function PropertiesMapSection({
             {isFavorite ? <FaHeart /> : <FaRegHeart />}
             <span>
               {isFavorite
-                ? 'EnregistrÃ© dans vos favoris'
+                ? 'Enregistré dans vos favoris'
                 : 'Ajouter aux favoris'}
             </span>
           </button>
@@ -81,15 +81,15 @@ export default function PropertiesMapSection({
             onClick={(event) => onReportProperty(selectedProperty, event)}
           >
             <FaFlag />
-            <span>Signaler un problÃ¨me</span>
+            <span>Signaler un problème</span>
           </button>
         </div>
       </div>
 
       <div className="details-tabs">
-        <span className="is-active">AperÃ§u</span>
+        <span className="is-active">Aperçu</span>
         <span>Avis</span>
-        <span>Ã€ propos</span>
+        <span>À propos</span>
       </div>
 
       <div className="details-description">
@@ -126,7 +126,7 @@ export default function PropertiesMapSection({
         <span className="pin pin-c" />
         <span className="map-label">{selectedProperty.city || 'Tunisie'}</span>
       </div>
-      <p className="details-date">Mis Ã  jour : {formatPropertyDate(selectedProperty.scraped_at)}</p>
+      <p className="details-date">Mis à jour : {formatPropertyDate(selectedProperty.scraped_at)}</p>
     </aside>
   );
 }

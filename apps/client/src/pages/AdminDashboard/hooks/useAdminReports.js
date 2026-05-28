@@ -39,7 +39,7 @@ export default function useAdminReports({
         return;
       }
 
-      setReportError(requestError.message || 'Erreur de chargement des rÃƒÂ©clamations.');
+      setReportError(requestError.message || 'Erreur de chargement des réclamations.');
     } finally {
       if (!silent) {
         setReportLoading(false);
@@ -62,7 +62,7 @@ export default function useAdminReports({
         token,
       );
 
-      setReportFormMessage('RÃƒÂ©clamation mise ÃƒÂ  jour.');
+      setReportFormMessage('Réclamation mise à jour.');
 
       if (report.status === 'unread' && nextStatus !== 'unread') {
         syncUnreadReportCount((prev) => Math.max(0, prev - 1));
@@ -78,7 +78,7 @@ export default function useAdminReports({
       }
 
       setReportFormMessage('');
-      setReportError(requestError.message || 'Erreur pendant la mise ÃƒÂ  jour de la rÃƒÂ©clamation.');
+      setReportError(requestError.message || 'Erreur pendant la mise à jour de la réclamation.');
     } finally {
       setReportSubmittingId(null);
     }

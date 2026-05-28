@@ -11,7 +11,7 @@ export default function DecisionActions({ draft, onReviewSubmit, submitting }) {
           onClick={() => onReviewSubmit('EN_VERIFICATION')}
           disabled={submitting}
         >
-          VÃƒÂ©rifier les documents
+          Vérifier les documents
         </button>
         <button
           type="button"
@@ -19,7 +19,7 @@ export default function DecisionActions({ draft, onReviewSubmit, submitting }) {
           onClick={() => onReviewSubmit('DOCUMENTS_MANQUANTS')}
           disabled={submitting}
         >
-          Demander les piÃƒÂ¨ces
+          Demander les pièces
         </button>
         <button
           type="button"
@@ -27,7 +27,7 @@ export default function DecisionActions({ draft, onReviewSubmit, submitting }) {
           onClick={() => onReviewSubmit('EN_ETUDE')}
           disabled={submitting}
         >
-          Passer en ÃƒÂ©tude
+          Passer en étude
         </button>
         <button
           type="button"

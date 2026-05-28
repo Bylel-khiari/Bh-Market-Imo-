@@ -23,7 +23,7 @@ export default function AgentTopbar({
         </button>
         <button type="button" className="admin-topbar-btn admin-topbar-btn--logout" onClick={handleLogout}>
           <FaSignOutAlt />
-          <span>DÃƒÂ©connexion</span>
+          <span>Déconnexion</span>
         </button>
       </div>
     </header>

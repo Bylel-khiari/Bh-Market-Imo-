@@ -6,9 +6,9 @@ export default function AgentChartsSection({ pieData }) {
   return (
     <div className="admin-row">
       <section className="admin-card agent-platform-card--wide">
-        <h2>RÃ©partition des statuts</h2>
+        <h2>Répartition des statuts</h2>
         <p className="admin-section-help">
-          Vue rapide pour identifier les dossiers Ã  relancer, analyser ou clÃ´turer.
+          Vue rapide pour identifier les dossiers à relancer, analyser ou clôturer.
         </p>
         {pieData.length ? (
           <div className="agent-chart-wrap">

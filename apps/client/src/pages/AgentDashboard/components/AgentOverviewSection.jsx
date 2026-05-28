@@ -34,7 +34,7 @@ export default function AgentOverviewSection({
             <div>
               <h2>Dossiers prioritaires</h2>
               <p className="admin-section-help">
-                Reprises rapides sur les dossiers qui demandent une analyse ou un complÃƒÂ©ment.
+                Reprises rapides sur les dossiers qui demandent une analyse ou un complément.
               </p>
             </div>
             <button type="button" className="admin-secondary" onClick={onOpenQueue}>
@@ -65,7 +65,7 @@ export default function AgentOverviewSection({
               ))}
             </div>
           ) : (
-            <p className="empty">Aucun dossier prioritaire ÃƒÂ  afficher.</p>
+            <p className="empty">Aucun dossier prioritaire à afficher.</p>
           )}
         </section>
       </div>

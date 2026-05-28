@@ -18,7 +18,7 @@ export default function PropertiesPagination({
         onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
         disabled={currentPage === 1}
       >
-        PrÃ©cÃ©dent
+        Précédent
       </button>
 
       <div className="pagination-pages">

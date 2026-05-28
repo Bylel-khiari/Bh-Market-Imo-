@@ -6,9 +6,9 @@ export default function AdminChartsSection({ propertyTotals, siteTotals }) {
     <div className="admin-card admin-dashboard-status-card">
       <div className="admin-dashboard-status-head">
         <div>
-          <h2>Ã‰tat des biens immobiliers</h2>
+          <h2>État des biens immobiliers</h2>
           <p className="admin-section-help">
-            SynthÃ¨se des biens visibles, actifs et collectÃ©s sur la plateforme.
+            Synthèse des biens visibles, actifs et collectés sur la plateforme.
           </p>
         </div>
       </div>
@@ -27,7 +27,7 @@ export default function AdminChartsSection({ propertyTotals, siteTotals }) {
             <FaChartLine />
           </span>
           <div>
-            <span>Actifs cÃ´tÃ© client</span>
+            <span>Actifs côté client</span>
             <strong>{propertyTotals.active}</strong>
           </div>
         </article>
@@ -36,7 +36,7 @@ export default function AdminChartsSection({ propertyTotals, siteTotals }) {
             <FaTimes />
           </span>
           <div>
-            <span>DÃ©sactivÃ©s</span>
+            <span>Désactivés</span>
             <strong>{propertyTotals.inactive}</strong>
           </div>
         </article>
@@ -45,7 +45,7 @@ export default function AdminChartsSection({ propertyTotals, siteTotals }) {
             <FaListAlt />
           </span>
           <div>
-            <span>AjoutÃ©s par admin</span>
+            <span>Ajoutés par admin</span>
             <strong>{propertyTotals.adminCreated}</strong>
           </div>
         </article>

@@ -14,11 +14,11 @@ export default function ScoringSummary({ application }) {
       </div>
       <div className="agent-finance-card">
         <strong>Situation familiale</strong>
-        <span>{application.situation_familiale || 'Ãƒâ‚¬ vÃƒÂ©rifier'}</span>
+        <span>{application.situation_familiale || 'À vérifier'}</span>
       </div>
       <div className="agent-finance-card">
         <strong>Situation contractuelle</strong>
-        <span>{application.situation_contractuelle || 'Ãƒâ‚¬ vÃƒÂ©rifier'}</span>
+        <span>{application.situation_contractuelle || 'À vérifier'}</span>
       </div>
     </div>
   );

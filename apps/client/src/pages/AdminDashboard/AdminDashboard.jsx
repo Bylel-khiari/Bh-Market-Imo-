@@ -47,13 +47,13 @@ import '../../styles/AdminDashboard.css';
 const parameterMenuItems = [
   { key: 'users', label: 'Utilisateurs', icon: FaUsers },
   { key: 'properties', label: 'Biens', icon: FaBuilding },
-  { key: 'sites', label: 'Sites scrapÃƒÂ©s', icon: FaGlobe },
+  { key: 'sites', label: 'Sites scrapés', icon: FaGlobe },
 ];
 
 const menuItems = [
   { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
-  { key: 'mail', label: 'RÃƒÂ©clamation', icon: FaEnvelope },
-  { key: 'activities', label: 'ActivitÃƒÂ©s', icon: FaListAlt },
+  { key: 'mail', label: 'Réclamation', icon: FaEnvelope },
+  { key: 'activities', label: 'Activités', icon: FaListAlt },
   { key: 'settings', label: 'Configuration', icon: FaCog },
 ];
 
@@ -61,9 +61,9 @@ const sectionTitles = {
   dashboard: 'Tableau de bord',
   users: 'Gestion des utilisateurs',
   properties: 'Gestion des biens immobiliers',
-  mail: 'RÃƒÂ©clamation',
-  sites: 'Gestion des sites scrapÃƒÂ©s',
-  activities: 'ActivitÃƒÂ©s rÃƒÂ©centes',
+  mail: 'Réclamation',
+  sites: 'Gestion des sites scrapés',
+  activities: 'Activités récentes',
   settings: 'Configuration',
 };
 

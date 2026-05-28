@@ -56,11 +56,11 @@ export default function usePropertyInteractions({
 
       setFavoriteNotice(
         isFavorite
-          ? 'Le bien a ÃƒÂ©tÃƒÂ© retirÃƒÂ© de vos favoris.'
-          : 'Le bien a ÃƒÂ©tÃƒÂ© ajoutÃƒÂ© ÃƒÂ  vos favoris.',
+          ? 'Le bien a été retiré de vos favoris.'
+          : 'Le bien a été ajouté à vos favoris.',
       );
     } catch (err) {
-      console.error('Impossible de mettre ÃƒÂ  jour le favori :', err);
+      console.error('Impossible de mettre à jour le favori :', err);
 
       setFavoriteIds((prev) => {
         if (isFavorite) {
@@ -70,7 +70,7 @@ export default function usePropertyInteractions({
         return prev.filter((id) => String(id) !== propertyId);
       });
 
-      setFavoriteError(err.message || 'Impossible de mettre ÃƒÂ  jour ce favori.');
+      setFavoriteError(err.message || 'Impossible de mettre à jour ce favori.');
     } finally {
       setFavoritePendingId(null);
     }
@@ -119,7 +119,7 @@ export default function usePropertyInteractions({
 
     const trimmedMessage = reportMessage.trim();
     if (trimmedMessage.length < 6) {
-      setReportError('Veuillez dÃƒÂ©crire le problÃƒÂ¨me avec au moins 6 caractÃƒÂ¨res.');
+      setReportError('Veuillez décrire le problème avec au moins 6 caractères.');
       return;
     }
 
@@ -136,13 +136,13 @@ export default function usePropertyInteractions({
         authSession.token,
       );
 
-      setReportNotice('Votre signalement a ÃƒÂ©tÃƒÂ© envoyÃƒÂ© ÃƒÂ  lÃ¢â‚¬â„¢ÃƒÂ©quipe admin.');
+      setReportNotice('Votre signalement a été envoyé à l’équipe admin.');
       setReportModalProperty(null);
       setReportMessage('');
       setReportCategory('cannot_open_site');
     } catch (err) {
-      console.error('Impossible dÃ¢â‚¬â„¢envoyer le signalement :', err);
-      setReportError(err.message || 'Impossible dÃ¢â‚¬â„¢envoyer le signalement.');
+      console.error('Impossible d’envoyer le signalement :', err);
+      setReportError(err.message || 'Impossible d’envoyer le signalement.');
     } finally {
       setReportSubmitting(false);
     }

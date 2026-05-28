@@ -111,7 +111,7 @@ export default function useAgentApplicationReview({
         token,
       );
 
-      setFormMessage('Dossier mis ÃƒÂ  jour avec succÃƒÂ¨s.');
+      setFormMessage('Dossier mis à jour avec succès.');
       await loadApplicationQueue({ status: statusFilter, searchTerm: search.trim(), silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -119,7 +119,7 @@ export default function useAgentApplicationReview({
       }
 
       setFormMessage('');
-      setError(requestError.message || 'Impossible de mettre ÃƒÂ  jour ce dossier.');
+      setError(requestError.message || 'Impossible de mettre à jour ce dossier.');
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +138,7 @@ export default function useAgentApplicationReview({
 
       await scoreAgentCreditApplicationApi(selectedApplication.id, token);
 
-      setFormMessage("Score calculÃƒÂ©. L'agent bancaire garde la dÃƒÂ©cision finale.");
+      setFormMessage("Score calculé. L'agent bancaire garde la décision finale.");
       await loadApplicationQueue({ status: statusFilter, searchTerm: search.trim(), silent: true });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {

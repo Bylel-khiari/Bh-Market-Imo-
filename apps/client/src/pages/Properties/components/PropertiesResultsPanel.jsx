@@ -39,7 +39,7 @@ export default function PropertiesResultsPanel({
           <h1>{favoritesOnly ? 'Vos biens favoris' : 'Explorez les meilleurs biens'}</h1>
           <p>
             {loading
-              ? 'Chargement des donnÃƒÂ©es...'
+              ? 'Chargement des données...'
               : `${visibleRangeStart}-${visibleRangeEnd} sur ${filteredProperties.length} bien(s)`}
           </p>
         </div>
@@ -58,7 +58,7 @@ export default function PropertiesResultsPanel({
       {reportNotice && <div className="properties-success">{reportNotice}</div>}
       {!loading && favoritesOnly && !authSession?.token && (
         <div className="properties-warning">
-          Connectez-vous pour retrouver vos biens favoris sauvegardÃƒÂ©s.
+          Connectez-vous pour retrouver vos biens favoris sauvegardés.
         </div>
       )}
       {!loading && favoritesOnly && authSession?.token && currentUserRole !== 'client' && (
@@ -92,8 +92,8 @@ export default function PropertiesResultsPanel({
       {!loading && filteredProperties.length === 0 && (
         <div className="properties-empty">
           {favoritesOnly
-            ? 'Aucun bien favori trouvÃƒÂ© pour le moment.'
-            : 'Aucun bien ne correspond ÃƒÂ  votre recherche.'}
+            ? 'Aucun bien favori trouvé pour le moment.'
+            : 'Aucun bien ne correspond à votre recherche.'}
         </div>
       )}
     </section>

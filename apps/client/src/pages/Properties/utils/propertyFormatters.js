@@ -14,7 +14,7 @@ export const REPORT_CATEGORY_OPTIONS = [
   { value: 'bad_agency_experience', label: 'Mauvaise experience avec l agence' },
   { value: 'scam_suspicion', label: 'Suspicion d arnaque' },
   { value: 'incorrect_information', label: 'Informations incorrectes' },
-  { value: 'other', label: 'Autre problÃ¨me' },
+  { value: 'other', label: 'Autre problème' },
 ];
 
 export const inferTypeFromTitle = (title) => {
@@ -71,7 +71,7 @@ export const formatPropertyPrice = (property) => {
   if (Number.isFinite(numeric) && numeric > 0) {
     return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
   }
-  return property.price_raw || 'Prix non communiquÃ©';
+  return property.price_raw || 'Prix non communiqué';
 };
 
 export const formatPropertyDate = (value) => {

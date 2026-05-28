@@ -165,7 +165,7 @@ export default function useAdminProperties({ fetchDashboardSummary, handleAuthFa
 
     const rawPriceValue = String(propertyFormData.price_value || '').trim();
     if (rawPriceValue && Number.isNaN(Number(rawPriceValue))) {
-      setPropertyFormMessage('Le prix numÃƒÂ©rique doit ÃƒÂªtre un nombre valide.');
+      setPropertyFormMessage('Le prix numérique doit être un nombre valide.');
       return;
     }
 
@@ -256,7 +256,7 @@ export default function useAdminProperties({ fetchDashboardSummary, handleAuthFa
 
       setPropertyFormMessage(
         property.is_active
-        ? 'Bien dÃƒÂ©sactivÃƒÂ© pour lÃ¢â‚¬â„¢espace client.'
+        ? 'Bien désactivé pour l’espace client.'
           : 'Bien reactive pour l espace client.',
       );
       await fetchDashboardSummary({ silent: true });
@@ -265,7 +265,7 @@ export default function useAdminProperties({ fetchDashboardSummary, handleAuthFa
         return;
       }
 
-      setPropertyFormMessage(requestError.message || 'Erreur pendant la mise ÃƒÂ  jour du statut.');
+      setPropertyFormMessage(requestError.message || 'Erreur pendant la mise à jour du statut.');
     } finally {
       setPropertySubmitting(false);
     }

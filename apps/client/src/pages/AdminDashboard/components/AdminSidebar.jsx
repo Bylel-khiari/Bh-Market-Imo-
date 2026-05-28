@@ -41,7 +41,7 @@ export default function AdminSidebar({
             aria-expanded={isParameterMenuOpen}
           >
             <FaCog />
-            <span>ParamÃ¨tre</span>
+            <span>Paramètre</span>
             <FaChevronDown className="menu-section-chevron" />
           </button>
           {isParameterMenuOpen && (

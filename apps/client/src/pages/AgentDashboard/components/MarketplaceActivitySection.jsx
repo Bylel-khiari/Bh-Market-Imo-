@@ -21,7 +21,7 @@ export default function MarketplaceActivitySection({ topCities }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="empty">Aucune ville Ã  afficher.</p>
+          <p className="empty">Aucune ville à afficher.</p>
         )}
       </section>
     </div>

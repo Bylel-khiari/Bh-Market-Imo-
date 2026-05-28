@@ -20,7 +20,7 @@ export default function PropertiesReportModal({
     <div className="properties-modal-backdrop" role="dialog" aria-modal="true" onClick={closeReportModal}>
       <div className="properties-report-modal" onClick={(event) => event.stopPropagation()}>
         <div className="properties-report-head">
-          <h3>Signaler un problÃƒÂ¨me</h3>
+          <h3>Signaler un problème</h3>
           <button
             type="button"
             className="properties-report-close"
@@ -33,11 +33,11 @@ export default function PropertiesReportModal({
         </div>
 
         <p className="properties-report-context">
-          Bien concernÃƒÂ© : <strong>{reportModalProperty.title || `#${reportModalProperty.id}`}</strong>
+          Bien concerné : <strong>{reportModalProperty.title || `#${reportModalProperty.id}`}</strong>
         </p>
 
         <form className="properties-report-form" onSubmit={submitReport}>
-          <label htmlFor="report-category">CatÃƒÂ©gorie du problÃƒÂ¨me</label>
+          <label htmlFor="report-category">Catégorie du problème</label>
           <select
             id="report-category"
             value={reportCategory}
@@ -51,7 +51,7 @@ export default function PropertiesReportModal({
             ))}
           </select>
 
-          <label htmlFor="report-message">DÃƒÂ©tails</label>
+          <label htmlFor="report-message">Détails</label>
           <textarea
             id="report-message"
             rows={5}

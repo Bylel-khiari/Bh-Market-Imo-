@@ -19,7 +19,7 @@ export function AdminErrorState({ error, refreshDashboardData }) {
         <FaExclamationTriangle />
         <p>{error}</p>
         <button type="button" className="admin-refresh" onClick={refreshDashboardData}>
-          RÃƒÂ©essayer
+          Réessayer
         </button>
       </div>
     </div>

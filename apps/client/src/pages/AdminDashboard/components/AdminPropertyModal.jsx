@@ -27,9 +27,9 @@ export default function AdminPropertyModal({
         Les champs ci-dessous correspondent aux colonnes principales de la table canonique properties.
       </p>
       <form className="admin-user-form admin-user-form-compact" onSubmit={handlePropertySubmit}>
-        <AdminFieldInput id="property-title" name="title" label="Titre (colonne title)" placeholder="Ex. : Appartement S+2 ÃƒÂ  Tunis" value={propertyFormData.title} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
+        <AdminFieldInput id="property-title" name="title" label="Titre (colonne title)" placeholder="Ex. : Appartement S+2 à Tunis" value={propertyFormData.title} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
         <AdminFieldInput id="property-price-raw" name="price_raw" label="Prix texte (colonne price_raw)" placeholder="Ex: 320 000 DT" value={propertyFormData.price_raw} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
-        <AdminFieldInput id="property-price-value" name="price_value" type="number" min="0" step="0.01" label="Prix numÃƒÂ©rique (colonne price_value)" placeholder="Ex: 320000" value={propertyFormData.price_value} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
+        <AdminFieldInput id="property-price-value" name="price_value" type="number" min="0" step="0.01" label="Prix numérique (colonne price_value)" placeholder="Ex: 320000" value={propertyFormData.price_value} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
         <AdminFieldInput id="property-location-raw" name="location_raw" label="Localisation brute (colonne location_raw)" placeholder="Ex: La Marsa, Tunis" value={propertyFormData.location_raw} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
         <AdminFieldInput id="property-city" name="city" label="Ville (colonne city)" placeholder="Ex: Tunis" value={propertyFormData.city} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
         <AdminFieldInput id="property-country" name="country" label="Pays (colonne country)" placeholder="Ex: Tunisie" value={propertyFormData.country} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
@@ -44,7 +44,7 @@ export default function AdminPropertyModal({
           <textarea
             id="property-description"
             name="description"
-            placeholder="Description complÃƒÂ¨te du bien immobilier."
+            placeholder="Description complète du bien immobilier."
             value={propertyFormData.description}
             onChange={handlePropertyFormChange}
             disabled={propertySubmitting}
@@ -59,7 +59,7 @@ export default function AdminPropertyModal({
             onChange={handlePropertyFormChange}
             disabled={propertySubmitting}
           />
-          <span>Bien actif pour lÃ¢â‚¬â„¢espace client</span>
+          <span>Bien actif pour l’espace client</span>
         </label>
         <div className="admin-form-actions">
           <button type="submit" className="admin-refresh" disabled={propertySubmitting}>

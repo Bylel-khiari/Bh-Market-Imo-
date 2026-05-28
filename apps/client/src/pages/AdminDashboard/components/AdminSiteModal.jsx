@@ -30,7 +30,7 @@ export default function AdminSiteModal({
         <AdminFieldInput id="site-name" name="name" label="Nom du site (colonne name)" placeholder="Ex: Afariat" value={siteFormData.name} onChange={handleSiteFormChange} disabled={siteSubmitting} />
         <AdminFieldInput id="site-spider-name" name="spider_name" label="Identifiant du spider (colonne spider_name)" placeholder="Ex: afariat" value={siteFormData.spider_name} onChange={handleSiteFormChange} disabled={siteSubmitting} />
         <AdminFieldInput id="site-base-url" name="base_url" type="url" label="URL principale (colonne base_url)" placeholder="Ex: https://afariat.com" value={siteFormData.base_url} onChange={handleSiteFormChange} disabled={siteSubmitting} />
-        <AdminFieldInput id="site-start-url" name="start_url" type="url" label="URL de dÃƒÂ©part (colonne start_url)" placeholder="Ex: https://afariat.com/appartements" value={siteFormData.start_url} onChange={handleSiteFormChange} disabled={siteSubmitting} />
+        <AdminFieldInput id="site-start-url" name="start_url" type="url" label="URL de départ (colonne start_url)" placeholder="Ex: https://afariat.com/appartements" value={siteFormData.start_url} onChange={handleSiteFormChange} disabled={siteSubmitting} />
         <div className="admin-field-block">
           <label className="admin-field-label" htmlFor="site-description">
             Description (colonne description)
@@ -38,7 +38,7 @@ export default function AdminSiteModal({
           <textarea
             id="site-description"
             name="description"
-            placeholder="Ex. : Portail de petites annonces immobiliÃƒÂ¨res en Tunisie."
+            placeholder="Ex. : Portail de petites annonces immobilières en Tunisie."
             value={siteFormData.description}
             onChange={handleSiteFormChange}
             disabled={siteSubmitting}
@@ -58,7 +58,7 @@ export default function AdminSiteModal({
           >
             <option value="ready">Spider pret</option>
             <option value="pending_spider">En attente de spider</option>
-            <option value="disabled">DÃƒÂ©sactivÃƒÂ© techniquement</option>
+            <option value="disabled">Désactivé techniquement</option>
           </select>
         </div>
         <label className="admin-checkbox-row">

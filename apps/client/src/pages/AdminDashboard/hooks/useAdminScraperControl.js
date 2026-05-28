@@ -51,7 +51,7 @@ export default function useAdminScraperControl({ activeSection, handleAuthFailur
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur de chargement du contrÃƒÂ´le du scraper.');
+      setScraperControlError(requestError.message || 'Erreur de chargement du contrôle du scraper.');
     } finally {
       if (!silent) {
         setScraperControlLoading(false);
@@ -142,7 +142,7 @@ export default function useAdminScraperControl({ activeSection, handleAuthFailur
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant la mise ÃƒÂ  jour du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant la mise à jour du scraper.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -170,14 +170,14 @@ export default function useAdminScraperControl({ activeSection, handleAuthFailur
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Cycle de scraping dÃƒÂ©marrÃƒÂ©. Les prochains rescrapes suivront cet intervalle.',
+        'Cycle de scraping démarré. Les prochains rescrapes suivront cet intervalle.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant le dÃƒÂ©marrage du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant le démarrage du scraper.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -194,14 +194,14 @@ export default function useAdminScraperControl({ activeSection, handleAuthFailur
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Agent de filtrage dÃƒÂ©marrÃƒÂ©. Les annonces nettoyÃƒÂ©es seront synchronisÃƒÂ©es aprÃƒÂ¨s le filtrage.',
+        'Agent de filtrage démarré. Les annonces nettoyées seront synchronisées après le filtrage.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant le dÃƒÂ©marrage de lÃ¢â‚¬â„¢agent.');
+      setScraperControlError(requestError.message || 'Erreur pendant le démarrage de l’agent.');
     } finally {
       setScraperSubmitting(false);
     }
@@ -218,14 +218,14 @@ export default function useAdminScraperControl({ activeSection, handleAuthFailur
 
       syncScraperControlState(
         payload?.control || scraperControl,
-        'Le scraping automatique a ÃƒÂ©tÃƒÂ© arrÃƒÂªtÃƒÂ©.',
+        'Le scraping automatique a été arrêté.',
       );
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
       }
 
-      setScraperControlError(requestError.message || 'Erreur pendant lÃ¢â‚¬â„¢arrÃƒÂªt du scraper.');
+      setScraperControlError(requestError.message || 'Erreur pendant l’arrêt du scraper.');
     } finally {
       setScraperSubmitting(false);
     }

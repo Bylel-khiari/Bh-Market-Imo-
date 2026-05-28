@@ -28,7 +28,7 @@ export default function useProperties() {
       console.error('Impossible de charger les biens :', err);
       if (err.name !== 'AbortError') {
         setProperties([]);
-        setError('Impossible de charger les biens nettoyÃ©s depuis le serveur.');
+        setError('Impossible de charger les biens nettoyés depuis le serveur.');
       }
     } finally {
       clearTimeout(timeoutId);

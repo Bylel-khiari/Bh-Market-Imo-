@@ -8,7 +8,7 @@ export default function DocumentList({
   selectedApplication,
 }) {
   if (!documents.length) {
-    return <p className="admin-section-help">Aucun document nÃ¢â‚¬â„¢a ÃƒÂ©tÃƒÂ© dÃƒÂ©clarÃƒÂ© dans le portail.</p>;
+    return <p className="admin-section-help">Aucun document n’a été déclaré dans le portail.</p>;
   }
 
   return (

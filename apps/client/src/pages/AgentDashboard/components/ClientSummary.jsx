@@ -17,7 +17,7 @@ export default function ClientSummary({ accentedLabels = false, application }) {
         <span><FaPhone /> {application.phone}</span>
         <span><FaIdCard /> {application.cin}</span>
         <span><FaUniversity /> {application.rib}</span>
-        <span><FaMapMarkerAlt /> {application.property_location || 'Localisation non renseignÃƒÂ©e'}</span>
+        <span><FaMapMarkerAlt /> {application.property_location || 'Localisation non renseignée'}</span>
         <span><FaMoneyCheckAlt /> {formatCurrency(application.requested_amount)}</span>
       </div>
 
@@ -31,13 +31,13 @@ export default function ClientSummary({ accentedLabels = false, application }) {
           <span>{formatCurrency(application.gross_income_value)}</span>
         </div>
         <div className="agent-finance-card">
-          <strong>{accentedLabels ? 'DurÃƒÂ©e' : 'Duree'}</strong>
+          <strong>{accentedLabels ? 'Durée' : 'Duree'}</strong>
           <span>
-            {application.duration_months ? `${application.duration_months} mois` : 'Non renseignÃƒÂ©e'}
+            {application.duration_months ? `${application.duration_months} mois` : 'Non renseignée'}
           </span>
         </div>
         <div className="agent-finance-card">
-          <strong>{accentedLabels ? 'MensualitÃƒÂ©' : 'Mensualite'}</strong>
+          <strong>{accentedLabels ? 'Mensualité' : 'Mensualite'}</strong>
           <span>{formatCurrency(application.estimated_monthly_payment)}</span>
         </div>
       </div>

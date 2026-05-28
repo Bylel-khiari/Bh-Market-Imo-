@@ -45,8 +45,8 @@ export default function CreditApplicationReviewPanel({
                 <strong>{formatComplianceScore(selectedApplication)}</strong>
                 <span>
                   {hasComplianceScore(selectedApplication)
-                    ? 'Score calculÃƒÂ© par lÃ¢â‚¬â„¢agent de scoring'
-                    : 'Aucun score calculÃƒÂ© pour ce dossier'}
+                    ? 'Score calculé par l’agent de scoring'
+                    : 'Aucun score calculé pour ce dossier'}
                 </span>
               </div>
               <button
@@ -85,7 +85,7 @@ export default function CreditApplicationReviewPanel({
               <TabButton
                 activeApplicationPanel={activeApplicationPanel}
                 icon={<FaFileSignature />}
-                label="DÃƒÂ©cision"
+                label="Décision"
                 panel="decision"
                 setActiveApplicationPanel={setActiveApplicationPanel}
               />
@@ -96,7 +96,7 @@ export default function CreditApplicationReviewPanel({
                 <>
                   <div className="agent-panel-head">
                     <h3>Informations client</h3>
-                    <p>CoordonnÃƒÂ©es, identitÃƒÂ© et ÃƒÂ©lÃƒÂ©ments financiers principaux.</p>
+                    <p>Coordonnées, identité et éléments financiers principaux.</p>
                   </div>
                   <ClientSummary application={selectedApplication} />
                 </>
@@ -106,7 +106,7 @@ export default function CreditApplicationReviewPanel({
                 <>
                   <div className="agent-panel-head">
                     <h3>Variables de scoring</h3>
-                    <p>DonnÃƒÂ©es utilisÃƒÂ©es pour calculer le score bancaire du dossier.</p>
+                    <p>Données utilisées pour calculer le score bancaire du dossier.</p>
                   </div>
                   <ScoringSummary application={selectedApplication} />
 
@@ -125,8 +125,8 @@ export default function CreditApplicationReviewPanel({
               {activeApplicationPanel === 'documents' && (
                 <div className="agent-document-block">
                   <div className="agent-panel-head">
-                    <h3>PiÃƒÂ¨ces du dossier</h3>
-                    <p>Documents dÃƒÂ©clarÃƒÂ©s par le client pour lÃ¢â‚¬â„¢ÃƒÂ©tude du crÃƒÂ©dit.</p>
+                    <h3>Pièces du dossier</h3>
+                    <p>Documents déclarés par le client pour l’étude du crédit.</p>
                   </div>
                   <DocumentList
                     documents={selectedApplicationDocuments}
@@ -140,8 +140,8 @@ export default function CreditApplicationReviewPanel({
               {activeApplicationPanel === 'decision' && (
                 <>
                   <div className="agent-panel-head">
-                    <h3>DÃƒÂ©cision agent</h3>
-                    <p>Mise ÃƒÂ  jour du statut, note interne et dÃƒÂ©cision finale.</p>
+                    <h3>Décision agent</h3>
+                    <p>Mise à jour du statut, note interne et décision finale.</p>
                   </div>
                   <DecisionForm draft={draft} submitting={submitting} onDraftChange={handleDraftChange} />
                   <DecisionActions
@@ -168,7 +168,7 @@ export default function CreditApplicationReviewPanel({
         ) : (
           <div className="admin-state admin-state--inline">
             <FaFileSignature />
-            <p>Saisissez un dossier dans la file pour lancer lÃ¢â‚¬â„¢analyse.</p>
+            <p>Saisissez un dossier dans la file pour lancer l’analyse.</p>
           </div>
         )}
       </section>
@@ -182,7 +182,7 @@ function ReviewHeader({ selectedApplication }) {
       <div>
         <h2>{selectedApplication.property_title || `Dossier #${selectedApplication.id}`}</h2>
         <p className="admin-section-help">
-          CrÃƒÂ©ÃƒÂ© le {formatDate(selectedApplication.created_at)} par {selectedApplication.full_name}
+          Créé le {formatDate(selectedApplication.created_at)} par {selectedApplication.full_name}
         </p>
       </div>
       <div className="agent-review-statuses">
@@ -226,7 +226,7 @@ function ReviewAccordion({
       <details className="agent-detail-section" open>
         <summary>
           <FaIdCard />
-          <span>RÃƒÂ©sumÃƒÂ© client</span>
+          <span>Résumé client</span>
         </summary>
         <ClientSummary application={selectedApplication} accentedLabels />
       </details>
@@ -256,7 +256,7 @@ function ReviewAccordion({
         </summary>
 
         <div className="agent-document-block">
-          <h3>Documents dÃƒÂ©clarÃƒÂ©s</h3>
+          <h3>Documents déclarés</h3>
           <DocumentList
             documents={selectedApplicationDocuments}
             openingDocumentKey={openingDocumentKey}
@@ -269,7 +269,7 @@ function ReviewAccordion({
       <details className="agent-detail-section">
         <summary>
           <FaFileSignature />
-          <span>DÃƒÂ©cision</span>
+          <span>Décision</span>
         </summary>
         <DecisionForm draft={draft} submitting={submitting} onDraftChange={handleDraftChange} />
         <DecisionActions

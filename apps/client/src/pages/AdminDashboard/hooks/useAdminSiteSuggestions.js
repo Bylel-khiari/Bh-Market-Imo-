@@ -62,8 +62,8 @@ export default function useAdminSiteSuggestions({
 
       setSiteSuggestionMessage(
         written > 0
-          ? `${written} nouvelle(s) suggestion(s) dÃƒÂ©tectÃƒÂ©e(s).`
-          : 'Recherche terminÃƒÂ©e : aucune nouvelle suggestion.',
+          ? `${written} nouvelle(s) suggestion(s) détectée(s).`
+          : 'Recherche terminée : aucune nouvelle suggestion.',
       );
       await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
       await fetchDashboardSummary({ silent: true });
@@ -86,7 +86,7 @@ export default function useAdminSiteSuggestions({
       setSiteSuggestionMessage('');
 
       await updateAdminScrapeSiteSuggestionApi(suggestion.id, { status }, token);
-      setSiteSuggestionMessage('Suggestion mise ÃƒÂ  jour.');
+      setSiteSuggestionMessage('Suggestion mise à jour.');
       await Promise.all([
         fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),
         fetchDashboardSummary({ silent: true }),
@@ -96,7 +96,7 @@ export default function useAdminSiteSuggestions({
         return;
       }
 
-      setSiteSuggestionError(requestError.message || 'Erreur pendant la mise ÃƒÂ  jour de la suggestion.');
+      setSiteSuggestionError(requestError.message || 'Erreur pendant la mise à jour de la suggestion.');
     } finally {
       setSiteSuggestionSubmittingId(null);
     }
@@ -111,7 +111,7 @@ export default function useAdminSiteSuggestions({
 
       await acceptAdminScrapeSiteSuggestionApi(suggestion.id, {}, token);
       setSiteSuggestionMessage(
-        'Suggestion acceptÃƒÂ©e. Le site est ajoutÃƒÂ© en attente de spider et reste inactif.',
+        'Suggestion acceptée. Le site est ajouté en attente de spider et reste inactif.',
       );
       await Promise.all([
         fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true }),

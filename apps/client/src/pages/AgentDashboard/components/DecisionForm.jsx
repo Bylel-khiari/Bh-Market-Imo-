@@ -5,7 +5,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
   return (
     <div className="agent-review-form">
       <label className="admin-field-block">
-        <span className="admin-field-label">Ãƒâ€°tat du dossier</span>
+        <span className="admin-field-label">État du dossier</span>
         <select name="status" value={draft.status} onChange={onDraftChange} disabled={submitting}>
           {STATUS_OPTIONS.slice(1).map((option) => (
             <option key={option.value} value={option.value}>
@@ -16,7 +16,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
       </label>
 
       <label className="admin-field-block">
-        <span className="admin-field-label">Score de conformitÃƒÂ©</span>
+        <span className="admin-field-label">Score de conformité</span>
         <input
           name="compliance_score"
           type="number"
@@ -30,14 +30,14 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
       </label>
 
       <label className="admin-field-block">
-        <span className="admin-field-label">SynthÃƒÂ¨se conformitÃƒÂ©</span>
+        <span className="admin-field-label">Synthèse conformité</span>
         <textarea
           name="compliance_summary"
           rows={4}
           value={draft.compliance_summary}
           onChange={onDraftChange}
           disabled={submitting}
-          placeholder="RÃƒÂ©sumÃƒÂ© des contrÃƒÂ´les, anomalies et conformitÃƒÂ©s observÃƒÂ©es."
+          placeholder="Résumé des contrôles, anomalies et conformités observées."
         />
       </label>
 
@@ -49,7 +49,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
           value={draft.agent_note}
           onChange={onDraftChange}
           disabled={submitting}
-          placeholder="Ãƒâ€°lÃƒÂ©ments ÃƒÂ  transmettre au client ou au back-office."
+          placeholder="Éléments à transmettre au client ou au back-office."
         />
       </label>
     </div>

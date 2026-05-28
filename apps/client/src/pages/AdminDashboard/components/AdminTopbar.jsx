@@ -22,7 +22,7 @@ export default function AdminTopbar({
         <button
           type="button"
           className="admin-icon-btn admin-icon-btn--notification"
-          aria-label="RÃƒÂ©clamations"
+          aria-label="Réclamations"
           onClick={() => setActiveSection('mail')}
         >
           <FaEnvelope />
@@ -54,7 +54,7 @@ export default function AdminTopbar({
           onClick={handleLogout}
         >
           <FaSignOutAlt />
-          <span>DÃƒÂ©connexion</span>
+          <span>Déconnexion</span>
         </button>
       </div>
     </div>

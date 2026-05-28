@@ -184,7 +184,7 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
 
       setSiteFormMessage(
         site.is_active
-        ? 'Site dÃƒÂ©sactivÃƒÂ© pour les prochains lancements.'
+        ? 'Site désactivé pour les prochains lancements.'
           : 'Site reactive pour les prochains lancements.',
       );
       await fetchDashboardSummary({ silent: true });
@@ -193,7 +193,7 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
         return;
       }
 
-      setSiteFormMessage(requestError.message || 'Erreur pendant la mise ÃƒÂ  jour du statut.');
+      setSiteFormMessage(requestError.message || 'Erreur pendant la mise à jour du statut.');
     } finally {
       setSiteSubmitting(false);
     }

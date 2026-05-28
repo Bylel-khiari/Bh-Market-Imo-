@@ -20,7 +20,7 @@ export default function AgentStatsCards({
       <article className="admin-kpi-card">
         <div className="icon"><FaClock /></div>
         <div>
-          <h3>Ã€ traiter</h3>
+          <h3>À traiter</h3>
           <p>{pendingCount}</p>
         </div>
       </article>

@@ -20,7 +20,7 @@ export default function AdminUserModal({
       title={formMode === 'create' ? 'Nouvel utilisateur' : `Modifier utilisateur #${editingUserId}`}
     >
       <p className="admin-section-help">
-        Remplissez le formulaire puis validez pour crÃƒÂ©er ou mettre ÃƒÂ  jour un compte.
+        Remplissez le formulaire puis validez pour créer ou mettre à jour un compte.
       </p>
       <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
         <input
@@ -99,7 +99,7 @@ export default function AdminUserModal({
             />
             <input
               name="phone"
-              placeholder="TÃƒÂ©lÃƒÂ©phone (optionnel)"
+              placeholder="Téléphone (optionnel)"
               value={formData.phone}
               onChange={handleFormChange}
               disabled={submitting}
@@ -117,7 +117,7 @@ export default function AdminUserModal({
         )}
         <div className="admin-form-actions">
           <button type="submit" className="admin-refresh" disabled={submitting}>
-            {submitting ? 'Traitement...' : formMode === 'create' ? 'CrÃƒÂ©er' : 'Enregistrer'}
+            {submitting ? 'Traitement...' : formMode === 'create' ? 'Créer' : 'Enregistrer'}
           </button>
           <button
             type="button"

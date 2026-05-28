@@ -27,7 +27,7 @@ export default function AgentSidebar({
           onClick={() => setActiveSection('overview')}
         >
           <FaChartLine />
-          <span>AperÃ§u</span>
+          <span>Aperçu</span>
         </button>
         <button
           type="button"
@@ -57,8 +57,8 @@ export default function AgentSidebar({
 
       <div className="agent-sidebar-note">
         <p className="agent-sidebar-kicker">File active</p>
-        <strong>{pendingCount} dossiers Ã  suivre</strong>
-        <span>{acceptedCreditApplications} accordÃ©s et {refusedCreditApplications} refusÃ©s Ã  date.</span>
+        <strong>{pendingCount} dossiers à suivre</strong>
+        <span>{acceptedCreditApplications} accordés et {refusedCreditApplications} refusés à date.</span>
       </div>
     </aside>
   );

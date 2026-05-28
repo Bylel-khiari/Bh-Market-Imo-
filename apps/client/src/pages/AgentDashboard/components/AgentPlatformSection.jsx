@@ -32,9 +32,9 @@ export default function AgentPlatformSection({
     <div className="admin-content-grid agent-platform-grid">
       <section className="admin-card agent-platform-toolbar">
         <div>
-          <h2>Vue plateforme consolidÃƒÂ©e</h2>
+          <h2>Vue plateforme consolidée</h2>
           <p className="admin-section-help">
-            KPI utiles ÃƒÂ  lÃ¢â‚¬â„¢agent bancaire pour croiser dossiers de crÃƒÂ©dit, portefeuille de biens et rÃƒÂ©clamations dÃ¢â‚¬â„¢assistance.
+            KPI utiles à l’agent bancaire pour croiser dossiers de crédit, portefeuille de biens et réclamations d’assistance.
           </p>
         </div>
         <div className="agent-platform-actions">
@@ -59,14 +59,14 @@ export default function AgentPlatformSection({
         <article className="admin-kpi-card">
           <div className="icon"><FaClipboardList /></div>
           <div>
-            <h3>RÃƒÂ©clamations</h3>
+            <h3>Réclamations</h3>
             <p>{formatNumber(platformSummary.total_reports)}</p>
           </div>
         </article>
         <article className="admin-kpi-card">
           <div className="icon"><FaCheckCircle /></div>
           <div>
-            <h3>Assistance traitÃƒÂ©e</h3>
+            <h3>Assistance traitée</h3>
             <p>{formatNumber(platformSummary.resolution_rate)}%</p>
           </div>
         </article>

@@ -21,11 +21,11 @@ export default function AdminSettingsSection({
             <li>API: {apiBaseUrl}</li>
             <li>Utilisateurs en base : {dashboardSummary.users.total}</li>
             <li>Biens en base : {propertyTotals.total}</li>
-            <li>RÃƒÂ©clamations non lues : {dashboardSummary.reports.unread}</li>
+            <li>Réclamations non lues : {dashboardSummary.reports.unread}</li>
             <li>Sites de collecte en base : {siteTotals.total}</li>
-            <li>Mode ÃƒÂ©dition utilisateur : {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
-            <li>Mode ÃƒÂ©dition bien : {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
-            <li>Mode ÃƒÂ©dition site : {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+            <li>Mode édition utilisateur : {formMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+            <li>Mode édition bien : {propertyFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
+            <li>Mode édition site : {siteFormMode === 'edit' ? 'Actif' : 'Inactif'}</li>
           </ul>
         </div>
       </section>

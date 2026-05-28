@@ -110,41 +110,41 @@ export const STATUS_FILTER_OPTIONS = [
 
 export const SITE_SUGGESTION_STATUS_FILTER_OPTIONS = [
   { value: 'pending', label: 'En attente' },
-  { value: 'ignored', label: 'IgnorÃ©es' },
-  { value: 'rejected', label: 'RejetÃ©es' },
-  { value: 'accepted', label: 'AcceptÃ©es' },
+  { value: 'ignored', label: 'Ignorées' },
+  { value: 'rejected', label: 'Rejetées' },
+  { value: 'accepted', label: 'Acceptées' },
   { value: 'all', label: 'Toutes' },
 ];
 
 const SITE_SUGGESTION_STATUS_LABELS = {
   pending: 'En attente',
-  accepted: 'AcceptÃ©e',
-  rejected: 'RejetÃ©e',
-  ignored: 'IgnorÃ©e',
+  accepted: 'Acceptée',
+  rejected: 'Rejetée',
+  ignored: 'Ignorée',
 };
 
 export const REPORT_STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'Toutes les rÃ©clamations' },
+  { value: 'all', label: 'Toutes les réclamations' },
   { value: 'unread', label: 'Non lus' },
   { value: 'in_review', label: 'En revue' },
-  { value: 'resolved', label: 'RÃ©solus' },
-  { value: 'rejected', label: 'RejetÃ©es' },
+  { value: 'resolved', label: 'Résolus' },
+  { value: 'rejected', label: 'Rejetées' },
 ];
 
 const REPORT_CATEGORY_LABELS = {
-  cannot_open_site: 'Impossible dâ€™ouvrir le site source',
-  bad_owner_experience: 'Mauvaise expÃ©rience avec le propriÃ©taire',
-  bad_agency_experience: 'Mauvaise expÃ©rience avec lâ€™agence',
-  scam_suspicion: 'Suspicion dâ€™arnaque',
+  cannot_open_site: 'Impossible d’ouvrir le site source',
+  bad_owner_experience: 'Mauvaise expérience avec le propriétaire',
+  bad_agency_experience: 'Mauvaise expérience avec l’agence',
+  scam_suspicion: 'Suspicion d’arnaque',
   incorrect_information: 'Informations incorrectes',
-  other: 'Autre problÃ¨me',
+  other: 'Autre problème',
 };
 
 const REPORT_STATUS_LABELS = {
   unread: 'Non lu',
   in_review: 'En revue',
-  resolved: 'RÃ©solu',
-  rejected: 'RejetÃ©',
+  resolved: 'Résolu',
+  rejected: 'Rejeté',
 };
 
 const ROLE_LABELS = {
@@ -289,11 +289,11 @@ export function formatPropertyPrice(property) {
     return `${new Intl.NumberFormat('fr-TN').format(Math.round(numeric))} DT`;
   }
 
-  return property?.price_raw || 'Prix non communiquÃ©';
+  return property?.price_raw || 'Prix non communiqué';
 }
 
 export function formatReportCategory(category) {
-  return REPORT_CATEGORY_LABELS[category] || category || 'CatÃ©gorie inconnue';
+  return REPORT_CATEGORY_LABELS[category] || category || 'Catégorie inconnue';
 }
 
 export function formatReportStatus(status) {
@@ -315,13 +315,13 @@ export function formatScraperStatus(control) {
     case 'running':
       return 'Cycle en cours';
     case 'stopping':
-      return 'ArrÃªt en cours';
+      return 'Arrêt en cours';
     case 'error':
-      return control.is_enabled ? 'Erreur, relance planifiÃ©e' : 'Erreur';
+      return control.is_enabled ? 'Erreur, relance planifiée' : 'Erreur';
     case 'scheduled':
       return 'Automatique active';
     default:
-      return control.is_enabled ? 'Automatique active' : 'ArrÃªtÃ©';
+      return control.is_enabled ? 'Automatique active' : 'Arrêté';
   }
 }
 

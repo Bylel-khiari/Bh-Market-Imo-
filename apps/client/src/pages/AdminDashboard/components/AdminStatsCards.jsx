@@ -68,7 +68,7 @@ export default function AdminStatsCards({
           <FaEnvelope />
         </div>
         <div>
-          <h3>RÃ©clamations non lues</h3>
+          <h3>Réclamations non lues</h3>
           <p>{dashboardSummary.reports.unread}</p>
         </div>
       </div>

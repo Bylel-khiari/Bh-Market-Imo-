@@ -26,7 +26,7 @@ export default function ClientJourneySection({
         <section className="admin-card agent-platform-card--wide">
           <h2>Parcours client par mois</h2>
           <p className="admin-section-help">
-            Connexions, calculs et dÃ©marrages de demande tracÃ©s par client connectÃ©.
+            Connexions, calculs et démarrages de demande tracés par client connecté.
           </p>
           {monthlyClientEvents.length ? (
             <div className="agent-chart-wrap">
@@ -52,7 +52,7 @@ export default function ClientJourneySection({
         </section>
 
         <section className="admin-card">
-          <h2>Ã‰vÃ©nements client</h2>
+          <h2>Événements client</h2>
           <p className="admin-section-help">Repartition des actions suivies dans le tunnel credit.</p>
           {clientActivityDistribution.length ? (
             <div className="agent-chart-wrap">
@@ -74,7 +74,7 @@ export default function ClientJourneySection({
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="empty">Aucun Ã©vÃ©nement client Ã  afficher.</p>
+            <p className="empty">Aucun événement client à afficher.</p>
           )}
         </section>
       </div>
@@ -96,8 +96,8 @@ export default function ClientJourneySection({
                   <Legend />
                   <Line type="monotone" dataKey="users" stroke={ACTIVITY_COLORS.users} strokeWidth={3} name="Utilisateurs" />
                   <Line type="monotone" dataKey="properties" stroke={ACTIVITY_COLORS.properties} strokeWidth={3} name="Biens" />
-                  <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="RÃ©clamations" />
-                  <Line type="monotone" dataKey="creditApplications" stroke={ACTIVITY_COLORS.clientEvents} strokeWidth={3} name="Dossiers crÃ©dit" />
+                  <Line type="monotone" dataKey="requests" stroke={ACTIVITY_COLORS.requests} strokeWidth={3} name="Réclamations" />
+                  <Line type="monotone" dataKey="creditApplications" stroke={ACTIVITY_COLORS.clientEvents} strokeWidth={3} name="Dossiers crédit" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

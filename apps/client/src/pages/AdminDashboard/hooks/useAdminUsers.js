@@ -161,7 +161,7 @@ export default function useAdminUsers({ fetchDashboardSummary, handleAuthFailure
         await updateAdminUserApi(editingUserId, buildPayload(), token);
       }
 
-      setFormMessage(formMode === 'create' ? 'Utilisateur crÃƒÂ©ÃƒÂ©.' : 'Utilisateur mis ÃƒÂ  jour.');
+      setFormMessage(formMode === 'create' ? 'Utilisateur créé.' : 'Utilisateur mis à jour.');
       resetForm();
       await Promise.all([fetchUsers(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {

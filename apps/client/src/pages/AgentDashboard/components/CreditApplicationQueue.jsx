@@ -29,7 +29,7 @@ export default function CreditApplicationQueue({
         <div>
           <h2>File de dossiers</h2>
           <p className="admin-section-help">
-            SÃƒÂ©lection rapide du dossier ÃƒÂ  traiter.
+            Sélection rapide du dossier à traiter.
           </p>
         </div>
         <span className="admin-users-count">{applications.length}</span>
@@ -108,7 +108,7 @@ export default function CreditApplicationQueue({
                   <small>{formatComplianceScore(application)}</small>
                 </span>
                 <span>
-                  <strong>DÃƒÂ©pÃƒÂ´t</strong>
+                  <strong>Dépôt</strong>
                   <small>{formatDate(application.created_at)}</small>
                 </span>
               </div>
