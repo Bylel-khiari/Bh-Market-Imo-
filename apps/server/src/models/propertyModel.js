@@ -51,6 +51,32 @@ let ensureFavoritesTablePromise = null;
 let ensurePropertiesInfrastructurePromise = null;
 let initializePropertyStorePromise = null;
 
+const DEADLOCK_RETRY_MAX = 5;
+const DEADLOCK_RETRY_BASE_DELAY_MS = 200;
+
+function isDeadlockError(error) {
+  return error?.code === "ER_LOCK_DEADLOCK" || error?.errno === 1213 || error?.sqlState === "40001";
+}
+
+function delayMs(durationMs) {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+async function runWithDeadlockRetry(action, label) {
+  for (let attempt = 0; attempt <= DEADLOCK_RETRY_MAX; attempt += 1) {
+    try {
+      return await action();
+    } catch (error) {
+      if (!isDeadlockError(error) || attempt === DEADLOCK_RETRY_MAX) {
+        throw error;
+      }
+      const waitMs = DEADLOCK_RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      console.warn(`Deadlock during ${label}, retrying in ${waitMs}ms (attempt ${attempt + 1}/${DEADLOCK_RETRY_MAX})`);
+      await delayMs(waitMs);
+    }
+  }
+}
+
 function toBoundedLimit(limit, fallback, max) {
   return Math.min(Math.max(Number(limit) || fallback, 1), max);
 }
@@ -256,19 +282,22 @@ async function ensurePropertiesInfrastructure() {
 
 async function ensureFavoritesTable() {
   if (!ensureFavoritesTablePromise) {
-    ensureFavoritesTablePromise = dbPool
-      .query(`
-        CREATE TABLE IF NOT EXISTS user_favorite_properties (
-          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-          user_id BIGINT NOT NULL,
-          property_id BIGINT NOT NULL,
-          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (id),
-          UNIQUE KEY uniq_user_favorite_property (user_id, property_id),
-          KEY idx_user_favorite_properties_user_id (user_id),
-          KEY idx_user_favorite_properties_property_id (property_id)
-        )
-      `)
+    ensureFavoritesTablePromise = runWithDeadlockRetry(
+      () =>
+        dbPool.query(`
+          CREATE TABLE IF NOT EXISTS user_favorite_properties (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT NOT NULL,
+            property_id BIGINT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_user_favorite_property (user_id, property_id),
+            KEY idx_user_favorite_properties_user_id (user_id),
+            KEY idx_user_favorite_properties_property_id (property_id)
+          )
+        `),
+      "favorites table setup"
+    )
       .catch((error) => {
         ensureFavoritesTablePromise = null;
         throw error;

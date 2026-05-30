@@ -105,14 +105,17 @@ app.use(errorHandler);
 export async function startServer() {
   const port = Number(process.env.PORT || 5000);
   await runMigrations();
-  await Promise.all([
-    initializePropertyStore(),
-    initializePropertyReportStore(),
-    initializeCreditApplicationStore(),
-    initializeScrapeSiteStore(),
-    initializeScrapeSiteSuggestionStore(),
-    initializeScraperControlStore(),
-  ]);
+  const storeInitializers = [
+    initializePropertyStore,
+    initializePropertyReportStore,
+    initializeCreditApplicationStore,
+    initializeScrapeSiteStore,
+    initializeScrapeSiteSuggestionStore,
+    initializeScraperControlStore,
+  ];
+  for (const initializer of storeInitializers) {
+    await initializer();
+  }
   await initializeScraperAutomation();
   await initializeSiteDiscoveryAutomation();
   return new Promise((resolve, reject) => {
