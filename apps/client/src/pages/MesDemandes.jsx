@@ -139,6 +139,18 @@ function canEditApplication(application, now) {
   return getClientEditRemainingMs(application, now) > 0;
 }
 
+function getEditWindowLabel(application, now) {
+  if (canEditApplication(application, now)) {
+    return `Modifiable ${formatCountdown(getClientEditRemainingMs(application, now))}`;
+  }
+
+  if (application?.client_edit_locked_reason === 'soumission_finale_client' || application?.final_submission) {
+    return 'Soumission definitive';
+  }
+
+  return 'Verrouille';
+}
+
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00';
 
@@ -434,7 +446,7 @@ const MesDemandes = () => {
   const selectedEditCountdown = formatCountdown(selectedEditRemainingMs);
   const selectedEditStateLabel = selectedCanEdit
     ? `Modification possible: ${selectedEditCountdown}`
-    : 'Dossier verrouille';
+    : getEditWindowLabel(selectedApplication, now);
   const editingExistingDocuments = editingApplication?.typed_documents?.length
     ? editingApplication.typed_documents
     : (editingApplication?.documents || []).map((name) => ({ name, type: 'Document' }));
@@ -680,7 +692,6 @@ const MesDemandes = () => {
                   const StatusIcon = meta.icon;
                   const isSelected = selectedApplication?.id === application.id;
                   const applicationCanEdit = canEditApplication(application, now);
-                  const applicationCountdown = formatCountdown(getClientEditRemainingMs(application, now));
 
                   return (
                     <button
@@ -695,7 +706,7 @@ const MesDemandes = () => {
                       <strong>{getApplicationTitle(application)}</strong>
                       <small>{getClientDisplayName(application)}</small>
                       <span className={`mes-demandes-list-timer${applicationCanEdit ? ' is-open' : ''}`}>
-                        {applicationCanEdit ? `Modifiable ${applicationCountdown}` : 'Verrouille'}
+                        {getEditWindowLabel(application, now)}
                       </span>
                       <span className="mes-demandes-list-meta">
                         Déposé le {formatDate(application.created_at)}
@@ -743,7 +754,7 @@ const MesDemandes = () => {
                 </div>
                 <div className={selectedCanEdit ? 'is-edit-window-open' : ''}>
                   <span>Modification</span>
-                  <strong>{selectedCanEdit ? selectedEditCountdown : 'Verrouille'}</strong>
+                  <strong>{selectedEditStateLabel}</strong>
                 </div>
               </div>
 

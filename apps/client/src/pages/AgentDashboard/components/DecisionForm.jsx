@@ -1,12 +1,14 @@
 import React from 'react';
 import { STATUS_OPTIONS } from '../utils/agentFormatters';
 
-export default function DecisionForm({ draft, onDraftChange, submitting }) {
+export default function DecisionForm({ draft, onDraftChange, processingLocked = false, submitting }) {
+  const isDisabled = submitting || processingLocked;
+
   return (
     <div className="agent-review-form">
       <label className="admin-field-block">
         <span className="admin-field-label">État du dossier</span>
-        <select name="status" value={draft.status} onChange={onDraftChange} disabled={submitting}>
+        <select name="status" value={draft.status} onChange={onDraftChange} disabled={isDisabled}>
           {STATUS_OPTIONS.slice(1).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -24,7 +26,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
           max="100"
           value={draft.compliance_score}
           onChange={onDraftChange}
-          disabled={submitting}
+          disabled={isDisabled}
           placeholder="Ex: 78"
         />
       </label>
@@ -36,7 +38,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
           rows={4}
           value={draft.compliance_summary}
           onChange={onDraftChange}
-          disabled={submitting}
+          disabled={isDisabled}
           placeholder="Résumé des contrôles, anomalies et conformités observées."
         />
       </label>
@@ -48,7 +50,7 @@ export default function DecisionForm({ draft, onDraftChange, submitting }) {
           rows={4}
           value={draft.agent_note}
           onChange={onDraftChange}
-          disabled={submitting}
+          disabled={isDisabled}
           placeholder="Éléments à transmettre au client ou au back-office."
         />
       </label>

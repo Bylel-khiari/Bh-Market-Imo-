@@ -130,6 +130,7 @@ export default function AgentDashboard() {
             <CreditRequestsTable
               activeApplicationPanel={applicationReview.activeApplicationPanel}
               applications={applications}
+              clockTick={applicationReview.clockTick}
               draft={applicationReview.draft}
               error={error}
               formMessage={applicationReview.formMessage}

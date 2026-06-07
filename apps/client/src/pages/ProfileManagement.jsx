@@ -245,13 +245,17 @@ const ProfileManagement = () => {
               <div className="pm-account-list">
                 <AccountInfoItem icon={FaUserCircle} label="Nom" value={user?.name} />
                 <AccountInfoItem icon={FaEnvelope} label="E-mail" value={user?.email} />
-                <AccountInfoItem icon={FaIdBadge} label="Rôle" value={roleLabels[user?.role] || user?.role} />
+                {user?.role !== 'client' && (
+                  <AccountInfoItem icon={FaIdBadge} label="Rôle" value={roleLabels[user?.role] || user?.role} />
+                )}
               </div>
 
-              <div className="pm-readonly-notice">
-                <FaLock />
-                <span>Nom, e-mail et rôle sont gérés par l’administration.</span>
-              </div>
+              {user?.role !== 'client' && (
+                <div className="pm-readonly-notice">
+                  <FaLock />
+                  <span>Nom, e-mail et rôle sont gérés par l’administration.</span>
+                </div>
+              )}
             </aside>
 
             <section className="pm-password-card">

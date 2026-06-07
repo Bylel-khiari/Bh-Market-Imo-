@@ -132,6 +132,76 @@ export function formatDateTime(value) {
   return date.toLocaleString('fr-FR');
 }
 
+export function getAgentProcessingRemainingSeconds(application, now = Date.now()) {
+  if (!application) {
+    return 0;
+  }
+
+  const availableAt = application.agent_processing_available_at || application.client_edit_deadline_at;
+  const availableAtTimestamp = availableAt ? new Date(availableAt).getTime() : NaN;
+
+  if (Number.isFinite(availableAtTimestamp)) {
+    return Math.max(Math.ceil((availableAtTimestamp - now) / 1000), 0);
+  }
+
+  const remainingSeconds = Number(
+    application.agent_processing_remaining_seconds ?? application.client_edit_remaining_seconds ?? 0,
+  );
+
+  return Number.isFinite(remainingSeconds) ? Math.max(Math.ceil(remainingSeconds), 0) : 0;
+}
+
+export function canAgentProcessApplication(application, now = Date.now()) {
+  if (!application) {
+    return false;
+  }
+
+  if (application.can_agent_process === false) {
+    return getAgentProcessingRemainingSeconds(application, now) <= 0;
+  }
+
+  return true;
+}
+
+export function formatAgentProcessingWaitLabel(application, now = Date.now()) {
+  const remainingSeconds = getAgentProcessingRemainingSeconds(application, now);
+
+  if (remainingSeconds <= 0) {
+    return '';
+  }
+
+  const remainingMinutes = Math.ceil(remainingSeconds / 60);
+
+  if (remainingMinutes <= 1) {
+    return 'Attente client: < 1 min';
+  }
+
+  return `Attente client: ${remainingMinutes} min`;
+}
+
+export function formatAgentProcessingWaitMessage(application, now = Date.now()) {
+  const waitLabel = formatAgentProcessingWaitLabel(application, now);
+
+  if (!waitLabel) {
+    return '';
+  }
+
+  return `${waitLabel}. Le dossier reste modifiable par le client; traitement possible apres la fin du delai de 30 minutes.`;
+}
+
+const DOCUMENT_TYPE_LABELS = {
+  BH_FORM: 'Formulaire BH Habitat',
+  ID_COPY: "Piece d'identite",
+  INCOME_PROOF: 'Justificatifs de revenus',
+  PROPERTY_DOCS: 'Documents du bien',
+  BANK_STATEMENTS: 'Releves bancaires',
+  EMPLOYMENT_CONTRACT: 'Situation professionnelle',
+};
+
+export function formatDocumentTypeLabel(type) {
+  return DOCUMENT_TYPE_LABELS[type] || type || 'Document';
+}
+
 export function getApplicationDocuments(application) {
   if (!application) return [];
 
@@ -140,6 +210,7 @@ export function getApplicationDocuments(application) {
       key: `${document.type || 'document'}-${document.name || index}-${index}`,
       name: document.name || `Document ${index + 1}`,
       type: document.type || 'Document',
+      label: formatDocumentTypeLabel(document.type),
       index,
       hasFile: Boolean(document.has_file && document.view_url),
     }));
@@ -149,6 +220,7 @@ export function getApplicationDocuments(application) {
     key: `${documentName}-${index}`,
     name: documentName,
     type: 'Document',
+    label: 'Document',
     index,
     hasFile: false,
   }));

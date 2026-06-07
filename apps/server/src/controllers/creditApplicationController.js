@@ -1,4 +1,5 @@
 import {
+  assertCreditApplicationReadyForAgentProcessing,
   createCreditApplication,
   fetchAgentCreditApplicationSummary,
   fetchAgentCreditApplications,
@@ -90,42 +91,13 @@ export async function submitCreditApplication(req, res) {
     estimatedRate: req.body?.estimated_rate,
     debtRatio: req.body?.debt_ratio,
     documents: persistedDocuments.length ? persistedDocuments : req.body?.documents,
+    finalSubmission: Boolean(req.body?.final_submission),
   };
 
-  let scoringResult = null;
-  let applicationStatus = null;
-
-  // Attempt to score the application
-  try {
-    scoringResult = await scoreCreditApplication(applicationData);
-    applicationData.revenuAnnuel =
-      scoringResult.scoring_request_data?.revenu_annuel ?? applicationData.revenuAnnuel;
-    applicationData.chargesImpayees =
-      scoringResult.scoring_request_data?.charges_impayees ?? applicationData.chargesImpayees;
-    applicationData.familySituation =
-      scoringResult.scoring_request_data?.situation_familiale ?? applicationData.familySituation;
-    applicationData.contractType =
-      scoringResult.scoring_request_data?.situation_contractuelle ?? applicationData.contractType;
-
-    applicationStatus = determineApplicationStatus(scoringResult);
-  } catch (scoringError) {
-    // Log scoring error but continue with application submission
-    console.error("Credit scoring failed:", scoringError.message);
-    // If scoring fails, the application will be created with status "SOUMIS"
-    // and an agent will need to review it manually
-  }
-
-  // Create the credit application with scoring results (if available)
   let application = null;
 
   try {
-    application = await createCreditApplication({
-      ...applicationData,
-      complianceScore: applicationStatus?.complianceScore,
-      complianceSummary: applicationStatus?.complianceSummary,
-      initialStatus: applicationStatus?.status,
-      scoringResult: scoringResult,
-    });
+    application = await createCreditApplication(applicationData);
   } catch (error) {
     await cleanupPersistedCreditApplicationDocuments(persistedDocuments);
     throw error;
@@ -140,7 +112,9 @@ export async function submitCreditApplication(req, res) {
       property_id: applicationData.propertyId || null,
       requested_amount: applicationData.requestedAmount || null,
       initial_status: application?.status || null,
-      scoring_available: Boolean(scoringResult),
+      scoring_available: false,
+      scoring_deferred_until: application?.agent_processing_available_at || null,
+      final_submission: application?.final_submission || false,
     },
   });
 
@@ -234,7 +208,7 @@ export async function updateAgentCreditApplication(req, res) {
 }
 
 export async function scoreAgentCreditApplication(req, res) {
-  const currentApplication = await fetchCreditApplicationById(req.params.id);
+  const currentApplication = await assertCreditApplicationReadyForAgentProcessing(req.params.id);
   const scoringResult = await scoreCreditApplication(toScoringApplicationData(currentApplication));
   const applicationStatus = determineApplicationStatus(scoringResult);
 

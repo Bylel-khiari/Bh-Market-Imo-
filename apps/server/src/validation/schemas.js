@@ -347,6 +347,7 @@ export const creditApplicationCreateBodySchema = z
     estimated_monthly_payment: z.coerce.number().finite().min(0).optional().nullable(),
     estimated_rate: z.coerce.number().finite().min(0).max(100).optional().nullable(),
     debt_ratio: z.coerce.number().finite().min(0).optional().nullable(),
+    final_submission: z.boolean().optional(),
     documents: z
       .array(creditApplicationDocumentBodySchema)
       .min(1, "At least one document is required")

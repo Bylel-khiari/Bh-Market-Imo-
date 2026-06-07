@@ -136,7 +136,7 @@ const Profile = () => {
               <h2>Informations personnelles</h2>
               <p>Nom : {user?.name || 'Non renseigné'}</p>
               <p>E-mail : {user?.email || 'Non renseigné'}</p>
-              <p>Rôle : {user?.role || 'Non renseigné'}</p>
+              {user?.role !== 'client' && <p>Rôle : {user?.role || 'Non renseigné'}</p>}
             </div>
 
             {user?.role === 'client' && (

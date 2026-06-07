@@ -27,7 +27,10 @@ export default function DocumentList({
             title="Consulter le document"
           >
             <FaDownload />
-            <span>{isOpening ? 'Ouverture...' : document.name}</span>
+            <span className="agent-document-pill-text">
+              <strong>{document.label}</strong>
+              <small>{isOpening ? 'Ouverture...' : document.name}</small>
+            </span>
           </button>
         ) : (
           <span
@@ -35,7 +38,10 @@ export default function DocumentList({
             className="agent-document-pill agent-document-pill--unavailable"
             title="Fichier non disponible pour les anciens dossiers."
           >
-            {document.name}
+            <span className="agent-document-pill-text">
+              <strong>{document.label}</strong>
+              <small>{document.name}</small>
+            </span>
           </span>
         );
       })}

@@ -301,6 +301,16 @@ function getClientEditWindowState(row, now = Date.now()) {
   const remainingMs = Math.max(deadlineTimestamp - now, 0);
   const normalizedStatus = normalizeCreditApplicationStatus(row?.status);
   const hasFinalDecision = isDecisionStatus(normalizedStatus);
+  const hasFinalSubmission = Boolean(Number(row?.client_final_submission || 0));
+
+  if (hasFinalSubmission && !hasFinalDecision) {
+    return {
+      deadlineAt: createdAtTimestamp ? new Date(createdAtTimestamp).toISOString() : null,
+      remainingSeconds: 0,
+      canEdit: false,
+      lockedReason: "soumission_finale_client",
+    };
+  }
 
   return {
     deadlineAt: deadlineTimestamp ? new Date(deadlineTimestamp).toISOString() : null,
@@ -312,6 +322,56 @@ function getClientEditWindowState(row, now = Date.now()) {
         ? null
         : "delai_expire",
   };
+}
+
+function formatAgentProcessingRemainingTime(remainingSeconds) {
+  const normalizedSeconds = Math.max(Number(remainingSeconds) || 0, 0);
+
+  if (normalizedSeconds <= 1) {
+    return "quelques secondes";
+  }
+
+  const remainingMinutes = Math.ceil(normalizedSeconds / 60);
+
+  if (remainingMinutes <= 1) {
+    return "moins d'une minute";
+  }
+
+  return `${remainingMinutes} minutes`;
+}
+
+function getAgentProcessingWindowState(row, now = Date.now()) {
+  const editWindow = getClientEditWindowState(row, now);
+  const isClientEditWindowActive = Boolean(editWindow.canEdit);
+
+  return {
+    availableAt: editWindow.deadlineAt,
+    remainingSeconds: isClientEditWindowActive ? editWindow.remainingSeconds : 0,
+    canProcess: !isClientEditWindowActive,
+    lockedReason: isClientEditWindowActive ? "client_edit_window_active" : null,
+  };
+}
+
+function assertAgentCanProcessCreditApplication(row) {
+  if (!row) {
+    throw httpError(404, "Credit application not found");
+  }
+
+  const processingWindow = getAgentProcessingWindowState(row);
+
+  if (!processingWindow.canProcess) {
+    throw httpError(
+      403,
+      `Ce dossier reste modifiable par le client pendant ${formatAgentProcessingRemainingTime(
+        processingWindow.remainingSeconds
+      )}. Le traitement agent sera possible apres la fin du delai de ${CLIENT_EDIT_WINDOW_MINUTES} minutes.`,
+      {
+        code: "CLIENT_EDIT_WINDOW_ACTIVE",
+        available_at: processingWindow.availableAt,
+        remaining_seconds: processingWindow.remainingSeconds,
+      }
+    );
+  }
 }
 
 function assertClientCanEditCreditApplication(row, clientUserId) {
@@ -332,7 +392,9 @@ function assertClientCanEditCreditApplication(row, clientUserId) {
       403,
       editWindow.lockedReason === "decision_finale"
         ? "Cette demande ne peut plus etre modifiee car une decision bancaire finale existe."
-        : "Le delai de modification de 30 minutes est expire."
+        : editWindow.lockedReason === "soumission_finale_client"
+          ? "Cette demande a ete soumise comme definitive par le client."
+          : `Le delai de modification de ${CLIENT_EDIT_WINDOW_MINUTES} minutes est expire.`
     );
   }
 }
@@ -370,6 +432,7 @@ function toPublicCreditApplication(row) {
   const typedDocuments = parseTypedDocuments(row.documents_json);
   const normalizedStatus = normalizeCreditApplicationStatus(row.status);
   const clientEditWindow = getClientEditWindowState(row);
+  const agentProcessingWindow = getAgentProcessingWindowState(row);
   const decisionMotif =
     row.decision_motif ||
     (isDecisionStatus(normalizedStatus)
@@ -418,6 +481,7 @@ function toPublicCreditApplication(row) {
     compliance_summary: row.compliance_summary,
     agent_note: row.agent_note,
     decision_motif: decisionMotif,
+    final_submission: Boolean(Number(row.client_final_submission || 0)),
     client_notified_at: row.client_notified_at,
     documents,
     document_count: documents.length,
@@ -430,6 +494,10 @@ function toPublicCreditApplication(row) {
     client_edit_remaining_seconds: clientEditWindow.remainingSeconds,
     can_client_edit: clientEditWindow.canEdit,
     client_edit_locked_reason: clientEditWindow.lockedReason,
+    agent_processing_available_at: agentProcessingWindow.availableAt,
+    agent_processing_remaining_seconds: agentProcessingWindow.remainingSeconds,
+    can_agent_process: agentProcessingWindow.canProcess,
+    agent_processing_locked_reason: agentProcessingWindow.lockedReason,
   };
 }
 
@@ -690,6 +758,7 @@ async function ensureCreditApplicationTables() {
       compliance_summary TEXT NULL,
       agent_note TEXT NULL,
       decision_motif TEXT NULL,
+      client_final_submission TINYINT(1) NOT NULL DEFAULT 0,
       client_notified_at DATETIME NULL,
       document_names_json LONGTEXT NULL,
       documents_json LONGTEXT NULL,
@@ -724,6 +793,7 @@ async function ensureCreditApplicationTables() {
   await ensureCreditApplicationColumn("contract_type", "VARCHAR(80) NULL");
   await ensureCreditApplicationColumn("other_monthly_charges", "DECIMAL(14, 2) NULL");
   await ensureCreditApplicationColumn("decision_motif", "TEXT NULL");
+  await ensureCreditApplicationColumn("client_final_submission", "TINYINT(1) NOT NULL DEFAULT 0");
   await ensureCreditApplicationColumn("client_notified_at", "DATETIME NULL");
 
   await dbPool.query(`
@@ -842,6 +912,7 @@ const CREDIT_APPLICATION_SELECT_COLUMNS = `
   ca.compliance_summary,
   ca.agent_note,
   ca.decision_motif,
+  ca.client_final_submission,
   ca.client_notified_at,
   ca.document_names_json,
   ca.documents_json,
@@ -935,6 +1006,7 @@ export async function createCreditApplication({
   estimatedRate,
   debtRatio,
   documents,
+  finalSubmission = false,
   complianceScore = null,
   complianceSummary = null,
   initialStatus = null,
@@ -970,6 +1042,7 @@ export async function createCreditApplication({
   const normalizedComplianceSummary = normalizeOptionalString(complianceSummary);
   const normalizedDocuments = normalizeDocumentNames(documents);
   const normalizedTypedDocuments = normalizeTypedDocuments(documents);
+  const normalizedFinalSubmission = Boolean(finalSubmission);
 
   // Determine the status: use initialStatus if provided, otherwise "SOUMIS"
   const applicationStatus = normalizeOptionalString(initialStatus) || "SOUMIS";
@@ -1047,11 +1120,12 @@ export async function createCreditApplication({
         compliance_score,
         compliance_summary,
         decision_motif,
+        client_final_submission,
         client_notified_at,
         document_names_json,
         documents_json
       )
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         normalizedClientUserId,
@@ -1084,6 +1158,7 @@ export async function createCreditApplication({
         normalizedComplianceScore,
         normalizedComplianceSummary,
         initialDecisionMotif,
+        normalizedFinalSubmission ? 1 : 0,
         clientNotifiedAtValue,
         serializeDocumentNames(normalizedDocuments),
         serializeTypedDocuments(normalizedTypedDocuments),
@@ -1560,6 +1635,19 @@ export async function fetchCreditApplicationById(applicationId) {
   return toPublicCreditApplication(row);
 }
 
+export async function assertCreditApplicationReadyForAgentProcessing(applicationId) {
+  const normalizedApplicationId = Number(applicationId);
+
+  if (!normalizedApplicationId) {
+    throw httpError(400, "Invalid credit application id");
+  }
+
+  const row = await findCreditApplicationRowById(normalizedApplicationId);
+  assertAgentCanProcessCreditApplication(row);
+
+  return toPublicCreditApplication(row);
+}
+
 export async function updateCreditApplicationScoring(
   applicationId,
   { scoringResult, agentUserId, nextStatus }
@@ -1580,6 +1668,8 @@ export async function updateCreditApplicationScoring(
   if (!currentRow) {
     throw httpError(404, "Credit application not found");
   }
+
+  assertAgentCanProcessCreditApplication(currentRow);
 
   const scoringRequest = scoringResult?.scoring_request_data || {};
   const fallbackStatus = "EN_ETUDE";
@@ -1687,6 +1777,8 @@ export async function updateCreditApplicationReview(
   if (!currentRow) {
     throw httpError(404, "Credit application not found");
   }
+
+  assertAgentCanProcessCreditApplication(currentRow);
 
   const currentStatus = normalizeCreditApplicationStatus(currentRow.status);
   const nextStatus = status ? normalizeCreditApplicationStatus(status) : currentStatus;

@@ -1,14 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   FaBuilding,
-  FaCog,
   FaEnvelope,
   FaGlobe,
   FaHome,
   FaListAlt,
   FaUsers,
 } from 'react-icons/fa';
-import { getApiBaseUrl } from '../../lib/auth';
 import AdminReportsSection from '../../features/admin/components/AdminReportsSection';
 import AdminActivitiesSection from './components/AdminActivitiesSection';
 import AdminModals from './components/AdminModals';
@@ -16,7 +14,6 @@ import AdminOverviewSection from './components/AdminOverviewSection';
 import { AdminErrorState, AdminLoadingState } from './components/AdminPageState';
 import AdminPropertiesTable from './components/AdminPropertiesTable';
 import AdminScraperPanel from './components/AdminScraperPanel';
-import AdminSettingsSection from './components/AdminSettingsSection';
 import AdminSidebar from './components/AdminSidebar';
 import AdminTopbar from './components/AdminTopbar';
 import AdminUsersTable from './components/AdminUsersTable';
@@ -54,7 +51,6 @@ const menuItems = [
   { key: 'dashboard', label: 'Tableau de bord', icon: FaHome },
   { key: 'mail', label: 'Réclamation', icon: FaEnvelope },
   { key: 'activities', label: 'Activités', icon: FaListAlt },
-  { key: 'settings', label: 'Configuration', icon: FaCog },
 ];
 
 const sectionTitles = {
@@ -64,13 +60,11 @@ const sectionTitles = {
   mail: 'Réclamation',
   sites: 'Gestion des sites scrapés',
   activities: 'Activités récentes',
-  settings: 'Configuration',
 };
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isParameterMenuOpen, setIsParameterMenuOpen] = useState(true);
-  const apiBaseUrl = getApiBaseUrl();
   const { goToHomePage, handleAuthFailure, handleLogout } = useAdminAuth();
 
   const {
@@ -320,17 +314,6 @@ export default function AdminDashboard() {
             />
           )}
 
-          {activeSection === 'settings' && (
-            <AdminSettingsSection
-              apiBaseUrl={apiBaseUrl}
-              dashboardSummary={dashboardSummary}
-              formMode={usersController.formMode}
-              propertyFormMode={propertiesController.propertyFormMode}
-              propertyTotals={propertyTotals}
-              siteFormMode={scraperController.siteFormMode}
-              siteTotals={siteTotals}
-            />
-          )}
         </main>
       </div>
 

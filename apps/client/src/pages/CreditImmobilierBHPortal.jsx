@@ -117,6 +117,7 @@ function createEmptyFormData(authSession) {
     familySituation: '',
     contractType: '',
     otherMonthlyCharges: '',
+    finalSubmission: false,
   };
 }
 
@@ -409,8 +410,8 @@ export default function CreditImmobilierBHPortal() {
   }, [propertyContext]);
 
   const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { checked, name, type, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handleDocumentChange = (documentType, event) => {
@@ -555,6 +556,7 @@ export default function CreditImmobilierBHPortal() {
           estimated_monthly_payment: propertyContext.monthlyPayment > 0 ? propertyContext.monthlyPayment : null,
           estimated_rate: propertyContext.rate > 0 ? propertyContext.rate : null,
           debt_ratio: propertyContext.debtRatio > 0 ? propertyContext.debtRatio : null,
+          final_submission: Boolean(formData.finalSubmission),
           documents,
         },
         authSession.token,
@@ -869,6 +871,42 @@ export default function CreditImmobilierBHPortal() {
           border-radius: 0.7rem;
           padding: 0.75rem 0.9rem;
           font-size: 0.9rem;
+        }
+
+        .bh-final-submission-choice {
+          border: 1px solid #bfd4ea;
+          border-radius: 0.9rem;
+          background: #f8fbff;
+          padding: 1rem;
+        }
+
+        .bh-final-submission-label {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.8rem;
+          margin: 0;
+          cursor: pointer;
+        }
+
+        .bh-final-submission-label input {
+          width: 18px;
+          height: 18px;
+          margin-top: 0.2rem;
+          flex: 0 0 auto;
+        }
+
+        .bh-final-submission-label span {
+          display: grid;
+          gap: 0.2rem;
+        }
+
+        .bh-final-submission-label strong {
+          color: #0f2a4f;
+        }
+
+        .bh-final-submission-label small {
+          color: #5d718a;
+          line-height: 1.45;
         }
 
         .bh-progress-strip {
@@ -1438,6 +1476,22 @@ export default function CreditImmobilierBHPortal() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="bh-final-submission-choice mt-4">
+                  <label htmlFor="finalSubmission" className="bh-final-submission-label">
+                    <input
+                      id="finalSubmission"
+                      name="finalSubmission"
+                      type="checkbox"
+                      checked={Boolean(formData.finalSubmission)}
+                      onChange={handleInputChange}
+                      disabled={submitting}
+                    />
+                    <span>
+                      <strong>Ma demande est definitive</strong>
+                    </span>
+                  </label>
                 </div>
 
                 {errorMessage && <div className="alert alert-danger mt-4 mb-0">{errorMessage}</div>}

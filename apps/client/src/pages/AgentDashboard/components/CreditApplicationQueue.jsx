@@ -2,9 +2,11 @@ import React from 'react';
 import { FaFolderOpen, FaSearch } from 'react-icons/fa';
 import {
   STATUS_OPTIONS,
+  canAgentProcessApplication,
   formatComplianceScore,
   formatCurrency,
   formatDate,
+  formatAgentProcessingWaitLabel,
   formatPercent,
   formatQueueStatusLabel,
   formatStatus,
@@ -13,6 +15,7 @@ import {
 
 export default function CreditApplicationQueue({
   applications,
+  clockTick,
   error,
   formMessage,
   handleFilterChange,
@@ -75,23 +78,32 @@ export default function CreditApplicationQueue({
 
       {applications.length ? (
         <div className="agent-case-queue">
-          {applications.map((application) => (
-            <button
-              key={application.id}
-              type="button"
-              className={`agent-case-card ${
-                String(selectedApplicationId) === String(application.id) ? 'is-selected' : ''
-              }`}
-              onClick={() => setSelectedApplicationId(application.id)}
-            >
+          {applications.map((application) => {
+            const processingLocked = !canAgentProcessApplication(application, clockTick);
+            const processingWaitLabel = formatAgentProcessingWaitLabel(application, clockTick);
+
+            return (
+              <button
+                key={application.id}
+                type="button"
+                className={`agent-case-card ${processingLocked ? 'is-waiting' : ''} ${
+                  String(selectedApplicationId) === String(application.id) ? 'is-selected' : ''
+                }`}
+                onClick={() => setSelectedApplicationId(application.id)}
+              >
               <div className="agent-case-head">
                 <div>
                   <h3>{application.property_title || `Dossier #${application.id}`}</h3>
                   <p>{application.full_name} - {application.email}</p>
                 </div>
-                <span className={`admin-report-status-pill status-${normalizeStatusClass(application.status)}`}>
-                  {formatStatus(application.status)}
-                </span>
+                <div className="agent-case-statuses">
+                  <span className={`admin-report-status-pill status-${normalizeStatusClass(application.status)}`}>
+                    {formatStatus(application.status)}
+                  </span>
+                  {processingWaitLabel && (
+                    <span className="agent-wait-pill">{processingWaitLabel}</span>
+                  )}
+                </div>
               </div>
 
               <div className="agent-case-metrics">
@@ -112,8 +124,9 @@ export default function CreditApplicationQueue({
                   <small>{formatDate(application.created_at)}</small>
                 </span>
               </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="admin-state admin-state--inline">

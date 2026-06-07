@@ -7,6 +7,24 @@ import {
 } from '../../../lib/auth';
 import { createEmptyPlatformDashboard, createEmptySummary } from '../utils/agentFormatters';
 
+function mergePreservedApplication(applications, preservedApplication) {
+  if (!preservedApplication?.id) {
+    return applications;
+  }
+
+  const hasApplication = applications.some(
+    (application) => String(application.id) === String(preservedApplication.id),
+  );
+
+  if (hasApplication) {
+    return applications.map((application) =>
+      String(application.id) === String(preservedApplication.id) ? preservedApplication : application,
+    );
+  }
+
+  return [preservedApplication, ...applications];
+}
+
 export default function useAgentDashboardData(handleAuthFailure) {
   const [profile, setProfile] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -52,7 +70,12 @@ export default function useAgentDashboardData(handleAuthFailure) {
     }
   }, [handleAuthFailure]);
 
-  const loadApplicationQueue = useCallback(async ({ status = 'all', searchTerm = '', silent = false } = {}) => {
+  const loadApplicationQueue = useCallback(async ({
+    status = 'all',
+    searchTerm = '',
+    silent = false,
+    preserveApplication = null,
+  } = {}) => {
     try {
       const token = requireAuthToken();
 
@@ -68,7 +91,8 @@ export default function useAgentDashboardData(handleAuthFailure) {
         search: searchTerm,
       });
 
-      setApplications(Array.isArray(queuePayload?.applications) ? queuePayload.applications : []);
+      const nextApplications = Array.isArray(queuePayload?.applications) ? queuePayload.applications : [];
+      setApplications(mergePreservedApplication(nextApplications, preserveApplication));
       setSummary(queuePayload?.summary || createEmptySummary());
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {

@@ -5,6 +5,7 @@ import CreditApplicationReviewPanel from './CreditApplicationReviewPanel';
 export default function CreditRequestsTable({
   activeApplicationPanel,
   applications,
+  clockTick,
   draft,
   error,
   formMessage,
@@ -30,6 +31,7 @@ export default function CreditRequestsTable({
       <div className="admin-analytics-column">
         <CreditApplicationQueue
           applications={applications}
+          clockTick={clockTick}
           error={error}
           formMessage={formMessage}
           handleFilterChange={handleFilterChange}
@@ -44,6 +46,7 @@ export default function CreditRequestsTable({
 
       <CreditApplicationReviewPanel
         activeApplicationPanel={activeApplicationPanel}
+        clockTick={clockTick}
         draft={draft}
         handleDraftChange={handleDraftChange}
         handleOpenApplicationDocument={handleOpenApplicationDocument}

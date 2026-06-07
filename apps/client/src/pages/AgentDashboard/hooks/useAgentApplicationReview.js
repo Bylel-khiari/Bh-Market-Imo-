@@ -5,7 +5,11 @@ import {
   scoreAgentCreditApplicationApi,
   updateAgentCreditApplicationApi,
 } from '../../../lib/auth';
-import { getApplicationDocuments } from '../utils/agentFormatters';
+import {
+  canAgentProcessApplication,
+  formatAgentProcessingWaitMessage,
+  getApplicationDocuments,
+} from '../utils/agentFormatters';
 
 export default function useAgentApplicationReview({
   applications,
@@ -26,6 +30,7 @@ export default function useAgentApplicationReview({
   const [formMessage, setFormMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [openingDocumentKey, setOpeningDocumentKey] = useState('');
+  const [clockTick, setClockTick] = useState(() => Date.now());
 
   useEffect(() => {
     if (!applications.length) {
@@ -39,6 +44,19 @@ export default function useAgentApplicationReview({
       setSelectedApplicationId(applications[0].id);
     }
   }, [applications, selectedApplicationId]);
+
+  useEffect(() => {
+    const hasProcessingLock = applications.some(
+      (application) => !canAgentProcessApplication(application),
+    );
+
+    if (!hasProcessingLock) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => setClockTick(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [applications]);
 
   const selectedApplication = useMemo(() => {
     if (!applications.length) return null;
@@ -94,6 +112,12 @@ export default function useAgentApplicationReview({
       return;
     }
 
+    if (!canAgentProcessApplication(selectedApplication, clockTick)) {
+      setFormMessage('');
+      setError(formatAgentProcessingWaitMessage(selectedApplication, clockTick));
+      return;
+    }
+
     try {
       const token = requireAuthToken();
       setSubmitting(true);
@@ -130,16 +154,28 @@ export default function useAgentApplicationReview({
       return;
     }
 
+    if (!canAgentProcessApplication(selectedApplication, clockTick)) {
+      setFormMessage('');
+      setError(formatAgentProcessingWaitMessage(selectedApplication, clockTick));
+      return;
+    }
+
     try {
       const token = requireAuthToken();
       setSubmitting(true);
       setError('');
       setFormMessage('');
 
-      await scoreAgentCreditApplicationApi(selectedApplication.id, token);
+      const response = await scoreAgentCreditApplicationApi(selectedApplication.id, token);
+      const scoredApplication = response?.application || null;
 
       setFormMessage("Score calculé. L'agent bancaire garde la décision finale.");
-      await loadApplicationQueue({ status: statusFilter, searchTerm: search.trim(), silent: true });
+      await loadApplicationQueue({
+        status: statusFilter,
+        searchTerm: search.trim(),
+        silent: true,
+        preserveApplication: scoredApplication,
+      });
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
         return;
@@ -201,6 +237,7 @@ export default function useAgentApplicationReview({
 
   return {
     activeApplicationPanel,
+    clockTick,
     draft,
     formMessage,
     handleDraftChange,

@@ -7,6 +7,8 @@ import {
   FaSyncAlt,
 } from 'react-icons/fa';
 import {
+  canAgentProcessApplication,
+  formatAgentProcessingWaitMessage,
   formatComplianceScore,
   formatDate,
   formatStatus,
@@ -22,6 +24,7 @@ import ScoringSummary from './ScoringSummary';
 
 export default function CreditApplicationReviewPanel({
   activeApplicationPanel,
+  clockTick,
   draft,
   handleDraftChange,
   handleOpenApplicationDocument,
@@ -33,6 +36,9 @@ export default function CreditApplicationReviewPanel({
   setActiveApplicationPanel,
   submitting,
 }) {
+  const canProcessSelectedApplication = canAgentProcessApplication(selectedApplication, clockTick);
+  const processingWaitMessage = formatAgentProcessingWaitMessage(selectedApplication, clockTick);
+
   return (
     <aside className="admin-crud-column">
       <section className="admin-card agent-review-card">
@@ -40,7 +46,9 @@ export default function CreditApplicationReviewPanel({
           <>
             <ReviewHeader selectedApplication={selectedApplication} />
 
-            <div className={`agent-treatment-panel ${hasComplianceScore(selectedApplication) ? 'has-score' : 'is-pending'}`}>
+            <div className={`agent-treatment-panel ${hasComplianceScore(selectedApplication) ? 'has-score' : 'is-pending'} ${
+              canProcessSelectedApplication ? '' : 'is-locked'
+            }`}>
               <div className="agent-treatment-score">
                 <strong>{formatComplianceScore(selectedApplication)}</strong>
                 <span>
@@ -53,12 +61,16 @@ export default function CreditApplicationReviewPanel({
                 type="button"
                 className="admin-refresh agent-treatment-button"
                 onClick={handleScoringSubmit}
-                disabled={submitting}
+                disabled={submitting || !canProcessSelectedApplication}
+                title={processingWaitMessage || undefined}
               >
                 <FaSyncAlt className={submitting ? 'spin' : undefined} />
                 <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le score' : 'Calculer le score'}</span>
               </button>
             </div>
+            {processingWaitMessage && (
+              <p className="agent-processing-wait">{processingWaitMessage}</p>
+            )}
 
             <div className="agent-detail-tabs" role="tablist" aria-label="Sections du dossier">
               <TabButton
@@ -114,7 +126,8 @@ export default function CreditApplicationReviewPanel({
                     type="button"
                     className="admin-secondary agent-scoring-action agent-panel-action"
                     onClick={handleScoringSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !canProcessSelectedApplication}
+                    title={processingWaitMessage || undefined}
                   >
                     <FaSyncAlt className={submitting ? 'spin' : undefined} />
                     <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Calculer le scoring'}</span>
@@ -143,9 +156,16 @@ export default function CreditApplicationReviewPanel({
                     <h3>Décision agent</h3>
                     <p>Mise à jour du statut, note interne et décision finale.</p>
                   </div>
-                  <DecisionForm draft={draft} submitting={submitting} onDraftChange={handleDraftChange} />
+                  <DecisionForm
+                    draft={draft}
+                    processingLocked={!canProcessSelectedApplication}
+                    submitting={submitting}
+                    onDraftChange={handleDraftChange}
+                  />
                   <DecisionActions
                     draft={draft}
+                    processingLocked={!canProcessSelectedApplication}
+                    processingLockMessage={processingWaitMessage}
                     submitting={submitting}
                     onReviewSubmit={handleReviewSubmit}
                   />
@@ -162,6 +182,8 @@ export default function CreditApplicationReviewPanel({
               openingDocumentKey={openingDocumentKey}
               selectedApplication={selectedApplication}
               selectedApplicationDocuments={selectedApplicationDocuments}
+              canProcessSelectedApplication={canProcessSelectedApplication}
+              processingWaitMessage={processingWaitMessage}
               submitting={submitting}
             />
           </>
@@ -211,6 +233,7 @@ function TabButton({ activeApplicationPanel, icon, label, panel, setActiveApplic
 }
 
 function ReviewAccordion({
+  canProcessSelectedApplication,
   draft,
   handleDraftChange,
   handleOpenApplicationDocument,
@@ -219,6 +242,7 @@ function ReviewAccordion({
   openingDocumentKey,
   selectedApplication,
   selectedApplicationDocuments,
+  processingWaitMessage,
   submitting,
 }) {
   return (
@@ -242,7 +266,8 @@ function ReviewAccordion({
           type="button"
           className="admin-secondary agent-scoring-action agent-panel-action"
           onClick={handleScoringSubmit}
-          disabled={submitting}
+          disabled={submitting || !canProcessSelectedApplication}
+          title={processingWaitMessage || undefined}
         >
           <FaSyncAlt className={submitting ? 'spin' : undefined} />
           <span>{hasComplianceScore(selectedApplication) ? 'Recalculer le scoring' : 'Calculer le scoring'}</span>
@@ -271,9 +296,16 @@ function ReviewAccordion({
           <FaFileSignature />
           <span>Décision</span>
         </summary>
-        <DecisionForm draft={draft} submitting={submitting} onDraftChange={handleDraftChange} />
+        <DecisionForm
+          draft={draft}
+          processingLocked={!canProcessSelectedApplication}
+          submitting={submitting}
+          onDraftChange={handleDraftChange}
+        />
         <DecisionActions
           draft={draft}
+          processingLocked={!canProcessSelectedApplication}
+          processingLockMessage={processingWaitMessage}
           submitting={submitting}
           onReviewSubmit={handleReviewSubmit}
         />
