@@ -3,9 +3,9 @@ import logging
 from fastapi import FastAPI
 
 from .assistant_service import generate_reply
-from .credit_scoring import score_credit_application
 from .knowledge_base import DEFAULT_SUGGESTIONS
 from .schemas import ChatRequest, ChatResponse, CreditScoringRequest, CreditScoringResponse
+from scoring_agent import score_credit_application
 
 logger = logging.getLogger(__name__)
 

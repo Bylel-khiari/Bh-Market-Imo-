@@ -4,9 +4,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient  # noqa: E402
-from app.credit_scoring import score_credit_application  # noqa: E402
 from app.main import app  # noqa: E402
 from app.schemas import CreditScoringRequest  # noqa: E402
+from scoring_agent import score_credit_application  # noqa: E402
 
 
 def test_credit_scoring_accepts_compliant_stable_profile():

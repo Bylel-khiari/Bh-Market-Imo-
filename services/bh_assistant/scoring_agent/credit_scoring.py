@@ -1,4 +1,5 @@
-from .knowledge_base import normalize_text
+import re
+import unicodedata
 
 
 CHARGES_RATIO_LIMIT = 0.40
@@ -29,15 +30,22 @@ FAMILY_RULES = [
 ]
 
 
+def _normalize_text(value):
+    normalized = unicodedata.normalize("NFD", value or "")
+    without_accents = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    lowered = without_accents.lower()
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", lowered)).strip()
+
+
 def _round_money(value):
     return round(float(value), 2)
 
 
 def _match_rule(value, rules, default_score, default_message):
-    normalized_value = normalize_text(value)
+    normalized_value = _normalize_text(value)
 
     for keyword, score, message in rules:
-        if normalize_text(keyword) in normalized_value:
+        if _normalize_text(keyword) in normalized_value:
             return score, message
 
     return default_score, default_message
