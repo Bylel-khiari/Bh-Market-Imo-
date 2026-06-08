@@ -12,21 +12,13 @@ export default function PropertiesLayout({ catalog, interactions, propertiesData
           <PropertiesFilters
             activeFilterCount={catalog.activeFilterCount}
             clearPropertyFilters={catalog.clearPropertyFilters}
-            currentUserRole={propertiesData.currentUserRole}
-            favoritesOnly={catalog.favoritesOnly}
             filteredCount={catalog.filteredProperties.length}
-            hasImageOnly={catalog.hasImageOnly}
             maxPriceInput={catalog.maxPriceInput}
             minPriceInput={catalog.minPriceInput}
             priceStats={catalog.priceStats}
-            propertyTypeOptions={catalog.propertyTypeOptions}
             searchKeywordValue={catalog.searchKeywordValue}
             searchLocationValue={catalog.searchLocationValue}
-            selectedPropertyType={catalog.selectedPropertyType}
-            selectedSource={catalog.selectedSource}
             sortOrder={catalog.sortOrder}
-            sourceOptions={catalog.sourceOptions}
-            updateFavoritesFilter={catalog.updateFavoritesFilter}
             updatePropertyFilter={catalog.updatePropertyFilter}
           />
         )}

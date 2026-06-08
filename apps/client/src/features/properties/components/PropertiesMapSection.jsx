@@ -1,18 +1,14 @@
 import React from 'react';
 import {
-  FaBath,
-  FaBed,
   FaExternalLinkAlt,
   FaFlag,
   FaHeart,
   FaRegHeart,
-  FaRulerCombined,
 } from 'react-icons/fa';
 import {
   formatPropertyDate,
   formatPropertyPrice,
   getPropertyImages,
-  inferRoomsFromTitle,
 } from '../shared/propertyFormatters';
 
 export default function PropertiesMapSection({
@@ -86,21 +82,9 @@ export default function PropertiesMapSection({
         </div>
       </div>
 
-      <div className="details-tabs">
-        <span className="is-active">Aperçu</span>
-        <span>Avis</span>
-        <span>À propos</span>
-      </div>
-
       <div className="details-description">
         <h4>Description</h4>
         <p>{selectedProperty.description || 'Description non disponible pour ce bien.'}</p>
-      </div>
-
-      <div className="details-stats">
-        <span><FaBed /> {inferRoomsFromTitle(selectedProperty.title, 2, 4)} chambres</span>
-        <span><FaBath /> {inferRoomsFromTitle(selectedProperty.title, 1, 3)} salles de bain</span>
-        <span><FaRulerCombined /> {inferRoomsFromTitle(selectedProperty.title, 90, 150)} m2</span>
       </div>
 
       <div className="details-actions">
@@ -120,12 +104,6 @@ export default function PropertiesMapSection({
         </button>
       </div>
 
-      <div className="mini-map">
-        <span className="pin pin-a" />
-        <span className="pin pin-b" />
-        <span className="pin pin-c" />
-        <span className="map-label">{selectedProperty.city || 'Tunisie'}</span>
-      </div>
       <p className="details-date">Mis à jour : {formatPropertyDate(selectedProperty.scraped_at)}</p>
     </aside>
   );
