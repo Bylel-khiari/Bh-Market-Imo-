@@ -8,6 +8,7 @@ import mysql.connector
 import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from mysql.connector import errorcode
 from scrapy.exceptions import DropItem
 
 from real_estate_scraper.source_dates import (
@@ -64,6 +65,13 @@ class RawPipeline:
         "created_at",
     }
 
+    def __init__(self):
+        self.batch_size = 300
+        self.max_source_listing_age_days = 0
+        self.pending_rows = []
+        self.conn = None
+        self.cursor = None
+
     @classmethod
     def from_crawler(cls, crawler):
         pipeline = cls()
@@ -82,22 +90,70 @@ class RawPipeline:
         )
         self.pending_rows = []
 
-        self.conn = mysql.connector.connect(
-            host=os.getenv("SCRAPER_DB_HOST", "localhost"),
-            user=os.getenv("SCRAPER_DB_USER", "root"),
-            password=os.getenv("SCRAPER_DB_PASSWORD") or "root",
-            database=os.getenv("SCRAPER_DB_NAME", "database"),
-            autocommit=False,
-        )
+        self.conn = self._connect()
         self.cursor = self.conn.cursor(buffered=True)
         self._ensure_schema()
 
     def close_spider(self, spider=None):
+        cursor = self.cursor
+        conn = self.conn
         try:
-            self._flush_rows(force=True)
-            self.cursor.close()
+            if cursor is not None and conn is not None:
+                self._flush_rows(force=True)
         finally:
-            self.conn.close()
+            self.cursor = None
+            self.conn = None
+            try:
+                if cursor is not None:
+                    cursor.close()
+            finally:
+                if conn is not None and conn.is_connected():
+                    conn.close()
+
+    @staticmethod
+    def _quote_mysql_identifier(value):
+        text = str(value or "").strip()
+        if not text:
+            raise ValueError("Database name cannot be empty.")
+        return f"`{text.replace('`', '``')}`"
+
+    def _db_config(self, include_database=True):
+        config = {
+            "host": os.getenv("SCRAPER_DB_HOST") or os.getenv("MYSQL_HOST") or "localhost",
+            "port": int(os.getenv("SCRAPER_DB_PORT") or os.getenv("MYSQL_PORT") or "3306"),
+            "user": os.getenv("SCRAPER_DB_USER") or os.getenv("MYSQL_USER") or "root",
+            "password": os.getenv("SCRAPER_DB_PASSWORD") or os.getenv("MYSQL_PASSWORD") or "root",
+        }
+
+        if include_database:
+            config["database"] = os.getenv("SCRAPER_DB_NAME") or os.getenv("MYSQL_DATABASE") or "database"
+
+        return config
+
+    def _connect(self):
+        config = self._db_config(include_database=True)
+        try:
+            return mysql.connector.connect(**config, autocommit=False)
+        except mysql.connector.Error as exc:
+            if getattr(exc, "errno", None) != errorcode.ER_BAD_DB_ERROR:
+                raise
+
+            bootstrap_conn = mysql.connector.connect(**self._db_config(include_database=False), autocommit=True)
+            try:
+                bootstrap_cursor = bootstrap_conn.cursor()
+                try:
+                    bootstrap_cursor.execute(
+                        "CREATE DATABASE IF NOT EXISTS "
+                        f"{self._quote_mysql_identifier(config['database'])} "
+                        "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                    )
+                finally:
+                    bootstrap_cursor.close()
+            finally:
+                if bootstrap_conn.is_connected():
+                    bootstrap_conn.close()
+
+            return mysql.connector.connect(**config, autocommit=False)
 
     def _ensure_schema(self):
         self.cursor.execute(
@@ -241,6 +297,9 @@ class RawPipeline:
 
         if not force and len(self.pending_rows) < self.batch_size:
             return
+
+        if self.cursor is None or self.conn is None:
+            raise RuntimeError("RawPipeline is not connected to MySQL.")
 
         sql = """
         INSERT INTO raw_properties (

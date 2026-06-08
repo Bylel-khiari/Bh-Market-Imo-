@@ -82,12 +82,19 @@ Search configuration:
 
 ## Environment Variables
 
-Scraper pipeline uses:
+Scraper pipeline uses `SCRAPER_DB_*` variables first, then falls back to the
+standard `MYSQL_*` variables used by the backend and maintenance tools:
 
 - SCRAPER_DB_HOST
+- SCRAPER_DB_PORT
 - SCRAPER_DB_USER
 - SCRAPER_DB_PASSWORD
 - SCRAPER_DB_NAME
+- MYSQL_HOST
+- MYSQL_PORT
+- MYSQL_USER
+- MYSQL_PASSWORD
+- MYSQL_DATABASE
 - SCRAPER_DB_BATCH_SIZE
 - SCRAPER_CRAWL_PROFILE
 - SCRAPER_SCHEDULER_ENABLED
