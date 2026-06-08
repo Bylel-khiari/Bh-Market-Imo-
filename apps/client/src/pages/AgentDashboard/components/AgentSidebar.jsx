@@ -16,7 +16,6 @@ export default function AgentSidebar({
         <div className="admin-avatar">{getInitials(profile?.name || profile?.email)}</div>
         <div>
           <h3>{profile?.name || 'Agent bancaire'}</h3>
-          <p>{profile?.matricule ? `Matricule ${profile.matricule}` : 'Traitement des dossiers BH Bank'}</p>
         </div>
       </div>
 

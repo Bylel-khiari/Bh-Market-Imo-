@@ -86,27 +86,29 @@ const Properties = () => {
 
   return (
     <div className="properties-page marketplace-mode">
-      <div className="marketplace-shell">
-        <PropertiesFilters
-          activeFilterCount={activeFilterCount}
-          clearPropertyFilters={clearPropertyFilters}
-          currentUserRole={currentUserRole}
-          favoritesOnly={favoritesOnly}
-          filteredCount={filteredProperties.length}
-          hasImageOnly={hasImageOnly}
-          maxPriceInput={maxPriceInput}
-          minPriceInput={minPriceInput}
-          priceStats={priceStats}
-          propertyTypeOptions={propertyTypeOptions}
-          searchKeywordValue={searchKeywordValue}
-          searchLocationValue={searchLocationValue}
-          selectedPropertyType={selectedPropertyType}
-          selectedSource={selectedSource}
-          sortOrder={sortOrder}
-          sourceOptions={sourceOptions}
-          updateFavoritesFilter={updateFavoritesFilter}
-          updatePropertyFilter={updatePropertyFilter}
-        />
+      <div className={`marketplace-shell ${favoritesOnly ? 'is-favorites-view' : ''}`}>
+        {!favoritesOnly && (
+          <PropertiesFilters
+            activeFilterCount={activeFilterCount}
+            clearPropertyFilters={clearPropertyFilters}
+            currentUserRole={currentUserRole}
+            favoritesOnly={favoritesOnly}
+            filteredCount={filteredProperties.length}
+            hasImageOnly={hasImageOnly}
+            maxPriceInput={maxPriceInput}
+            minPriceInput={minPriceInput}
+            priceStats={priceStats}
+            propertyTypeOptions={propertyTypeOptions}
+            searchKeywordValue={searchKeywordValue}
+            searchLocationValue={searchLocationValue}
+            selectedPropertyType={selectedPropertyType}
+            selectedSource={selectedSource}
+            sortOrder={sortOrder}
+            sourceOptions={sourceOptions}
+            updateFavoritesFilter={updateFavoritesFilter}
+            updatePropertyFilter={updatePropertyFilter}
+          />
+        )}
 
         <PropertiesResultsPanel
           authSession={authSession}
