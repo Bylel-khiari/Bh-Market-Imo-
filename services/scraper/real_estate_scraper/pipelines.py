@@ -126,7 +126,7 @@ class RawPipeline:
         }
 
         if include_database:
-            config["database"] = os.getenv("SCRAPER_DB_NAME") or os.getenv("MYSQL_DATABASE") or "database"
+            config["database"] = os.getenv("SCRAPER_DB_NAME") or os.getenv("MYSQL_DATABASE") or "bh_market"
 
         return config
 

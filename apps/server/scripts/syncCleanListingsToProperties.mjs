@@ -163,7 +163,7 @@ async function main() {
     port: Number(getEnv("MYSQL_PORT", "3306")),
     user: getEnv("MYSQL_USER", "root"),
     password: getEnv("MYSQL_PASSWORD", "root"),
-    database: getEnv("MYSQL_DATABASE", "database"),
+    database: getEnv("MYSQL_DATABASE", "bh_market"),
   });
 
   try {
@@ -182,7 +182,7 @@ async function main() {
           AND TABLE_NAME IN ('clean_listings', 'properties')
         ORDER BY TABLE_NAME, ORDINAL_POSITION
       `,
-      [getEnv("MYSQL_DATABASE", "database")]
+      [getEnv("MYSQL_DATABASE", "bh_market")]
     );
 
     const cleanColumns = [];

@@ -11,6 +11,7 @@ import { isValidRib, normalizeRib } from "../utils/rib.js";
 
 const PASSWORD_RESET_TOKEN_BYTES = 32;
 const DEFAULT_PASSWORD_RESET_TTL_MINUTES = 30;
+const isProduction = process.env.NODE_ENV === "production";
 
 function toPublicUser(row) {
   return {
@@ -193,7 +194,8 @@ export async function requestPasswordReset(payload = {}, options = {}) {
     throw httpError(400, "Email is required");
   }
 
-  if (!isPasswordResetMailConfigured()) {
+  const mailConfigured = isPasswordResetMailConfigured();
+  if (!mailConfigured && isProduction) {
     throw httpError(
       503,
       "Service e-mail non configure. Ajoutez SMTP_HOST, SMTP_USER et SMTP_PASS dans apps/server/.env."
@@ -236,7 +238,12 @@ export async function requestPasswordReset(payload = {}, options = {}) {
   );
 
   try {
-    await sendPasswordResetEmail({ user, resetUrl, expiresInMinutes });
+    const delivery = await sendPasswordResetEmail({ user, resetUrl, expiresInMinutes });
+    return {
+      message: genericMessage,
+      sent: Boolean(delivery?.delivered),
+      ...(!isProduction && !delivery?.delivered ? { dev_reset_url: resetUrl } : {}),
+    };
   } catch (error) {
     console.error("Failed to send password reset email:", {
       userId: user.id,
@@ -245,8 +252,6 @@ export async function requestPasswordReset(payload = {}, options = {}) {
     });
     throw httpError(502, "Impossible d'envoyer l'e-mail de reinitialisation pour le moment");
   }
-
-  return { message: genericMessage, sent: true };
 }
 
 export async function resetUserPassword(payload = {}) {

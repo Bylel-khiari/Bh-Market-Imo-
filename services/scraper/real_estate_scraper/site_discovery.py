@@ -18,7 +18,7 @@ DB_CONFIG = {
     "port": int(os.getenv("MYSQL_PORT", "3306")),
     "user": os.getenv("MYSQL_USER", os.getenv("SCRAPER_DB_USER", "root")),
     "password": os.getenv("MYSQL_PASSWORD") or os.getenv("SCRAPER_DB_PASSWORD") or "root",
-    "database": os.getenv("MYSQL_DATABASE", os.getenv("SCRAPER_DB_NAME", "database")),
+    "database": os.getenv("MYSQL_DATABASE", os.getenv("SCRAPER_DB_NAME", "bh_market")),
     "autocommit": False,
 }
 

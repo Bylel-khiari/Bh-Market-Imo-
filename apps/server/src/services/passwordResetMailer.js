@@ -4,6 +4,10 @@ const DEFAULT_FROM = '"BH Market Imo" <no-reply@bh-market.tn>';
 
 let cachedTransporter = null;
 
+function isEnabled(value) {
+  return ["1", "true", "yes"].includes(String(value || "").trim().toLowerCase());
+}
+
 function getMailConfig() {
   const host = String(process.env.SMTP_HOST || process.env.MAIL_HOST || "").trim();
   const port = Number(process.env.SMTP_PORT || process.env.MAIL_PORT || 587);
@@ -22,10 +26,30 @@ function getMailConfig() {
   };
 }
 
+function canUseUnauthenticatedSmtp(config) {
+  if (isEnabled(process.env.SMTP_ALLOW_UNAUTHENTICATED || process.env.MAIL_ALLOW_UNAUTHENTICATED)) {
+    return true;
+  }
+
+  return ["localhost", "127.0.0.1", "::1"].includes(config.host.toLowerCase());
+}
+
+function hasUsableMailConfig(config) {
+  if (!config.host) {
+    return false;
+  }
+
+  if (config.user && config.pass) {
+    return true;
+  }
+
+  return canUseUnauthenticatedSmtp(config);
+}
+
 function getTransporter() {
   const config = getMailConfig();
 
-  if (!config.host) {
+  if (!hasUsableMailConfig(config)) {
     return null;
   }
 
@@ -53,7 +77,7 @@ function escapeHtml(value) {
 }
 
 export function isPasswordResetMailConfigured() {
-  return Boolean(getMailConfig().host);
+  return hasUsableMailConfig(getMailConfig());
 }
 
 export function buildPasswordResetMessage({ user, resetUrl, expiresInMinutes }) {

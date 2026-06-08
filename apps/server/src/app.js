@@ -25,6 +25,7 @@ import { initializeScraperControlStore } from "./models/scraperControlModel.js";
 import { initializeScraperAutomation } from "./services/scraperControlService.js";
 import { initializeSiteDiscoveryAutomation } from "./services/siteDiscoveryService.js";
 import { runMigrations } from "./migrations/migrationRunner.js";
+import { ensureDatabaseReady } from "./config/db.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)) });
 
@@ -104,6 +105,7 @@ app.use(errorHandler);
 
 export async function startServer() {
   const port = Number(process.env.PORT || 5000);
+  await ensureDatabaseReady();
   await runMigrations();
   const storeInitializers = [
     initializePropertyStore,

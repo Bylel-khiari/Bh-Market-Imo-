@@ -60,9 +60,15 @@ export async function forgotPassword(req, res) {
     origin: req.get("origin"),
   });
 
-  return res.status(202).json({
+  const payload = {
     message: result.message,
-  });
+  };
+
+  if (result.dev_reset_url) {
+    payload.dev_reset_url = result.dev_reset_url;
+  }
+
+  return res.status(202).json(payload);
 }
 
 export async function resetPassword(req, res) {

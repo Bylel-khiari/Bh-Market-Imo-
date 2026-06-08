@@ -105,7 +105,6 @@ const ForgotPassword = () => {
 
             {errorMessage && <p className="login-error-message">{errorMessage}</p>}
             {successMessage && <p className="login-success-message">{successMessage}</p>}
-
             <div className="login-divider">
               <span>ou</span>
             </div>

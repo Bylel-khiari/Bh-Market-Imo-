@@ -864,15 +864,6 @@ export default function CreditImmobilierBHPortal() {
           background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         }
 
-        .bh-form-note {
-          border-left: 4px solid #c5162e;
-          background: #fff7f8;
-          color: #5d2730;
-          border-radius: 0.7rem;
-          padding: 0.75rem 0.9rem;
-          font-size: 0.9rem;
-        }
-
         .bh-final-submission-choice {
           border: 1px solid #bfd4ea;
           border-radius: 0.9rem;
@@ -1380,11 +1371,6 @@ export default function CreditImmobilierBHPortal() {
                           </select>
                         </div>
 
-                        <div className="col-12">
-                          <div className="bh-form-note">
-                            Si une valeur reste vide, l’agent de scoring utilisera les données de simulation, les engagements déclarés et les pièces jointes disponibles.
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
