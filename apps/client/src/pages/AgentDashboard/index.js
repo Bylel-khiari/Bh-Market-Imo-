@@ -1,1 +1,1 @@
-export { default } from './AgentDashboard';
+export { default } from '../../features/agent/AgentDashboardPage';

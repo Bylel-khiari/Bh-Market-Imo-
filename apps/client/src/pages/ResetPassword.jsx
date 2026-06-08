@@ -8,7 +8,7 @@ import {
   FaHome,
   FaLock,
 } from 'react-icons/fa';
-import { resetPasswordApi } from '../lib/auth';
+import { resetPasswordApi } from '../features/auth/api/authApi';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 

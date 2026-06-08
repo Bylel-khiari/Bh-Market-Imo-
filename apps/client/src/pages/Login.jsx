@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaUniversity, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
-import { loginApi, saveAuthSession } from '../lib/auth';
+import { loginApi, saveAuthSession } from '../features/auth/api/authApi';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Slider from 'react-slick';
 import { Link } from 'react-router-dom';
 import { FaMapMarkerAlt, FaCalendarAlt, FaExternalLinkAlt } from 'react-icons/fa';
-import { fetchPropertyRows } from '../lib/properties';
+import { fetchPropertyRows } from '../features/properties/api/propertiesApi';
 import '../styles/PropertyCarousel.css';
 
 const PropertyCarousel = () => {

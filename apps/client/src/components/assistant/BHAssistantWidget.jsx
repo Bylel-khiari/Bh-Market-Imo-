@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRight, FaMapMarkerAlt, FaPaperPlane, FaTimes } from 'react-icons/fa';
-import { AUTH_SESSION_CHANGED_EVENT, getAuthSession } from '../../lib/auth';
-import { sendAssistantMessage } from './assistantApi';
+import { AUTH_SESSION_CHANGED_EVENT, getAuthSession } from '../../features/auth/api/authApi';
+import { sendAssistantMessage } from '../../features/assistant/api/assistantApi';
 import bhLogo from '../../assets/favicon.ico';
 import './BHAssistantWidget.css';
 

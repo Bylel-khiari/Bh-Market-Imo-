@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import TunisiaDynastyMap from '../components/TunisiaDynastyMap';
 import { adaptDatabaseListings } from '../lib/mapDataAdapter';
-import { fetchPropertyRows } from '../../../lib/properties';
+import { fetchPropertyRows } from '../../properties/api/propertiesApi';
 import '../styles/TunisiaDynastyMap.css';
 
 export default function MapPage() {

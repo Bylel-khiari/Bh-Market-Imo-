@@ -4,7 +4,7 @@ import {
   groupListingsByGovernorate,
   normalizeGovernorateName,
 } from '../lib/mapDataAdapter';
-import { safeRecordClientActivity } from '../../../lib/auth';
+import { safeRecordClientActivity } from '../../client/api/clientApi';
 
 const LOCAL_GEOJSON_URL = `${process.env.PUBLIC_URL || ''}/tunisia-governorates-full.geojson`;
 const FALLBACK_GEOJSON_URL =

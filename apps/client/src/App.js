@@ -18,7 +18,7 @@ import Contact from './pages/Contact';
 import CreditImmobilierBHPortal from './pages/CreditImmobilierBHPortal';
 import LaBanque from './pages/LaBanque';
 import MapPage from './features/map/pages/MapPage';
-import { getAuthSession } from './lib/auth';
+import { getAuthSession } from './features/auth/api/authApi';
 import './App.css';
 
 function App() {

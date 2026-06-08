@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaEnvelope, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
-import { requestPasswordResetApi } from '../lib/auth';
+import { requestPasswordResetApi } from '../features/auth/api/authApi';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import TunisiaMapHome from '../components/TunisiaMapHome';
 import { adaptDatabaseListings } from '../lib/mapDataAdapter';
-import { fetchPropertyRows } from '../../../lib/properties';
+import { fetchPropertyRows } from '../../properties/api/propertiesApi';
 import '../styles/TunisiaMapHome.css';
 
 export default function HomeMapSection() {

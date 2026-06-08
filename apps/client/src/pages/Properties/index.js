@@ -1,1 +1,1 @@
-export { default } from './Properties';
+export { default } from '../../features/properties/PropertiesPage';

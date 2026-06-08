@@ -21,7 +21,7 @@ import {
 } from 'react-icons/fa';
 import '../styles/Navbar.css';
 import logo from '../assets/favicon.ico';
-import { clearAuthSession, getAuthSession } from '../lib/auth';
+import { clearAuthSession, getAuthSession } from '../features/auth/api/authApi';
 
 const Navbar = () => {
   const routeLocation = useLocation();
