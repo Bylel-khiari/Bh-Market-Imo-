@@ -21,6 +21,8 @@ const QUICK_SUGGESTIONS = [
   'Contacter un agent',
 ];
 
+const MAX_TRUSTED_LOCATION_ACCURACY_METERS = 25000;
+
 const TUNISIA_LOCATION_CENTERS = [
   { city: 'Tunis', latitude: 36.8065, longitude: 10.1815 },
   { city: 'Ariana', latitude: 36.8625, longitude: 10.1956 },
@@ -85,6 +87,49 @@ function resolveNearestCity(latitude, longitude) {
   }, null)?.city || '';
 }
 
+function buildCityLocation(city, source = 'message') {
+  const center = TUNISIA_LOCATION_CENTERS.find((item) => item.city === city);
+
+  return {
+    city,
+    source,
+    ...(center ? { latitude: center.latitude, longitude: center.longitude } : {}),
+  };
+}
+
+function createLocationError(reason, message) {
+  const error = new Error(message);
+  error.locationReason = reason;
+  return error;
+}
+
+function getLocationErrorMessage(error) {
+  if (error?.locationReason === 'low_accuracy') {
+    return error.message;
+  }
+
+  if (error?.code === 1) {
+    return 'La localisation est bloquee par le navigateur. Autorisez la position ou indiquez votre ville.';
+  }
+
+  if (error?.code === 3) {
+    return 'La localisation prend trop de temps. Indiquez votre ville pour continuer.';
+  }
+
+  return 'Je n ai pas pu detecter votre position. Indiquez votre ville, par exemple : "Je cherche un appartement a Sidi Bouzid".';
+}
+
+function buildApiLocation(location = {}) {
+  const apiLocation = {};
+
+  if (location.city) apiLocation.city = location.city;
+  if (location.address) apiLocation.address = location.address;
+  if (Number.isFinite(location.latitude)) apiLocation.latitude = location.latitude;
+  if (Number.isFinite(location.longitude)) apiLocation.longitude = location.longitude;
+
+  return Object.keys(apiLocation).length ? apiLocation : null;
+}
+
 function buildProfileLocation(session) {
   const address = session?.user?.address || '';
   const city = session?.user?.city || inferCityFromText(address);
@@ -118,15 +163,16 @@ function buildPageContext(locationOverride) {
   const propertyId = params.get('propertyId') || params.get('id') || undefined;
   const profileLocation = buildProfileLocation(session);
   const activeLocation = locationOverride || {};
+  const apiLocation = buildApiLocation(activeLocation);
 
   return {
     page: window.location.pathname,
     ...(propertyId ? { propertyId } : {}),
     ...profileLocation,
-    ...(activeLocation.city
+    ...(apiLocation?.city
       ? {
-          clientCity: activeLocation.city,
-          location: activeLocation,
+          clientCity: apiLocation.city,
+          location: apiLocation,
         }
       : {}),
   };
@@ -230,6 +276,15 @@ function BHAssistantWidget() {
     navigate(path);
   }
 
+  function handleLocationSelect(event) {
+    const city = event.target.value;
+    if (!city) return;
+
+    const nextLocation = buildCityLocation(city, 'manual');
+    setDetectedLocation(nextLocation);
+    setLocationStatus(`Zone choisie : ${city}`);
+  }
+
   async function requestBrowserLocation() {
     if (!navigator.geolocation) {
       throw new Error('La localisation navigateur est indisponible.');
@@ -239,16 +294,27 @@ function BHAssistantWidget() {
 
     const position = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 5 * 60 * 1000,
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
       });
     });
+
+    const accuracy = Number(position.coords.accuracy);
+    if (Number.isFinite(accuracy) && accuracy > MAX_TRUSTED_LOCATION_ACCURACY_METERS) {
+      const approximateKilometers = Math.round(accuracy / 1000);
+      throw createLocationError(
+        'low_accuracy',
+        `Position trop approximative (${approximateKilometers} km). Indiquez votre ville pour eviter une mauvaise zone.`,
+      );
+    }
 
     const nextLocation = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
+      accuracy: Number.isFinite(accuracy) ? accuracy : null,
       city: resolveNearestCity(position.coords.latitude, position.coords.longitude),
+      source: 'browser',
     };
 
     setDetectedLocation(nextLocation);
@@ -263,14 +329,12 @@ function BHAssistantWidget() {
         displayMessage: nextLocation.city ? `Biens près de ${nextLocation.city}` : 'Biens près de moi',
         locationOverride: nextLocation,
       });
-    } catch {
-      setLocationStatus('');
+    } catch (error) {
+      const errorMessage = getLocationErrorMessage(error);
+      setLocationStatus(errorMessage);
       setMessages((currentMessages) => [
         ...currentMessages,
-        createMessage(
-          'assistant',
-          'Je n’ai pas pu détecter votre position. Indiquez-moi votre ville, par exemple : “Je cherche un appartement à Sousse”.',
-        ),
+        createMessage('assistant', errorMessage),
       ]);
     }
   }
@@ -284,6 +348,13 @@ function BHAssistantWidget() {
       return;
     }
 
+    const cityFromMessage = inferCityFromText(cleanedMessage);
+    if (cityFromMessage) {
+      locationOverride = buildCityLocation(cityFromMessage);
+      setDetectedLocation(locationOverride);
+      setLocationStatus(`Zone choisie : ${cityFromMessage}`);
+    }
+
     const profileLocation = buildProfileLocation(getAuthSession());
     const hasKnownLocation = Boolean(locationOverride?.city || detectedLocation?.city || profileLocation.clientCity);
 
@@ -293,8 +364,8 @@ function BHAssistantWidget() {
         if (locationOverride?.city && !options.displayMessage) {
           displayedMessage = `Biens près de ${locationOverride.city}`;
         }
-      } catch {
-        setLocationStatus('');
+      } catch (error) {
+        setLocationStatus(getLocationErrorMessage(error));
       }
     }
 
@@ -485,7 +556,22 @@ function BHAssistantWidget() {
         <div ref={messagesEndRef} />
       </div>
 
-      {locationStatus && <div className="bh-assistant-widget__location">{locationStatus}</div>}
+      {locationStatus && (
+        <div className="bh-assistant-widget__location">
+          <span>{locationStatus}</span>
+          <label>
+            <span className="sr-only">Corriger la zone</span>
+            <select value={detectedLocation?.city || ''} onChange={handleLocationSelect}>
+              <option value="">Corriger</option>
+              {TUNISIA_LOCATION_CENTERS.map((location) => (
+                <option key={location.city} value={location.city}>
+                  {location.city}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
 
       <div className="bh-assistant-widget__suggestions" aria-label="Suggestions rapides">
         {suggestions.map((suggestion) => (
