@@ -1,8 +1,3 @@
-/**
- * Document types for credit applications
- * Each document type defines: key, label, description, required flag
- */
-
 export const DOCUMENT_TYPES = {
   BH_FORM: {
     key: "BH_FORM",
