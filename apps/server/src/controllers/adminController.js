@@ -1,37 +1,16 @@
-import {
-  createPropertyByAdmin,
-  deletePropertyByAdmin,
-  fetchAdminPropertiesPage,
-  updatePropertyByAdmin,
-} from "../models/propertyModel.js";
+import {createPropertyByAdmin,deletePropertyByAdmin,fetchAdminPropertiesPage, updatePropertyByAdmin,}from "../models/propertyModel.js";
 import { fetchAdminDashboardSummary } from "../models/adminDashboardModel.js";
-import {
-  createUserByAdmin,
-  deleteUserByAdmin,
-  fetchUsers,
-  updateUserByAdmin,
-} from "../models/adminModel.js";
+import {createUserByAdmin,deleteUserByAdmin,fetchUsers,updateUserByAdmin,} from "../models/adminModel.js";
 import { createScrapeSite, deleteScrapeSite, fetchScrapeSites, updateScrapeSite } from "../models/scrapeSiteModel.js";
-import {
-  acceptScrapeSiteSuggestion,
-  fetchScrapeSiteSuggestions,
-  updateScrapeSiteSuggestion,
-} from "../models/scrapeSiteSuggestionModel.js";
-import {
-  configureScraperAutomation,
-  fetchScraperAutomationStatus,
-  startListingCleanerAgent,
-  startScraperCycle,
-  stopScraperCycle,
-} from "../services/scraperControlService.js";
+import {acceptScrapeSiteSuggestion,fetchScrapeSiteSuggestions,updateScrapeSiteSuggestion,} from "../models/scrapeSiteSuggestionModel.js";
+import {configureScraperAutomation,fetchScraperAutomationStatus,startListingCleanerAgent,startScraperCycle,stopScraperCycle,} from "../services/scraperControlService.js";
 import { startSiteDiscoveryRun } from "../services/siteDiscoveryService.js";
 import { recordAdminAuditLog } from "../models/adminAuditLogModel.js";
 import {
-  renderAdminDashboardSummary,
-  renderAdminPropertiesList,
-  renderAcceptedScrapeSiteSuggestion,
-  renderCreatedAdminProperty,
-  renderCreatedUser,
+renderAdminDashboardSummary,
+renderAdminPropertiesList,
+renderAcceptedScrapeSiteSuggestion,
+ renderCreatedAdminProperty,renderCreatedUser,
   renderCreatedScrapeSite,
   renderDeletedAdminProperty,
   renderDeletedUser,

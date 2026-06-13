@@ -1,14 +1,5 @@
-import {
-  changeUserPassword,
-  getUserById,
-  loginUser,
-  requestPasswordReset,
-  resetUserPassword,
-} from "../models/authModel.js";
-import {
-  CLIENT_ACTIVITY_EVENT_TYPES,
-  recordClientActivityLog,
-} from "../models/clientActivityLogModel.js";
+import { changeUserPassword,getUserById, loginUser, resetUserPassword,} from "../models/authModel.js";
+import {CLIENT_ACTIVITY_EVENT_TYPES,recordClientActivityLog,} from "../models/clientActivityLogModel.js";
 import { renderAuthenticatedUser, renderCurrentUser } from "../views/authView.js";
 
 const ACCESS_TOKEN_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "bh_market_access_token";
