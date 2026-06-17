@@ -315,6 +315,10 @@ export async function fetchClientCreditApplicationsApi(token, limit = 20) {
   return authorizedJsonRequest(`/api/client/credit-applications?limit=${limit}`, token);
 }
 
+export async function fetchClientPropertyReportsApi(token, limit = 500) {
+  return authorizedJsonRequest(`/api/client/property-reports?limit=${limit}`, token);
+}
+
 export async function updateClientCreditApplicationApi(applicationId, input, token) {
   return authorizedJsonRequest(`/api/client/credit-applications/${applicationId}`, token, {
     method: 'PATCH',
@@ -326,7 +330,7 @@ export async function fetchClientProfileApi(token) {
   return authorizedJsonRequest('/api/client/profile', token);
 }
 
-export async function fetchAdminUsersApi(token, limit = 100) {
+export async function fetchAdminUsersApi(token, limit = 500) {
   return authorizedJsonRequest(`/api/admin/users?limit=${limit}`, token);
 }
 
@@ -436,8 +440,14 @@ export async function updateAdminScrapeSiteApi(siteId, input, token) {
   });
 }
 
-export async function deleteAdminScrapeSiteApi(siteId, token) {
-  return authorizedJsonRequest(`/api/admin/scrape-sites/${siteId}`, token, {
+export async function deleteAdminScrapeSiteApi(siteId, token, { deleteRelatedProperties = false } = {}) {
+  const params = new URLSearchParams();
+  if (deleteRelatedProperties) {
+    params.set('delete_related_properties', 'true');
+  }
+  const query = params.toString();
+
+  return authorizedJsonRequest(`/api/admin/scrape-sites/${siteId}${query ? `?${query}` : ''}`, token, {
     method: 'DELETE',
   });
 }

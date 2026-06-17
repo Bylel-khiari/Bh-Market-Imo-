@@ -30,7 +30,7 @@ export default function useAdminUsers({ fetchDashboardSummary, handleAuthFailure
       const token = requireAuthToken();
       setLoading(true);
       setError('');
-      const payload = await fetchAdminUsersApi(token, 100);
+      const payload = await fetchAdminUsersApi(token, 500);
       setUsers(Array.isArray(payload?.users) ? payload.users : []);
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {

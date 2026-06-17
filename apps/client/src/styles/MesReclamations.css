@@ -1,0 +1,415 @@
+.mes-reclamations-page {
+  min-height: 100vh;
+  padding: 42px 0 64px;
+  background:
+    linear-gradient(180deg, rgba(10, 34, 64, 0.04), rgba(245, 247, 250, 0) 260px),
+    #f5f7fa;
+}
+
+.mes-reclamations-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.mes-reclamations-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.mes-reclamations-eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #c51220;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mes-reclamations-header h1 {
+  margin: 0;
+  color: #081f3f;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.05;
+}
+
+.mes-reclamations-header p {
+  max-width: 650px;
+  margin: 10px 0 0;
+  color: #5d6d82;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.mes-reclamations-new-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 0 16px;
+  border: 1px solid #d60000;
+  background: #d60000;
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.mes-reclamations-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mes-reclamations-stats article {
+  display: grid;
+  gap: 6px;
+  min-height: 108px;
+  padding: 20px;
+  border: 1px solid #dde6f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(13, 35, 68, 0.06);
+}
+
+.mes-reclamations-stats strong {
+  color: #081f3f;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.mes-reclamations-stats span {
+  color: #5d6d82;
+  font-weight: 700;
+}
+
+.mes-reclamations-empty {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 56px 24px;
+  border: 1px solid #dde6f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #40536c;
+  text-align: center;
+  box-shadow: 0 18px 40px rgba(13, 35, 68, 0.08);
+}
+
+.mes-reclamations-empty svg {
+  color: #0a4d8c;
+  font-size: 32px;
+}
+
+.mes-reclamations-empty h2 {
+  margin: 0;
+  color: #081f3f;
+}
+
+.mes-reclamations-empty p {
+  margin: 0;
+}
+
+.mes-reclamations-empty--error svg {
+  color: #d60000;
+}
+
+.mes-reclamations-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.mes-reclamations-list-panel,
+.mes-reclamations-detail-panel {
+  border: 1px solid #dde6f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(13, 35, 68, 0.08);
+}
+
+.mes-reclamations-list-panel {
+  position: sticky;
+  top: 24px;
+  overflow: hidden;
+}
+
+.mes-reclamations-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.mes-reclamations-list-head h2 {
+  margin: 0;
+  color: #081f3f;
+  font-size: 20px;
+}
+
+.mes-reclamations-list-head p {
+  margin: 4px 0 0;
+  color: #6c7890;
+  font-weight: 700;
+}
+
+.mes-reclamations-list-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d60000;
+  font-weight: 900;
+}
+
+.mes-reclamations-list {
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 260px);
+  min-height: 260px;
+  overflow: auto;
+  padding: 14px;
+}
+
+.mes-reclamations-list-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #e1e8f1;
+  border-radius: 8px;
+  background: #fbfdff;
+  color: #173456;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mes-reclamations-list-card:hover,
+.mes-reclamations-list-card.is-selected {
+  border-color: #d60000;
+  box-shadow: 0 12px 28px rgba(214, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.mes-reclamations-list-card strong {
+  overflow-wrap: anywhere;
+  color: #081f3f;
+  font-size: 18px;
+}
+
+.mes-reclamations-list-card small,
+.mes-reclamations-list-meta {
+  color: #5d6d82;
+  line-height: 1.45;
+}
+
+.mes-reclamations-list-meta {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mes-reclamations-mini-status,
+.mes-reclamations-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.mes-reclamations-mini-status {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.mes-reclamations-status {
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.mes-reclamations-detail-panel {
+  overflow: hidden;
+}
+
+.mes-reclamations-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.mes-reclamations-detail-head h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #081f3f;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+}
+
+.mes-reclamations-detail-head p {
+  margin: 8px 0 0;
+  color: #6c7890;
+}
+
+.mes-reclamations-decision-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #edf1f6;
+  background: #f8fafc;
+}
+
+.mes-reclamations-decision-row div {
+  display: grid;
+  gap: 6px;
+  min-height: 84px;
+  padding: 16px;
+  border: 1px solid #e1e8f1;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mes-reclamations-decision-row span {
+  color: #6c7890;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mes-reclamations-decision-row strong {
+  overflow-wrap: anywhere;
+  color: #081f3f;
+  font-size: 22px;
+  line-height: 1.12;
+}
+
+.mes-reclamations-card {
+  margin: 20px 24px 0;
+  padding: 20px;
+  border: 1px solid #e1e8f1;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mes-reclamations-response-card {
+  margin-bottom: 24px;
+  border-color: #cddded;
+  background: #fbfdff;
+}
+
+.mes-reclamations-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: #0a4d8c;
+}
+
+.mes-reclamations-card-title h3 {
+  margin: 0;
+  color: #081f3f;
+  font-size: 17px;
+}
+
+.mes-reclamations-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #40536c;
+  line-height: 1.65;
+}
+
+.mes-reclamations-card small {
+  display: block;
+  margin-top: 12px;
+  color: #6c7890;
+  font-weight: 800;
+}
+
+.mes-reclamations-page .status-submitted {
+  background: #fff1f1;
+  color: #b30000;
+}
+
+.mes-reclamations-page .status-review {
+  background: #eef5ff;
+  color: #0a4d8c;
+}
+
+.mes-reclamations-page .status-accepted {
+  background: #eaf8f0;
+  color: #246b43;
+}
+
+.mes-reclamations-page .status-refused {
+  background: #f7e9eb;
+  color: #9b1c28;
+}
+
+.mes-reclamations-page .status-unknown {
+  background: #eef2f7;
+  color: #4c5c72;
+}
+
+@media (max-width: 900px) {
+  .mes-reclamations-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mes-reclamations-stats,
+  .mes-reclamations-workspace,
+  .mes-reclamations-decision-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mes-reclamations-list-panel {
+    position: static;
+  }
+
+  .mes-reclamations-list {
+    max-height: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .mes-reclamations-page {
+    padding-top: 28px;
+  }
+
+  .mes-reclamations-detail-head {
+    flex-direction: column;
+  }
+
+  .mes-reclamations-card,
+  .mes-reclamations-decision-row,
+  .mes-reclamations-detail-head {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .mes-reclamations-card {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}

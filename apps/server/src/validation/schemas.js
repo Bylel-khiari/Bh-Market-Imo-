@@ -3,6 +3,12 @@ import { z } from "zod";
 const adminRole = z.enum(["client", "agent_bancaire", "admin"]);
 const scrapeSiteIntegrationStatus = z.enum(["ready", "pending_spider", "disabled"]);
 const scrapeSiteSuggestionStatus = z.enum(["pending", "accepted", "rejected", "ignored"]);
+const optionalBooleanQueryFlag = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  if (value === true || value === "true" || value === "1") return true;
+  if (value === false || value === "false" || value === "0") return false;
+  return value;
+}, z.boolean().optional());
 const clientActivityEventType = z.enum([
   "client_login_success",
   "credit_simulation_calculate",
@@ -92,6 +98,12 @@ export const adminListUsersQuerySchema = z
 export const adminListScrapeSitesQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const adminDeleteScrapeSiteQuerySchema = z
+  .object({
+    delete_related_properties: optionalBooleanQueryFlag,
   })
   .strict();
 
@@ -269,6 +281,8 @@ export const adminUpdateScrapeSiteBodySchema = z
     description: scrapeSiteBaseSchema.description,
     is_active: scrapeSiteBaseSchema.is_active,
     integration_status: scrapeSiteBaseSchema.integration_status,
+    deactivate_related_properties: z.boolean().optional(),
+    delete_related_properties: z.boolean().optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
@@ -310,6 +324,12 @@ export const adminListPropertyReportsQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(2000).optional(),
     status: z.union([z.literal("all"), propertyReportStatusSchema]).optional(),
+  })
+  .strict();
+
+export const clientListPropertyReportsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(500).optional(),
   })
   .strict();
 

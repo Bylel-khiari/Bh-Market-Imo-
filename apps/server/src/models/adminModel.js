@@ -86,15 +86,26 @@ function normalizeAndValidateClientRib(value) {
   return normalizedRib;
 }
 
-export async function fetchUsers({ limit = 50 } = {}) {
+export async function fetchUsers({ limit = 50, excludedUserId = null } = {}) {
   const boundedLimit = Math.min(Math.max(Number(limit) || 50, 1), 500);
-  const [rows] = await dbPool.query(
+  const normalizedExcludedUserId = Number(excludedUserId) || null;
+  const whereClauses = [];
+  const params = [];
+
+  if (normalizedExcludedUserId) {
+    whereClauses.push("id <> ?");
+    params.push(normalizedExcludedUserId);
+  }
+
+  const [rows] = await dbPool.execute(
     `
     SELECT id, name, email, rib_bancaire, role, created_at
     FROM users
+    ${whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : ""}
     ORDER BY id DESC
     LIMIT ${boundedLimit}
-    `
+    `,
+    params
   );
   return rows;
 }

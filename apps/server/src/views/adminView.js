@@ -66,8 +66,14 @@ export function renderCreatedScrapeSite(res, site) {
   return res.status(201).json({ site });
 }
 
-export function renderUpdatedScrapeSite(res, site) {
-  return res.json({ site });
+export function renderUpdatedScrapeSite(res, payload) {
+  const site = payload?.site || payload;
+  return res.json({
+    site,
+    deactivated_listings: payload?.deactivated_listings || null,
+    reactivated_listings: payload?.reactivated_listings || null,
+    deleted_listings: payload?.deleted_listings || null,
+  });
 }
 
 export function renderDeletedScrapeSite(res) {

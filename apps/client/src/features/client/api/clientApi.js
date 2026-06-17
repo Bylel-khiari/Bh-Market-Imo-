@@ -1,6 +1,7 @@
 export {
   clearAuthSession,
   fetchClientCreditApplicationsApi,
+  fetchClientPropertyReportsApi,
   fetchClientProfileApi,
   fetchFavoritesApi,
   getAuthSession,

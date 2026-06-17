@@ -2,6 +2,7 @@ import { dbPool } from "../config/db.js";
 import { httpError } from "../utils/httpError.js";
 
 const MAX_ADMIN_REPORTS_LIMIT = Number(process.env.ADMIN_PROPERTY_REPORTS_MAX_LIMIT || 500);
+const MAX_CLIENT_REPORTS_LIMIT = Number(process.env.CLIENT_PROPERTY_REPORTS_MAX_LIMIT || 500);
 const PROPERTY_TABLE = "properties";
 const RECLAMATION_TABLE = "reclamations";
 const RECLAMATION_HISTORY_TABLE = "reclamation_history";
@@ -392,6 +393,32 @@ export async function fetchAdminPropertyReports({ limit = 100, status = "all" } 
     LIMIT ${boundedLimit}
     `,
     params
+  );
+
+  return rows.map(toPublicPropertyReport);
+}
+
+export async function fetchClientPropertyReports({ reporterUserId, limit = 100 } = {}) {
+  const normalizedReporterUserId = Number(reporterUserId);
+  if (!normalizedReporterUserId) {
+    throw httpError(401, "Invalid user session");
+  }
+
+  const boundedLimit = toBoundedLimit(limit, 100, MAX_CLIENT_REPORTS_LIMIT);
+
+  const [rows] = await dbPool.execute(
+    `
+    SELECT
+      ${REPORT_SELECT_COLUMNS}
+    FROM ${RECLAMATION_TABLE} r
+    LEFT JOIN ${PROPERTY_TABLE} p ON p.id = r.annonce_id
+    LEFT JOIN users reporter ON reporter.id = r.client_id
+    LEFT JOIN users reviewer ON reviewer.id = r.admin_id
+    WHERE r.client_id = ?
+    ORDER BY r.created_at DESC, r.id DESC
+    LIMIT ${boundedLimit}
+    `,
+    [normalizedReporterUserId]
   );
 
   return rows.map(toPublicPropertyReport);

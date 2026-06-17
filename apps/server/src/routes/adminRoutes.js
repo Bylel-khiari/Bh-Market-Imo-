@@ -30,6 +30,7 @@ import {
 	adminAcceptScrapeSiteSuggestionBodySchema,
 	adminCreatePropertyBodySchema,
 	adminCreateUserBodySchema,
+	adminDeleteScrapeSiteQuerySchema,
 	adminListPropertiesQuerySchema,
 	adminListScrapeSiteSuggestionsQuerySchema,
 	adminListScrapeSitesQuerySchema,
@@ -193,7 +194,7 @@ router.delete(
 	"/api/admin/scrape-sites/:id",
 	requireAuth,
 	requireRoles("admin"),
-	validateRequest({ params: idParamSchema }),
+	validateRequest({ params: idParamSchema, query: adminDeleteScrapeSiteQuerySchema }),
 	deleteScrapeSiteByAdmin
 );
 

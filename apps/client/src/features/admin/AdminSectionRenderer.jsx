@@ -100,6 +100,8 @@ export default function AdminSectionRenderer({
         reportStatusFilter={reportsController.reportStatusFilter}
         setReportStatusFilter={reportsController.setReportStatusFilter}
         reportSubmittingId={reportsController.reportSubmittingId}
+        reportDraftNotes={reportsController.reportDraftNotes}
+        handleReportNoteChange={reportsController.handleReportNoteChange}
         handleReportStatusUpdate={reportsController.handleReportStatusUpdate}
         formatReportStatus={formatReportStatus}
         formatReportCategory={formatReportCategory}

@@ -44,15 +44,22 @@ export default function AdminModals({
   } = propertiesController;
 
   const {
+    closeDeactivateSiteConfirm,
     closeDeleteSiteConfirm,
     editingSiteId,
+    handleDeactivateSiteConfirmed,
     handleDeleteSiteConfirmed,
     handleSiteFormChange,
     handleSiteSubmit,
     isSitePanelOpen,
     openCreateSitePanel,
     resetSiteForm,
+    setSiteDeactivateRelatedListings,
+    setSiteDeleteRelatedListings,
+    siteDeactivateCandidate,
+    siteDeactivateRelatedListings,
     siteDeleteCandidate,
+    siteDeleteRelatedListings,
     siteFormData,
     siteFormMessage,
     siteFormMode,
@@ -135,7 +142,47 @@ export default function AdminModals({
           onCancel={closeDeleteSiteConfirm}
           onConfirm={handleDeleteSiteConfirmed}
         >
-          Voulez-vous vraiment supprimer le site <strong>{siteDeleteCandidate?.name}</strong> ?
+          <p>
+            Voulez-vous vraiment supprimer le site <strong>{siteDeleteCandidate?.name}</strong> ?
+          </p>
+          <label className="admin-checkbox-row admin-confirm-choice">
+            <input
+              type="checkbox"
+              checked={siteDeleteRelatedListings}
+              onChange={(event) => setSiteDeleteRelatedListings(event.target.checked)}
+              disabled={siteSubmitting}
+            />
+            <span>
+              Supprimer aussi les annonces importees depuis le spider{' '}
+              <strong>{siteDeleteCandidate?.spider_name}</strong>
+            </span>
+          </label>
+        </AdminConfirmModal>
+      )}
+
+      {activeSection === 'sites' && Boolean(siteDeactivateCandidate) && (
+        <AdminConfirmModal
+          disabled={siteSubmitting}
+          title="Confirmer la desactivation"
+          confirmLabel={siteSubmitting ? 'Desactivation...' : 'Oui, desactiver'}
+          onCancel={closeDeactivateSiteConfirm}
+          onConfirm={handleDeactivateSiteConfirmed}
+        >
+          <p>
+            Voulez-vous vraiment desactiver le site <strong>{siteDeactivateCandidate?.name}</strong> ?
+          </p>
+          <label className="admin-checkbox-row admin-confirm-choice">
+            <input
+              type="checkbox"
+              checked={siteDeactivateRelatedListings}
+              onChange={(event) => setSiteDeactivateRelatedListings(event.target.checked)}
+              disabled={siteSubmitting}
+            />
+            <span>
+              Desactiver aussi les annonces importees depuis le spider{' '}
+              <strong>{siteDeactivateCandidate?.spider_name}</strong>
+            </span>
+          </label>
         </AdminConfirmModal>
       )}
     </>

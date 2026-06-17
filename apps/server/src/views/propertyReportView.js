@@ -7,6 +7,10 @@ export function renderAdminPropertyReportList(res, payload) {
 
   return res.json({ count: reports.length, unreadCount, reports });
 }
+export function renderClientPropertyReportList(res, reports) {
+  const safeReports = Array.isArray(reports) ? reports : [];
+  return res.json({ count: safeReports.length, reports: safeReports });
+}
 export function renderUpdatedPropertyReport(res, report) {
   return res.json({ report });
 }

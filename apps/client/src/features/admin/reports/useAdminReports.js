@@ -16,6 +16,7 @@ export default function useAdminReports({
   const [reportFormMessage, setReportFormMessage] = useState('');
   const [reportStatusFilter, setReportStatusFilter] = useState('all');
   const [reportSubmittingId, setReportSubmittingId] = useState(null);
+  const [reportDraftNotes, setReportDraftNotes] = useState({});
 
   const fetchAdminReports = useCallback(async ({ status = 'all', silent = false } = {}) => {
     try {
@@ -33,6 +34,13 @@ export default function useAdminReports({
       });
 
       setAdminReports(Array.isArray(payload?.reports) ? payload.reports : []);
+      setReportDraftNotes((prev) => {
+        const next = {};
+        for (const report of Array.isArray(payload?.reports) ? payload.reports : []) {
+          next[report.id] = prev[report.id] ?? report.admin_note ?? '';
+        }
+        return next;
+      });
       syncUnreadReportCount(Number(payload?.unreadCount || 0));
     } catch (requestError) {
       if (handleAuthFailure(requestError)) {
@@ -58,6 +66,7 @@ export default function useAdminReports({
         report.id,
         {
           status: nextStatus,
+          admin_note: String(reportDraftNotes[report.id] ?? '').trim() || null,
         },
         token,
       );
@@ -84,6 +93,13 @@ export default function useAdminReports({
     }
   };
 
+  const handleReportNoteChange = (reportId, value) => {
+    setReportDraftNotes((prev) => ({
+      ...prev,
+      [reportId]: value,
+    }));
+  };
+
   useEffect(() => {
     fetchAdminReports({ status: reportStatusFilter });
   }, [fetchAdminReports, reportStatusFilter]);
@@ -99,7 +115,9 @@ export default function useAdminReports({
   return {
     adminReports,
     fetchAdminReports,
+    handleReportNoteChange,
     handleReportStatusUpdate,
+    reportDraftNotes,
     reportError,
     reportFormMessage,
     reportLoading,

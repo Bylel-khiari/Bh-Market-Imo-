@@ -1,11 +1,13 @@
 import {
   createPropertyReport,
   fetchAdminPropertyReports,
+  fetchClientPropertyReports,
   fetchUnreadPropertyReportCount,
   updatePropertyReportStatus,
 } from "../models/propertyReportModel.js";
 import {
   renderAdminPropertyReportList,
+  renderClientPropertyReportList,
   renderCreatedPropertyReport,
   renderUpdatedPropertyReport,
 } from "../views/propertyReportView.js";
@@ -29,6 +31,15 @@ export async function listAdminPropertyReports(req, res) {
 
   const unreadCount = await fetchUnreadPropertyReportCount();
   return renderAdminPropertyReportList(res, { reports, unreadCount });
+}
+
+export async function listClientPropertyReports(req, res) {
+  const reports = await fetchClientPropertyReports({
+    reporterUserId: req.user?.sub,
+    limit: req.query.limit,
+  });
+
+  return renderClientPropertyReportList(res, reports);
 }
 
 export async function updateAdminPropertyReportStatus(req, res) {

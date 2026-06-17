@@ -18,6 +18,7 @@ import {
   FaUserShield,
   FaUserTie,
   FaClipboardList,
+  FaCommentDots,
 } from 'react-icons/fa';
 import '../styles/Navbar.css';
 import logo from '../assets/favicon.ico';
@@ -49,7 +50,7 @@ const Navbar = () => {
   const isPropertiesPage = routeLocation.pathname === '/properties';
   const isClientUserSpace =
     currentRole === 'client' &&
-    ['/profile', '/profile/manage', '/mes-demandes'].some((path) =>
+    ['/profile', '/profile/manage', '/mes-demandes', '/mes-reclamations'].some((path) =>
       routeLocation.pathname === path || routeLocation.pathname.startsWith(`${path}/`),
     );
   const showPublicNavigation = !isClientUserSpace;
@@ -60,6 +61,12 @@ const Navbar = () => {
       label: 'Mes demandes',
       to: '/mes-demandes',
       icon: FaClipboardList,
+    });
+
+    accountMenuLinks.push({
+      label: 'Mes reclamations',
+      to: '/mes-reclamations',
+      icon: FaCommentDots,
     });
 
     accountMenuLinks.push({
@@ -196,7 +203,7 @@ const Navbar = () => {
     clearAuthSession();
     setAuthSession(null);
     closeMenuPanels();
-    navigate('/');
+    navigate('/login', { replace: true });
   };
 
   const accountDisplayName =

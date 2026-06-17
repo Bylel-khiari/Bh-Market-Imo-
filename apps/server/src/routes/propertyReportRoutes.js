@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   listAdminPropertyReports,
+  listClientPropertyReports,
   submitPropertyReport,
   updateAdminPropertyReportStatus,
 } from "../controllers/propertyReportController.js";
@@ -9,6 +10,7 @@ import { validateRequest } from "../middleware/validateRequest.js";
 import {
   adminListPropertyReportsQuerySchema,
   adminUpdatePropertyReportStatusBodySchema,
+  clientListPropertyReportsQuerySchema,
   idParamSchema,
   propertyReportCreateBodySchema,
 } from "../validation/schemas.js";
@@ -21,6 +23,14 @@ router.post(
   requireRoles("client"),
   validateRequest({ params: idParamSchema, body: propertyReportCreateBodySchema }),
   submitPropertyReport
+);
+
+router.get(
+  "/api/client/property-reports",
+  requireAuth,
+  requireRoles("client"),
+  validateRequest({ query: clientListPropertyReportsQuerySchema }),
+  listClientPropertyReports
 );
 
 router.get(

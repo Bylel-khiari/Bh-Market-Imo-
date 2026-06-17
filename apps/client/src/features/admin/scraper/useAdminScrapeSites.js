@@ -16,6 +16,9 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
   const [siteError, setSiteError] = useState('');
   const [isSitePanelOpen, setIsSitePanelOpen] = useState(false);
   const [siteDeleteCandidate, setSiteDeleteCandidate] = useState(null);
+  const [siteDeleteRelatedListings, setSiteDeleteRelatedListings] = useState(false);
+  const [siteDeactivateCandidate, setSiteDeactivateCandidate] = useState(null);
+  const [siteDeactivateRelatedListings, setSiteDeactivateRelatedListings] = useState(false);
   const [siteFormMode, setSiteFormMode] = useState('create');
   const [editingSiteId, setEditingSiteId] = useState(null);
   const [siteFormMessage, setSiteFormMessage] = useState('');
@@ -128,10 +131,22 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
 
   const requestDeleteSite = (site) => {
     setSiteDeleteCandidate(site);
+    setSiteDeleteRelatedListings(false);
   };
 
   const closeDeleteSiteConfirm = () => {
     setSiteDeleteCandidate(null);
+    setSiteDeleteRelatedListings(false);
+  };
+
+  const requestDeactivateSite = (site) => {
+    setSiteDeactivateCandidate(site);
+    setSiteDeactivateRelatedListings(false);
+  };
+
+  const closeDeactivateSiteConfirm = () => {
+    setSiteDeactivateCandidate(null);
+    setSiteDeactivateRelatedListings(false);
   };
 
   const handleDeleteSiteConfirmed = async () => {
@@ -141,13 +156,19 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
       const token = requireAuthToken();
       setSiteSubmitting(true);
       setSiteFormMessage('');
-      await deleteAdminScrapeSiteApi(siteDeleteCandidate.id, token);
+      await deleteAdminScrapeSiteApi(siteDeleteCandidate.id, token, {
+        deleteRelatedProperties: siteDeleteRelatedListings,
+      });
 
       if (editingSiteId === siteDeleteCandidate.id) {
         resetSiteForm();
       }
 
-      setSiteFormMessage('Site supprime.');
+      setSiteFormMessage(
+        siteDeleteRelatedListings
+          ? 'Site supprime. Les annonces liees a ce site ont aussi ete supprimees.'
+          : 'Site supprime.',
+      );
       closeDeleteSiteConfirm();
       await Promise.all([fetchScrapeSites(), fetchDashboardSummary({ silent: true })]);
     } catch (requestError) {
@@ -161,7 +182,60 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
     }
   };
 
+  const handleDeactivateSiteConfirmed = async () => {
+    if (!siteDeactivateCandidate) return;
+
+    try {
+      const token = requireAuthToken();
+      setSiteSubmitting(true);
+      setSiteFormMessage('');
+      const payload = await updateAdminScrapeSiteApi(
+        siteDeactivateCandidate.id,
+        {
+          is_active: false,
+          deactivate_related_properties: siteDeactivateRelatedListings,
+        },
+        token,
+      );
+      const updatedSite = payload?.site
+        ? { ...siteDeactivateCandidate, ...payload.site }
+        : { ...siteDeactivateCandidate, is_active: false };
+
+      setScrapeSites((prev) =>
+        prev.map((item) => (String(item.id) === String(siteDeactivateCandidate.id) ? updatedSite : item)),
+      );
+
+      if (editingSiteId === siteDeactivateCandidate.id) {
+        setSiteFormData((prev) => ({
+          ...prev,
+          is_active: false,
+        }));
+      }
+
+      setSiteFormMessage(
+        siteDeactivateRelatedListings
+          ? 'Site desactive. Les annonces liees a ce site ont aussi ete desactivees.'
+          : 'Site desactive pour les prochains lancements.',
+      );
+      closeDeactivateSiteConfirm();
+      await fetchDashboardSummary({ silent: true });
+    } catch (requestError) {
+      if (handleAuthFailure(requestError)) {
+        return;
+      }
+
+      setSiteFormMessage(requestError.message || 'Erreur pendant la desactivation du site.');
+    } finally {
+      setSiteSubmitting(false);
+    }
+  };
+
   const handleToggleSiteStatus = async (site) => {
+    if (site.is_active) {
+      requestDeactivateSite(site);
+      return;
+    }
+
     try {
       const token = requireAuthToken();
       setSiteSubmitting(true);
@@ -185,7 +259,7 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
       setSiteFormMessage(
         site.is_active
         ? 'Site désactivé pour les prochains lancements.'
-          : 'Site reactive pour les prochains lancements.',
+          : 'Site reactive. Les annonces liees a ce site ont aussi ete reactivees.',
       );
       await fetchDashboardSummary({ silent: true });
     } catch (requestError) {
@@ -225,10 +299,12 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
   }, [scrapeSitesSorted, siteSearch, siteStatusFilter]);
 
   return {
+    closeDeactivateSiteConfirm,
     closeDeleteSiteConfirm,
     editingSiteId,
     fetchScrapeSites,
     filteredSites,
+    handleDeactivateSiteConfirmed,
     handleDeleteSiteConfirmed,
     handleSiteFormChange,
     handleSiteSubmit,
@@ -237,9 +313,14 @@ export default function useAdminScrapeSites({ fetchDashboardSummary, handleAuthF
     openCreateSitePanel,
     requestDeleteSite,
     resetSiteForm,
+    setSiteDeactivateRelatedListings,
+    setSiteDeleteRelatedListings,
     setSiteSearch,
     setSiteStatusFilter,
+    siteDeactivateCandidate,
+    siteDeactivateRelatedListings,
     siteDeleteCandidate,
+    siteDeleteRelatedListings,
     siteError,
     siteFormData,
     siteFormMessage,

@@ -12,6 +12,8 @@ export default function AdminReportsSection({
   reportStatusFilter,
   setReportStatusFilter,
   reportSubmittingId,
+  reportDraftNotes,
+  handleReportNoteChange,
   handleReportStatusUpdate,
   formatReportStatus,
   formatReportCategory,
@@ -98,11 +100,16 @@ export default function AdminReportsSection({
                       </div>
                     )}
 
-                    {report.admin_note && (
-                      <p className="admin-report-note">
-                        <strong>Note administrateur :</strong> {report.admin_note}
-                      </p>
-                    )}
+                    <label className="admin-report-note-field">
+                      <span>Reponse au client</span>
+                      <textarea
+                        value={reportDraftNotes?.[report.id] ?? ''}
+                        onChange={(event) => handleReportNoteChange(report.id, event.target.value)}
+                        placeholder="Ajouter une reponse visible par le client"
+                        disabled={isSubmitting}
+                        rows={3}
+                      />
+                    </label>
 
                     <div className="admin-table-actions admin-report-actions">
                       <button

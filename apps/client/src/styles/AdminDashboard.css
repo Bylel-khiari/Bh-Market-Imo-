@@ -743,6 +743,24 @@
   animation: modalPop 0.18s ease-out;
 }
 
+.admin-confirm-body {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.admin-confirm-body p {
+  margin: 0;
+}
+
+.admin-confirm-choice {
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid rgba(204, 0, 0, 0.18);
+  border-radius: 8px;
+  background: rgba(204, 0, 0, 0.05);
+}
+
 .admin-edit-panel-head {
   display: flex;
   align-items: center;
@@ -2209,6 +2227,38 @@
   background: rgba(10, 34, 64, 0.04);
   border-radius: 12px;
   padding: 10px 12px;
+}
+
+.admin-report-note-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-report-note-field span {
+  color: #5d6d82;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-report-note-field textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 12px;
+  color: #173456;
+  font: inherit;
+  line-height: 1.45;
+  background: #ffffff;
+}
+
+.admin-report-note-field textarea:focus {
+  outline: 3px solid rgba(10, 77, 140, 0.16);
+  border-color: #0a4d8c;
 }
 
 .admin-report-actions {

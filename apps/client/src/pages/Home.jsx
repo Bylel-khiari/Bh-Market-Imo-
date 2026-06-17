@@ -3,16 +3,22 @@ import { Link } from 'react-router-dom';
 import { FaHome, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
 import HomeMapSection from '../features/map/pages/HomeMapSection';
 import PropertyCarousel from '../components/PropertyCarousel';
+import bhBankImage from '../assets/bh-bank.png';
 import '../styles/Home.css';
 
 const OPEN_ASSISTANT_EVENT = 'bh-assistant:open';
+const HERO_BACKGROUND = `
+  linear-gradient(90deg, rgba(7, 26, 48, 0.9) 0%, rgba(7, 26, 48, 0.76) 45%, rgba(7, 26, 48, 0.56) 100%),
+  linear-gradient(180deg, rgba(7, 26, 48, 0.18) 0%, rgba(7, 26, 48, 0.72) 100%),
+  url(${bhBankImage})
+`;
 
 const Home = () => {
   return (
     <div className="home">
 
       {/* ── Hero Section ── */}
-      <div className="hero-section">
+      <div className="hero-section" style={{ backgroundImage: HERO_BACKGROUND }}>
         <div className="hero-container">
           <h1>Votre plateforme <span className="hero-accent">immobilière</span> de confiance</h1>
           <p className="hero-subtitle">

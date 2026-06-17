@@ -45,7 +45,7 @@ export function AdminConfirmModal({
     <div className="admin-modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
       <aside className="admin-card admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
         <h2>{title}</h2>
-        <p className="admin-section-help">{children}</p>
+        <div className="admin-section-help admin-confirm-body">{children}</div>
         <div className="admin-form-actions">
           <button type="button" className="admin-secondary" onClick={onCancel} disabled={disabled}>
             {cancelLabel}

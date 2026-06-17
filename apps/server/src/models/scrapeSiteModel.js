@@ -288,6 +288,16 @@ async function findScrapeSiteRowById(id) {
   return rows[0] || null;
 }
 
+export async function fetchScrapeSiteById(id) {
+  const normalizedSiteId = Number(id);
+  if (!normalizedSiteId) {
+    throw httpError(400, "Invalid scrape site id");
+  }
+
+  const row = await findScrapeSiteRowById(normalizedSiteId);
+  return toPublicScrapeSite(row);
+}
+
 async function assertUniqueSpiderName(spiderName, excludedId = null) {
   const params = [spiderName];
   let sql = "SELECT id FROM scrape_sites WHERE spider_name = ?";
@@ -303,6 +313,122 @@ async function assertUniqueSpiderName(spiderName, excludedId = null) {
   if (rows.length > 0) {
     throw httpError(409, "Un site avec ce spider existe deja");
   }
+}
+
+async function tableExists(tableName) {
+  const [rows] = await dbPool.execute(
+    `
+    SELECT 1
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    LIMIT 1
+    `,
+    [tableName]
+  );
+  return rows.length > 0;
+}
+
+export async function deleteScrapeSiteListingsBySource(source) {
+  const normalizedSource = normalizeSpiderName(source);
+  if (!normalizedSource) {
+    throw httpError(400, "Invalid scrape site source");
+  }
+
+  const summary = {
+    source: normalizedSource,
+    properties: 0,
+    clean_listings: 0,
+    raw_properties: 0,
+  };
+
+  if (await tableExists("properties")) {
+    const [propertiesResult] = await dbPool.execute(
+      `
+      UPDATE properties
+      SET is_deleted = 1,
+          is_active = 0,
+          admin_updated_at = NOW()
+      WHERE source = ?
+        AND COALESCE(created_by_admin, 0) = 0
+        AND COALESCE(is_deleted, 0) = 0
+      `,
+      [normalizedSource]
+    );
+    summary.properties = propertiesResult.affectedRows || 0;
+  }
+
+  if (await tableExists("clean_listings")) {
+    const [cleanResult] = await dbPool.execute("DELETE FROM clean_listings WHERE source = ?", [normalizedSource]);
+    summary.clean_listings = cleanResult.affectedRows || 0;
+  }
+
+  if (await tableExists("raw_properties")) {
+    const [rawResult] = await dbPool.execute("DELETE FROM raw_properties WHERE source = ?", [normalizedSource]);
+    summary.raw_properties = rawResult.affectedRows || 0;
+  }
+
+  return summary;
+}
+
+export async function deactivateScrapeSiteListingsBySource(source) {
+  const normalizedSource = normalizeSpiderName(source);
+  if (!normalizedSource) {
+    throw httpError(400, "Invalid scrape site source");
+  }
+
+  const summary = {
+    source: normalizedSource,
+    properties: 0,
+  };
+
+  if (await tableExists("properties")) {
+    const [propertiesResult] = await dbPool.execute(
+      `
+      UPDATE properties
+      SET is_active = 0,
+          admin_updated_at = NOW()
+      WHERE source = ?
+        AND COALESCE(created_by_admin, 0) = 0
+        AND COALESCE(is_deleted, 0) = 0
+        AND COALESCE(is_active, 1) = 1
+      `,
+      [normalizedSource]
+    );
+    summary.properties = propertiesResult.affectedRows || 0;
+  }
+
+  return summary;
+}
+
+export async function reactivateScrapeSiteListingsBySource(source) {
+  const normalizedSource = normalizeSpiderName(source);
+  if (!normalizedSource) {
+    throw httpError(400, "Invalid scrape site source");
+  }
+
+  const summary = {
+    source: normalizedSource,
+    properties: 0,
+  };
+
+  if (await tableExists("properties")) {
+    const [propertiesResult] = await dbPool.execute(
+      `
+      UPDATE properties
+      SET is_active = 1,
+          admin_updated_at = NOW()
+      WHERE source = ?
+        AND COALESCE(created_by_admin, 0) = 0
+        AND COALESCE(is_deleted, 0) = 0
+        AND COALESCE(is_active, 1) = 0
+      `,
+      [normalizedSource]
+    );
+    summary.properties = propertiesResult.affectedRows || 0;
+  }
+
+  return summary;
 }
 
 export async function fetchScrapeSites({ limit = 100 } = {}) {

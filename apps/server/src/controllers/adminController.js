@@ -1,7 +1,16 @@
 import {createPropertyByAdmin,deletePropertyByAdmin,fetchAdminPropertiesPage, updatePropertyByAdmin,}from "../models/propertyModel.js";
 import { fetchAdminDashboardSummary } from "../models/adminDashboardModel.js";
 import {createUserByAdmin,deleteUserByAdmin,fetchUsers,updateUserByAdmin,} from "../models/adminModel.js";
-import { createScrapeSite, deleteScrapeSite, fetchScrapeSites, updateScrapeSite } from "../models/scrapeSiteModel.js";
+import {
+  createScrapeSite,
+  deactivateScrapeSiteListingsBySource,
+  deleteScrapeSite,
+  deleteScrapeSiteListingsBySource,
+  fetchScrapeSiteById,
+  fetchScrapeSites,
+  reactivateScrapeSiteListingsBySource,
+  updateScrapeSite,
+} from "../models/scrapeSiteModel.js";
 import {acceptScrapeSiteSuggestion,fetchScrapeSiteSuggestions,updateScrapeSiteSuggestion,} from "../models/scrapeSiteSuggestionModel.js";
 import {configureScraperAutomation,fetchScraperAutomationStatus,startListingCleanerAgent,startScraperCycle,stopScraperCycle,} from "../services/scraperControlService.js";
 import { startSiteDiscoveryRun } from "../services/siteDiscoveryService.js";
@@ -32,7 +41,7 @@ export async function getDashboardSummaryByAdmin(req, res) {
 }
 
 export async function listUsers(req, res) {
-  const rows = await fetchUsers({ limit: req.query.limit });
+  const rows = await fetchUsers({ limit: req.query.limit, excludedUserId: req.user?.sub });
   return renderUsersList(res, rows);
 }
 
@@ -167,22 +176,58 @@ export async function createScrapeSiteByAdmin(req, res) {
 }
 
 export async function updateScrapeSiteByAdmin(req, res) {
-  const site = await updateScrapeSite(req.params.id, req.body || {});
+  const {
+    deactivate_related_properties: deactivateRelatedProperties,
+    delete_related_properties: legacyDeactivateRelatedProperties,
+    ...sitePatch
+  } = req.body || {};
+  const site = await updateScrapeSite(req.params.id, sitePatch);
+  const shouldDeactivateRelatedListings = Boolean(
+    deactivateRelatedProperties ?? legacyDeactivateRelatedProperties
+  );
+  const deactivatedListings =
+    shouldDeactivateRelatedListings && sitePatch.is_active === false
+      ? await deactivateScrapeSiteListingsBySource(site?.spider_name)
+      : null;
+  const reactivatedListings =
+    sitePatch.is_active === true
+      ? await reactivateScrapeSiteListingsBySource(site?.spider_name)
+      : null;
+
   await recordAdminAuditLog(req, {
     action: "admin.scrape_site.update",
     targetType: "scrape_site",
     targetId: req.params.id,
-    metadata: { updated_fields: Object.keys(req.body || {}) },
+    metadata: {
+      updated_fields: Object.keys(sitePatch),
+      deactivate_related_properties: shouldDeactivateRelatedListings,
+      deactivated_listings: deactivatedListings,
+      reactivated_listings: reactivatedListings,
+    },
   });
-  return renderUpdatedScrapeSite(res, site);
+  return renderUpdatedScrapeSite(res, {
+    site,
+    deactivated_listings: deactivatedListings,
+    reactivated_listings: reactivatedListings,
+  });
 }
 
 export async function deleteScrapeSiteByAdmin(req, res) {
+  const site = await fetchScrapeSiteById(req.params.id);
+  const deletedListings = req.query?.delete_related_properties && site
+    ? await deleteScrapeSiteListingsBySource(site?.spider_name)
+    : null;
+
   await deleteScrapeSite(req.params.id);
   await recordAdminAuditLog(req, {
     action: "admin.scrape_site.delete",
     targetType: "scrape_site",
     targetId: req.params.id,
+    metadata: {
+      delete_related_properties: Boolean(req.query?.delete_related_properties),
+      deleted_listings: deletedListings,
+      spider_name: site?.spider_name,
+    },
   });
   return renderDeletedScrapeSite(res);
 }

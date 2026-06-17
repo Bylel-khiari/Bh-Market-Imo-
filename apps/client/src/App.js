@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ProfileManagement from './pages/ProfileManagement';
 import MesDemandes from './pages/MesDemandes';
+import MesReclamations from './pages/MesReclamations';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Contact from './pages/Contact';
@@ -61,6 +62,10 @@ function App() {
           <Route
             path="/mes-demandes"
             element={role === 'admin' || role === 'agent_bancaire' ? <Navigate to="/" replace /> : <MesDemandes />}
+          />
+          <Route
+            path="/mes-reclamations"
+            element={role === 'admin' || role === 'agent_bancaire' ? <Navigate to="/" replace /> : <MesReclamations />}
           />
         </Routes>
       </main>
