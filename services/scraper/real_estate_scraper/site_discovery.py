@@ -357,9 +357,15 @@ def load_existing_domains(conn) -> set:
     return domains
 
 
-def upsert_suggestions(conn, candidates: Iterable[Candidate]) -> int:
+def upsert_suggestions(conn, candidates: Iterable[Candidate]) -> Dict[str, Any]:
     cur = conn.cursor()
-    written = 0
+    stats: Dict[str, Any] = {
+        "processed": 0,
+        "pending": 0,
+        "already_reviewed": 0,
+        "pending_domains": [],
+    }
+
     for candidate in candidates:
         cur.execute(
             """
@@ -392,9 +398,20 @@ def upsert_suggestions(conn, candidates: Iterable[Candidate]) -> int:
                 candidate.confidence_score,
             ),
         )
-        written += 1
+
+        stats["processed"] += 1
+        cur.execute("SELECT status FROM scrape_site_suggestions WHERE domain = %s LIMIT 1", (candidate.domain,))
+        row = cur.fetchone()
+        status = row[0] if row else None
+
+        if status == "pending":
+            stats["pending"] += 1
+            stats["pending_domains"].append(candidate.domain)
+        elif status in {"accepted", "rejected"}:
+            stats["already_reviewed"] += 1
+
     cur.close()
-    return written
+    return stats
 
 
 def discover_candidates(provider: str, api_key: str, threshold: int, limit_per_query: int) -> List[Candidate]:
@@ -442,7 +459,7 @@ def run_discovery(trigger: str = "manual") -> Dict[str, Any]:
         ensure_suggestion_schema(conn)
         existing_domains = load_existing_domains(conn)
         new_candidates = [candidate for candidate in candidates if candidate.domain not in existing_domains]
-        written = upsert_suggestions(conn, new_candidates)
+        upsert_stats = upsert_suggestions(conn, new_candidates)
         conn.commit()
     except Exception:
         conn.rollback()
@@ -455,8 +472,12 @@ def run_discovery(trigger: str = "manual") -> Dict[str, Any]:
         "provider": provider,
         "scanned": len(candidates),
         "excluded_existing": len(candidates) - len(new_candidates),
-        "suggestions_written": written,
+        "suggestions_detected": len(new_candidates),
+        "suggestions_written": upsert_stats["pending"],
+        "suggestions_pending": upsert_stats["pending"],
+        "suggestions_already_reviewed": upsert_stats["already_reviewed"],
         "domains": [candidate.domain for candidate in new_candidates],
+        "pending_domains": upsert_stats["pending_domains"],
     }
 
 

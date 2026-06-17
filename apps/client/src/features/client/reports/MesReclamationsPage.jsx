@@ -9,7 +9,6 @@ import {
   FaHome,
   FaInfoCircle,
   FaTimesCircle,
-  FaUserShield,
 } from 'react-icons/fa';
 import {
   clearAuthSession,
@@ -83,22 +82,6 @@ function formatDate(value) {
 
 function getReportTitle(report) {
   return report?.property_title || `Bien #${report?.property_id || '-'}`;
-}
-
-function getAdminResponse(report) {
-  if (report?.admin_note) {
-    return report.admin_note;
-  }
-
-  if (report?.status === 'resolved') {
-    return 'Votre reclamation a ete resolue. Aucune note complementaire n a encore ete ajoutee.';
-  }
-
-  if (report?.status === 'rejected') {
-    return 'Votre reclamation a ete rejetee. Aucune note complementaire n a encore ete ajoutee.';
-  }
-
-  return "L'administration n'a pas encore ajoute de reponse.";
 }
 
 export default function MesReclamationsPage() {
@@ -259,7 +242,6 @@ export default function MesReclamationsPage() {
             <section className="mes-reclamations-detail-panel" aria-label="Detail de la reclamation">
               <div className="mes-reclamations-detail-head">
                 <div>
-                  <span className="mes-reclamations-eyebrow">Reclamation #{selectedReport.id}</span>
                   <h2>{getReportTitle(selectedReport)}</h2>
                   <p>Envoyee le {formatDate(selectedReport.created_at)}</p>
                 </div>
@@ -291,16 +273,14 @@ export default function MesReclamationsPage() {
                 <p>{selectedReport.message}</p>
               </article>
 
-              <article className="mes-reclamations-card mes-reclamations-response-card">
-                <div className="mes-reclamations-card-title">
-                  <FaUserShield />
-                  <h3>Reponse</h3>
-                </div>
-                <p>{getAdminResponse(selectedReport)}</p>
-                {selectedReport.reviewed_by_admin_name ? (
-                  <small>Traitee par {selectedReport.reviewed_by_admin_name}</small>
-                ) : null}
-              </article>
+              {selectedReport.admin_note ? (
+                <article className="mes-reclamations-card mes-reclamations-response-card">
+                  <p>{selectedReport.admin_note}</p>
+                  {selectedReport.reviewed_by_admin_name ? (
+                    <small>Traitee par {selectedReport.reviewed_by_admin_name}</small>
+                  ) : null}
+                </article>
+              ) : null}
             </section>
           </div>
         )}
