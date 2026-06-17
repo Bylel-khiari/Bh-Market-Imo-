@@ -53,7 +53,6 @@ def _match_rule(value, rules, default_score, default_message):
 
 def _capacity_score(charges_ratio):
     if charges_ratio <= CHARGES_RATIO_LIMIT:
-        # A compliant ratio keeps at least 40/60 points, then gains margin.
         margin = (CHARGES_RATIO_LIMIT - charges_ratio) / CHARGES_RATIO_LIMIT
         return round(40 + (max(0, margin) * 20))
 

@@ -12,8 +12,6 @@ function setValidatedRequestValue(req, key, value) {
   try {
     req[key] = value;
   } catch {
-    // Express 5 exposes some request fields like req.query as getter-only
-    // properties, so shadow them on the request instance after validation.
     Object.defineProperty(req, key, {
       value,
       writable: true,
