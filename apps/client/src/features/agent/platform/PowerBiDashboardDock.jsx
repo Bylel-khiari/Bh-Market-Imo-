@@ -79,7 +79,6 @@ export default function PowerBiDashboardDock({
       <div className="agent-powerbi-dock-head">
         <div>
           <h2>Power BI</h2>
-          <p className="admin-section-help">Dashboard Power BI agent bancaire.</p>
         </div>
         <div className="agent-powerbi-action-row">
           <button type="button" className="admin-secondary" onClick={onExportPlatformReport}>

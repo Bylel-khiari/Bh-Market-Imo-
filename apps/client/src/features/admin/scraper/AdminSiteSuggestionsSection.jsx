@@ -40,11 +40,6 @@ export default function AdminSiteSuggestionsSection({
         </div>
       </div>
 
-      <p className="admin-section-help">
-        L’agent de découverte propose uniquement des domaines candidats. Un site accepté reste
-        inactif avec le statut pending_spider jusqu’à l’ajout d’un spider Scrapy.
-      </p>
-
       <AdminFilterChips
         ariaLabel="Filtrer les suggestions"
         className="admin-suggestion-filters"

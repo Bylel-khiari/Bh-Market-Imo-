@@ -87,13 +87,6 @@
   background: #ffffff;
 }
 
-.field-hint {
-  display: block;
-  margin-top: 6px;
-  color: #59708e;
-  font-size: 12px;
-}
-
 .form-group input:focus,
 .form-group select:focus {
   outline: none;

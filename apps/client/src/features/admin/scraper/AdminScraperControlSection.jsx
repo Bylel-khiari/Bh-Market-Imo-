@@ -50,10 +50,6 @@ export default function AdminScraperControlSection({
         <div className="admin-scraper-title-block">
           <span className="admin-scraper-kicker">Mission de contrôle</span>
           <h2>Automatisation du scraping</h2>
-          <p className="admin-section-help">
-            Démarrer lance un cycle de collecte complet. L’agent de filtrage exécute uniquement
-            le nettoyage des annonces déjà collectées puis synchronise les biens visibles.
-          </p>
         </div>
         <div className="admin-scraper-top-meta">
           <span className={`admin-scraper-badge ${scraperStatusClassName}`}>
@@ -123,9 +119,6 @@ export default function AdminScraperControlSection({
                     <label className="admin-field-label" htmlFor="scraper-interval-days">
                       Intervalle de rescrape automatique
                     </label>
-                    <p className="admin-scraper-field-help">
-                      Définissez dans combien de jours le prochain cycle doit être relancé automatiquement.
-                    </p>
                     <div className="admin-inline-control">
                       <input
                         id="scraper-interval-days"
@@ -145,9 +138,6 @@ export default function AdminScraperControlSection({
                     <label className="admin-field-label" htmlFor="scraper-max-listing-age-years">
                       Age maximum des annonces source
                     </label>
-                    <p className="admin-scraper-field-help">
-                      Ignore les annonces dont la date de publication sur le site source depasse cette limite.
-                    </p>
                     <div className="admin-inline-control">
                       <input
                         id="scraper-max-listing-age-years"

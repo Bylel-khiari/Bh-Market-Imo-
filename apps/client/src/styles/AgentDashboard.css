@@ -90,11 +90,6 @@
   min-width: 0;
 }
 
-.agent-platform-toolbar .admin-section-help {
-  max-width: 760px;
-  margin-bottom: 0;
-}
-
 .agent-platform-actions {
   display: flex;
   align-items: flex-end;
@@ -169,10 +164,6 @@
   gap: 16px;
   margin-bottom: 14px;
   flex-wrap: wrap;
-}
-
-.agent-powerbi-dock-head .admin-section-help {
-  margin-bottom: 0;
 }
 
 .agent-powerbi-action-row,
@@ -369,13 +360,6 @@
 .agent-queue-panel .agent-section-head h2 {
   font-size: 20px;
   margin-bottom: 2px;
-}
-
-.agent-queue-panel .admin-section-help {
-  color: #6b7f96;
-  font-size: 13px;
-  line-height: 1.35;
-  margin: 0;
 }
 
 .agent-queue-search-form {

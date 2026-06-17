@@ -7,7 +7,6 @@ export default function MarketplaceActivitySection({ topCities }) {
     <div className="admin-row">
       <section className="admin-card">
         <h2>Villes les plus actives</h2>
-        <p className="admin-section-help">Concentration des biens immobiliers valides par bassin geographique.</p>
         {topCities.length ? (
           <div className="agent-chart-wrap">
             <ResponsiveContainer width="100%" height={300}>

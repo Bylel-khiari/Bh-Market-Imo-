@@ -15,8 +15,6 @@ export default function AdminPropertiesSection({
   setPropertySearch,
   propertyStatusFilter,
   setPropertyStatusFilter,
-  propertyVisibleRangeStart,
-  propertyVisibleRangeEnd,
   paginatedAdminProperties,
   propertyTotalPages,
   currentPropertyPage,
@@ -44,18 +42,6 @@ export default function AdminPropertiesSection({
               </button>
             </div>
           </div>
-
-          <p className="admin-section-help">
-            Ajoutez, modifiez, supprimez ou activez/désactivez les biens immobiliers.
-            Les changements administrateur restent prioritaires sur les données importées.
-          </p>
-
-          {!propertyLoading && propertyPagination.total > 0 && (
-            <p className="admin-section-help">
-              Affichage de {propertyVisibleRangeStart} à {propertyVisibleRangeEnd} sur{' '}
-              {propertyPagination.total} biens.
-            </p>
-          )}
 
           <div className="admin-users-toolbar admin-toolbar-row">
             <AdminSearchInput

@@ -25,9 +25,6 @@ export default function ClientJourneySection({
       <div className="admin-row">
         <section className="admin-card agent-platform-card--wide">
           <h2>Parcours client par mois</h2>
-          <p className="admin-section-help">
-            Connexions, calculs et démarrages de demande tracés par client connecté.
-          </p>
           {monthlyClientEvents.length ? (
             <div className="agent-chart-wrap">
               <ResponsiveContainer width="100%" height={300}>
@@ -53,7 +50,6 @@ export default function ClientJourneySection({
 
         <section className="admin-card">
           <h2>Événements client</h2>
-          <p className="admin-section-help">Repartition des actions suivies dans le tunnel credit.</p>
           {clientActivityDistribution.length ? (
             <div className="agent-chart-wrap">
               <ResponsiveContainer width="100%" height={300}>
@@ -82,9 +78,6 @@ export default function ClientJourneySection({
       <div className="admin-row">
         <section className="admin-card agent-platform-card--wide">
           <h2>Activite plateforme par mois</h2>
-          <p className="admin-section-help">
-            Inscriptions, biens valides, reclamations support et dossiers credit sur la periode selectionnee.
-          </p>
           {monthlyActivity.length ? (
             <div className="agent-chart-wrap">
               <ResponsiveContainer width="100%" height={320}>

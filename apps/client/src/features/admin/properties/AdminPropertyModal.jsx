@@ -24,9 +24,6 @@ export default function AdminPropertyModal({
       }
       wide
     >
-      <p className="admin-section-help">
-        Les champs ci-dessous correspondent aux colonnes principales de la table canonique properties.
-      </p>
       <form className="admin-user-form admin-user-form-compact" onSubmit={handlePropertySubmit}>
         <AdminFieldInput id="property-title" name="title" label="Titre (colonne title)" placeholder="Ex. : Appartement S+2 à Tunis" value={propertyFormData.title} onChange={handlePropertyFormChange} disabled={propertySubmitting} />
         <AdminFieldInput id="property-price-raw" name="price_raw" label="Prix texte (colonne price_raw)" placeholder="Ex: 320 000 DT" value={propertyFormData.price_raw} onChange={handlePropertyFormChange} disabled={propertySubmitting} />

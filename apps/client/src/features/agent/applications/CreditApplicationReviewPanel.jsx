@@ -10,7 +10,6 @@ import {
   canAgentProcessApplication,
   formatAgentProcessingWaitMessage,
   formatComplianceScore,
-  formatDate,
   formatStatus,
   getComplianceLabelForApplication,
   hasComplianceScore,
@@ -108,7 +107,6 @@ export default function CreditApplicationReviewPanel({
                 <>
                   <div className="agent-panel-head">
                     <h3>Informations client</h3>
-                    <p>Coordonnées, identité et éléments financiers principaux.</p>
                   </div>
                   <ClientSummary application={selectedApplication} />
                 </>
@@ -118,7 +116,6 @@ export default function CreditApplicationReviewPanel({
                 <>
                   <div className="agent-panel-head">
                     <h3>Variables de scoring</h3>
-                    <p>Données utilisées pour calculer le score bancaire du dossier.</p>
                   </div>
                   <ScoringSummary application={selectedApplication} />
 
@@ -139,7 +136,6 @@ export default function CreditApplicationReviewPanel({
                 <div className="agent-document-block">
                   <div className="agent-panel-head">
                     <h3>Pièces du dossier</h3>
-                    <p>Documents déclarés par le client pour l’étude du crédit.</p>
                   </div>
                   <DocumentList
                     documents={selectedApplicationDocuments}
@@ -154,7 +150,6 @@ export default function CreditApplicationReviewPanel({
                 <>
                   <div className="agent-panel-head">
                     <h3>Décision agent</h3>
-                    <p>Mise à jour du statut, note interne et décision finale.</p>
                   </div>
                   <DecisionForm
                     draft={draft}
@@ -203,9 +198,6 @@ function ReviewHeader({ selectedApplication }) {
     <div className="agent-review-head">
       <div>
         <h2>{selectedApplication.property_title || `Dossier #${selectedApplication.id}`}</h2>
-        <p className="admin-section-help">
-          Créé le {formatDate(selectedApplication.created_at)} par {selectedApplication.full_name}
-        </p>
       </div>
       <div className="agent-review-statuses">
         <span className={`admin-report-status-pill status-${normalizeStatusClass(selectedApplication.status)}`}>

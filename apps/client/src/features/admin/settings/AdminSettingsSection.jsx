@@ -14,9 +14,6 @@ export default function AdminSettingsSection({
       <section className="admin-analytics-column">
         <div className="admin-card">
           <h2>Configuration du module admin</h2>
-          <p className="admin-section-help">
-            Configuration actuelle du tableau de bord admin.
-          </p>
           <ul className="admin-settings-list">
             <li>API: {apiBaseUrl}</li>
             <li>Utilisateurs en base : {dashboardSummary.users.total}</li>

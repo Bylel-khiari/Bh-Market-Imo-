@@ -7,9 +7,6 @@ export default function AdminChartsSection({ propertyTotals, siteTotals }) {
       <div className="admin-dashboard-status-head">
         <div>
           <h2>État des biens immobiliers</h2>
-          <p className="admin-section-help">
-            Synthèse des biens visibles, actifs et collectés sur la plateforme.
-          </p>
         </div>
       </div>
       <div className="admin-dashboard-status-grid">

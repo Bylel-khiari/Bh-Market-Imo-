@@ -31,9 +31,6 @@ export default function CreditApplicationQueue({
       <div className="agent-section-head">
         <div>
           <h2>File de dossiers</h2>
-          <p className="admin-section-help">
-            Sélection rapide du dossier à traiter.
-          </p>
         </div>
         <span className="admin-users-count">{applications.length}</span>
       </div>

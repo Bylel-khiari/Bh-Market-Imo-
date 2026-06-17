@@ -35,11 +35,6 @@ export default function AdminScrapeSitesSection({
         </div>
       </div>
 
-      <p className="admin-section-help">
-        Ajoutez, modifiez, supprimez ou activez/désactivez les sites de collecte.
-        L’identifiant technique doit correspondre au spider Scrapy pour piloter les prochains lancements.
-      </p>
-
       <div className="admin-users-toolbar admin-toolbar-row">
         <AdminSearchInput
           placeholder="Rechercher par nom, spider ou URL"

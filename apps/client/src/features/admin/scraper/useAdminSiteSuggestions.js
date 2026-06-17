@@ -58,22 +58,13 @@ export default function useAdminSiteSuggestions({
       setSiteSuggestionMessage('');
 
       const payload = await startAdminScrapeSiteDiscoveryApi(token);
-      const pending = Number(payload?.result?.suggestions_pending ?? payload?.result?.suggestions_written ?? 0);
-      const detected = Number(payload?.result?.suggestions_detected ?? pending);
-      const alreadyReviewed = Number(payload?.result?.suggestions_already_reviewed || 0);
+      const written = Number(payload?.result?.suggestions_written || 0);
 
-      let discoveryMessage = 'Recherche terminee : aucune nouvelle suggestion.';
-      if (pending > 0) {
-        discoveryMessage = `${pending} nouvelle(s) suggestion(s) en attente affichee(s).`;
-      } else if (detected > 0 && alreadyReviewed > 0) {
-        discoveryMessage = `${alreadyReviewed} domaine(s) deja traite(s), aucune nouvelle suggestion en attente.`;
-      }
-
-      if (pending > 0 && alreadyReviewed > 0) {
-        discoveryMessage += ` ${alreadyReviewed} domaine(s) deja traite(s) ne sont pas affiches dans le filtre En attente.`;
-      }
-
-      setSiteSuggestionMessage(discoveryMessage);
+      setSiteSuggestionMessage(
+        written > 0
+          ? `${written} nouvelle(s) suggestion(s) détectée(s).`
+          : 'Recherche terminée : aucune nouvelle suggestion.',
+      );
       await fetchScrapeSiteSuggestions({ status: siteSuggestionStatusFilter, silent: true });
       await fetchDashboardSummary({ silent: true });
     } catch (requestError) {

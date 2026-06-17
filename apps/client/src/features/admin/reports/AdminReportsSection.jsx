@@ -30,11 +30,6 @@ export default function AdminReportsSection({
             </div>
           </div>
 
-          <p className="admin-section-help">
-            Cette boîte regroupe les réclamations envoyées par les clients depuis les biens.
-            Traitez chaque message pour suivre l'incident et garder un historique clair.
-          </p>
-
           <div className="admin-users-toolbar admin-toolbar-row">
             <AdminFilterChips
               ariaLabel="Filtrer les réclamations par statut"

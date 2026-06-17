@@ -20,9 +20,6 @@ export default function AdminUserModal({
       onClose={resetForm}
       title={formMode === 'create' ? 'Nouvel utilisateur' : `Modifier utilisateur #${editingUserId}`}
     >
-      <p className="admin-section-help">
-        Remplissez le formulaire puis validez pour créer ou mettre à jour un compte.
-      </p>
       <form className="admin-user-form admin-user-form-compact" onSubmit={handleSubmit}>
         <input
           name="name"

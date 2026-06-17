@@ -23,10 +23,6 @@ export default function AdminSiteModal({
           : `Modifier le site ${siteFormData.name || `#${editingSiteId}`}`
       }
     >
-      <p className="admin-section-help">
-        Le champ identifiant du spider doit correspondre au nom technique du spider Scrapy
-        si vous voulez piloter sa collecte.
-      </p>
       <form className="admin-user-form admin-user-form-compact" onSubmit={handleSiteSubmit}>
         <AdminFieldInput id="site-name" name="name" label="Nom du site (colonne name)" placeholder="Ex: Afariat" value={siteFormData.name} onChange={handleSiteFormChange} disabled={siteSubmitting} />
         <AdminFieldInput id="site-spider-name" name="spider_name" label="Identifiant du spider (colonne spider_name)" placeholder="Ex: afariat" value={siteFormData.spider_name} onChange={handleSiteFormChange} disabled={siteSubmitting} />

@@ -33,9 +33,6 @@ export default function AgentPlatformSection({
       <section className="admin-card agent-platform-toolbar">
         <div>
           <h2>Vue plateforme consolidée</h2>
-          <p className="admin-section-help">
-            KPI utiles à l’agent bancaire pour croiser dossiers de crédit, portefeuille de biens et réclamations d’assistance.
-          </p>
         </div>
         <div className="agent-platform-actions">
           <label className="admin-field-block agent-period-field">

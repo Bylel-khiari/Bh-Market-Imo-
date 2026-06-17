@@ -1041,9 +1041,6 @@ export default function CreditImmobilierBHPortal() {
             <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
               <div>
                 <h2 className="h4 fw-bold text-primary-emphasis mb-1">Résumé du projet à financer</h2>
-                <p className="text-secondary mb-0">
-                  Les données issues de la simulation sont reprises pour aider l’agent bancaire à analyser votre dossier.
-                </p>
               </div>
               <button type="button" className="btn btn-primary" onClick={openSubmissionModal}>
                 Déposer ce dossier

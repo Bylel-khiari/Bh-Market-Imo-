@@ -9,7 +9,7 @@ import './BHAssistantWidget.css';
 const INITIAL_MESSAGE = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Bonjour 👋 Je suis l’assistant BH Market Imo. Comment puis-je vous aider aujourd’hui ?',
+  content: 'Bonjour 👋 Je suis l’assistant BH Market Imo.',
 };
 
 const OPEN_ASSISTANT_EVENT = 'bh-assistant:open';

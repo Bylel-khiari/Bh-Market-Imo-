@@ -346,7 +346,6 @@ const CreditSimulation = () => {
               <div className="form-group">
                 <label>Durée (mois)</label>
                 <input type="number" min="12" max={durationMaxMonths} name="durationMonths" value={formData.durationMonths} onChange={handleInputChange} />
-                <small className="field-hint">Maximum autorisé pour cet âge : {durationMaxMonths} mois</small>
               </div>
             </div>
 

@@ -33,9 +33,6 @@ export default function AgentOverviewSection({
           <div className="agent-section-head">
             <div>
               <h2>Dossiers prioritaires</h2>
-              <p className="admin-section-help">
-                Reprises rapides sur les dossiers qui demandent une analyse ou un complément.
-              </p>
             </div>
             <button type="button" className="admin-secondary" onClick={onOpenQueue}>
               Ouvrir la file
