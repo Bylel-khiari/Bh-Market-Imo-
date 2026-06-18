@@ -80,6 +80,10 @@ export function detectAssistantExperienceIntent(message = "") {
     return "favorites";
   }
 
+  if (containsAny(normalizedMessage, ["louer", "location", "locataire", "loyer"])) {
+    return "rent_unsupported";
+  }
+
   if (
     containsAny(normalizedMessage, [
       "chercher",
@@ -90,8 +94,6 @@ export function detectAssistantExperienceIntent(message = "") {
       "pres de moi",
       "autour de moi",
       "acheter",
-      "louer",
-      "location",
       "maison",
       "appartement",
       "villa",
@@ -142,9 +144,8 @@ function buildPropertiesPath({ city, type, query, focusId } = {}) {
   return `/properties${queryString ? `?${queryString}` : ""}`;
 }
 
-function buildActions({ intent, city, type, message } = {}) {
+function buildActions({ intent, city, type } = {}) {
   const actions = [];
-  const normalizedMessage = normalizeText(message);
 
   if (intent === "credit") {
     actions.push({ label: "Ouvrir la simulation", path: "/credit-simulation", type: "navigate" });
@@ -164,13 +165,18 @@ function buildActions({ intent, city, type, message } = {}) {
     actions.push({ label: "Voir mes favoris", path: "/properties?favorites=1", type: "navigate" });
   }
 
+  if (intent === "rent_unsupported") {
+    actions.push({ label: "Voir les biens à acheter", path: "/properties", type: "navigate" });
+    actions.push({ label: "Simulation crédit", path: "/credit-simulation", type: "navigate" });
+    actions.push({ label: "Contacter l'équipe", path: "/contact", type: "navigate" });
+  }
+
   if (intent === "property_search") {
     actions.push({
       label: city ? `Voir les biens à ${city}` : "Voir les biens",
       path: buildPropertiesPath({
         city,
         type,
-        query: normalizedMessage.includes("louer") || normalizedMessage.includes("location") ? "location" : "",
       }),
       type: "navigate",
     });
@@ -243,7 +249,7 @@ export async function enhanceAssistantResponse(payload = {}, response = {}, opti
   const intent = detectAssistantExperienceIntent(payload.message);
   const city = resolveClientLocation(payload);
   const type = detectPropertyType(payload.message);
-  const actions = buildActions({ intent, city, type, message: payload.message });
+  const actions = buildActions({ intent, city, type });
   const needsLocation = intent === "property_search" && !city;
 
   let recommendations = [];

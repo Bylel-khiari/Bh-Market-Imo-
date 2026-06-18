@@ -51,15 +51,15 @@ const INTENTS = [
   {
     keywords: ["louer", "location", "je veux louer", "locataire", "loyer"],
     reply:
-      "Pour louer un appartement ou une maison, précisez la ville, le quartier, le budget mensuel, la surface et vos critères prioritaires. Je peux vous aider à formuler votre recherche.",
-    suggestions: ["Chercher un bien", "Contacter un agent", "Documents nécessaires"],
+      "La location n'est pas disponible sur BH Market Imo pour le moment. L'application est centrée sur l'achat de biens, la vente, la simulation de crédit immobilier BH et la prise de contact avec un agent. Je peux vous aider à chercher un bien à acheter.",
+    suggestions: ["Chercher un bien", "Simulation crédit", "Contacter un agent"],
     handoff: false,
   },
   {
     keywords: ["chercher", "recherche", "bien immobilier", "annonce", "maison", "appartement", "terrain", "villa"],
     reply:
-      "Pour chercher un bien, choisissez la ville ou la zone, votre budget, le type de bien et la transaction souhaitée. Vous pourrez ensuite comparer les annonces et ouvrir les détails.",
-    suggestions: ["Je veux acheter", "Je veux louer", "Contacter un agent"],
+      "Pour chercher un bien à acheter, choisissez la ville ou la zone, votre budget et le type de bien souhaité. Vous pourrez ensuite comparer les annonces et ouvrir les détails.",
+    suggestions: ["Je veux acheter", "Simulation crédit", "Contacter un agent"],
     handoff: false,
   },
 ];
@@ -80,7 +80,7 @@ export function generateAssistantFallbackReply(payload = {}) {
   if (!message) {
     return {
       reply:
-        "Je peux vous aider sur la recherche de biens, l'achat, la vente, la location, la simulation de crédit immobilier BH ou la préparation des documents. Pouvez-vous préciser votre besoin ?",
+        "Je peux vous aider sur la recherche de biens à acheter, l'achat, la vente, la simulation de crédit immobilier BH ou la préparation des documents. Pouvez-vous préciser votre besoin ?",
       suggestions: DEFAULT_SUGGESTIONS,
       handoff: false,
     };
@@ -100,7 +100,7 @@ export function generateAssistantFallbackReply(payload = {}) {
 
   return {
     reply:
-      "Je peux vous orienter sur la recherche d'un bien, l'achat, la vente, la location, la simulation de crédit ou la prise de contact avec un agent. Dites-moi ce que vous souhaitez faire en priorité.",
+      "Je peux vous orienter sur la recherche d'un bien à acheter, l'achat, la vente, la simulation de crédit ou la prise de contact avec un agent. Dites-moi ce que vous souhaitez faire en priorité.",
     suggestions: DEFAULT_SUGGESTIONS,
     handoff: false,
   };

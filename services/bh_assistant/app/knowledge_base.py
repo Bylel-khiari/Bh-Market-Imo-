@@ -84,11 +84,11 @@ INTENT_RESPONSES = {
             "villa",
         ],
         "reply": (
-            "Pour chercher un bien, commencez par choisir le type de transaction, la ville ou la zone, "
+            "Pour chercher un bien à acheter, commencez par choisir la ville ou la zone, "
             "votre budget et le type de bien souhaité. Vous pouvez ensuite comparer les annonces, ouvrir "
             "les détails et signaler les biens qui vous intéressent."
         ),
-        "suggestions": ["Je veux acheter", "Je veux louer", "Contacter un agent"],
+        "suggestions": ["Je veux acheter", "Simulation crédit", "Contacter un agent"],
         "handoff": False,
     },
     "buy_property": {
@@ -135,11 +135,11 @@ INTENT_RESPONSES = {
             "appartement a louer",
         ],
         "reply": (
-            "Pour louer un appartement ou une maison, indiquez la ville, le quartier, le budget mensuel, "
-            "la surface souhaitée et vos critères prioritaires. Je peux vous aider à formuler la recherche "
-            "ou à demander un contact avec un agent."
+            "La location n'est pas disponible sur BH Market Imo pour le moment. "
+            "L'application est centrée sur l'achat de biens, la vente, la simulation de crédit immobilier BH "
+            "et la prise de contact avec un agent. Je peux vous aider à chercher un bien à acheter."
         ),
-        "suggestions": ["Chercher un bien", "Contacter un agent", "Documents nécessaires"],
+        "suggestions": ["Chercher un bien", "Simulation crédit", "Contacter un agent"],
         "handoff": False,
     },
     "credit_steps": {

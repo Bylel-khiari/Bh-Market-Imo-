@@ -36,7 +36,7 @@ def _context_note(context):
 
 def _clarification_reply(message):
     return (
-        "Je peux vous aider sur la recherche de biens, l'achat, la vente, la location, "
+        "Je peux vous aider sur la recherche de biens à acheter, l'achat, la vente, "
         "la simulation de crédit immobilier BH ou la préparation des documents. "
         "Pouvez-vous préciser votre besoin ?"
     )
