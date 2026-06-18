@@ -81,8 +81,6 @@ const PropertyCarousel = () => {
         <div className="container">
           <div className="section-header">
             <span className="section-tag">À la une</span>
-            <h2 className="section-title">Biens immobiliers sélectionnés</h2>
-            <p className="section-desc">Chargement des biens depuis la base de données...</p>
           </div>
         </div>
       </section>
@@ -95,8 +93,6 @@ const PropertyCarousel = () => {
         <div className="container">
           <div className="section-header">
             <span className="section-tag">À la une</span>
-            <h2 className="section-title">Biens immobiliers sélectionnés</h2>
-            <p className="section-desc">{error || "Aucun bien n'est disponible pour le moment."}</p>
             <Link to="/properties" className="btn btn-primary">Voir le catalogue complet</Link>
           </div>
         </div>
@@ -109,8 +105,6 @@ const PropertyCarousel = () => {
       <div className="container">
         <div className="section-header">
           <span className="section-tag">À la une</span>
-          <h2 className="section-title">Biens immobiliers sélectionnés</h2>
-          <p className="section-desc">Découvrez les dernières annonces nettoyées et publiées par le serveur</p>
         </div>
         <Slider {...settings}>
           {properties.map(property => (

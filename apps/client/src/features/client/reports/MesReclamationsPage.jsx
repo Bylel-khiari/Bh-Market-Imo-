@@ -276,9 +276,7 @@ export default function MesReclamationsPage() {
               {selectedReport.admin_note ? (
                 <article className="mes-reclamations-card mes-reclamations-response-card">
                   <p>{selectedReport.admin_note}</p>
-                  {selectedReport.reviewed_by_admin_name ? (
-                    <small>Traitee par {selectedReport.reviewed_by_admin_name}</small>
-                  ) : null}
+                  <small>Réponse</small>
                 </article>
               ) : null}
             </section>

@@ -55,7 +55,7 @@ export default function AgentSidebar({
       </div>
 
       <div className="agent-sidebar-note">
-        <p className="agent-sidebar-kicker">File active</p>
+        <p className="agent-sidebar-kicker">Dossiers en cours</p>
         <strong>{pendingCount} dossiers à suivre</strong>
         <span>{acceptedCreditApplications} accordés et {refusedCreditApplications} refusés à date.</span>
       </div>

@@ -1,6 +1,7 @@
 /* ── BH Bank Corporate Home Page ── */
 
 .home {
+  --home-navbar-height: 191px;
   background: #f5f7fa;
   min-height: 100vh;
 }
@@ -12,8 +13,10 @@
   background-size: cover;
   background-position: center 18%;
   background-repeat: no-repeat;
-  padding: 96px 0 88px;
-  min-height: 520px;
+  box-sizing: border-box;
+  padding: clamp(64px, 10vh, 96px) 0 clamp(72px, 10vh, 88px);
+  min-height: calc(100vh - var(--home-navbar-height));
+  min-height: calc(100dvh - var(--home-navbar-height));
   position: relative;
   overflow: hidden;
   display: flex;
@@ -27,6 +30,7 @@
   text-align: center;
   position: relative;
   z-index: 1;
+  transform: translateY(clamp(32px, 8vh, 86px));
 }
 
 .hero-section h1 {
@@ -448,37 +452,6 @@
   opacity: 0.5;
 }
 
-/* ── Trust Section ── */
-
-.trust-section {
-  background: white;
-  border-radius: 14px;
-  padding: 28px 32px;
-  border: 1px solid rgba(10, 34, 64, 0.06);
-  box-shadow: 0 2px 12px rgba(10, 34, 64, 0.04);
-}
-
-.trust-grid {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-
-.trust-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #0A2240;
-}
-
-.trust-item svg {
-  font-size: 16px;
-  color: #ff0000;
-}
-
 /* ── Responsive ── */
 
 @media (max-width: 1024px) {
@@ -492,14 +465,18 @@
 }
 
 @media (max-width: 768px) {
+  .home {
+    --home-navbar-height: 90px;
+  }
+
   .hero-section {
     background-position: 58% center;
-    padding: 64px 0 58px;
-    min-height: 520px;
+    padding: 48px 0 56px;
   }
 
   .hero-container {
     padding: 0 20px;
+    transform: translateY(0);
   }
 
   .hero-section h1 {
@@ -585,13 +562,4 @@
     align-self: center;
   }
 
-  .trust-grid {
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .trust-section {
-    padding: 22px 20px;
-  }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaRobot, FaFileAlt, FaArrowRight, FaShieldAlt, FaUsers, FaBuilding, FaCheckCircle } from 'react-icons/fa';
+import { FaHome, FaRobot, FaFileAlt, FaArrowRight } from 'react-icons/fa';
 import HomeMapSection from '../features/map/pages/HomeMapSection';
 import PropertyCarousel from '../components/PropertyCarousel';
 import bhBankImage from '../assets/bh-bank.png';
@@ -91,24 +91,6 @@ const Home = () => {
                 <p>Processus d'octroi simplifié et automatisé avec des taux compétitifs</p>
               </div>
               <Link to="/credit-simulation" className="service-action"><FaArrowRight /></Link>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Trust Section ── */}
-        <div className="trust-section">
-          <div className="trust-grid">
-            <div className="trust-item">
-              <FaShieldAlt /> <span>Transactions sécurisées</span>
-            </div>
-            <div className="trust-item">
-              <FaUsers /> <span>Accompagnement personnalisé</span>
-            </div>
-            <div className="trust-item">
-              <FaBuilding /> <span>Biens vérifiés</span>
-            </div>
-            <div className="trust-item">
-              <FaCheckCircle /> <span>Garantie BH Bank</span>
             </div>
           </div>
         </div>
