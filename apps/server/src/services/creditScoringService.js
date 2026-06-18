@@ -173,12 +173,6 @@ function calculateAnnualIncome(grossIncome, incomePeriod) {
   return incomePeriod === "annual" ? income : income * 12;
 }
 
-/**
- * Calculate annual charges (monthly payment * 12)
- */
-/**
- * Map socio category to contract type for scoring
- */
 function mapSocioCategoryToContractType(socioCategory) {
   const categoryMap = {
     salarie: "CDI",
@@ -440,9 +434,8 @@ export function scoreCreditApplicationLocally(scoringRequest = {}) {
   };
 }
 
-/**
- * Prepare and call the scoring service for a credit application
- */
+//agent de scoring  
+
 export async function scoreCreditApplication(applicationData) {
   const { scoringRequest, sources } = prepareCreditScoringRequest(applicationData);
 
@@ -467,16 +460,13 @@ export async function scoreCreditApplication(applicationData) {
 
   return {
     ...scoringResult,
-    // Add metadata
     scoring_date: new Date().toISOString(),
     scoring_request_data: scoringRequest,
     scoring_input_sources: sources,
   };
 }
 
-/**
- * Generate a French summary based on scoring result
- */
+//resultat de scoring 
 export function generateScoringDecision(scoringResult) {
   const { decision, score, niveau_risque, resume, scoring_input_sources: sources } = scoringResult;
 
@@ -501,10 +491,6 @@ export function generateScoringDecision(scoringResult) {
   return `${decisionText}. Score: ${score}/100 (risque ${riskText}). ${resume}${sourceText} Decision finale reservee a l'agent bancaire.`;
 }
 
-/**
- * Determine the review status after scoring.
- * Scoring gives an advisory score only; it never accepts or rejects a credit application.
- */
 export function determineApplicationStatus(scoringResult) {
   return {
     status: "EN_ETUDE",

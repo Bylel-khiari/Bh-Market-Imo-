@@ -1,6 +1,3 @@
-/**
- * Generates a French message based on the application status.
- */
 function getStatusMessage(application) {
   const statusMessages = {
     SOUMIS: "Votre demande a été reçue et sera examinée par notre équipe bancaire.",
@@ -14,9 +11,7 @@ function getStatusMessage(application) {
   return statusMessages[application?.status] || "Statut de votre demande en cours d'actualisation.";
 }
 
-/**
- * Generates the public client-facing decision text.
- */
+
 function getClientDecisionMessage(application) {
   if (application?.status === "ACCEPTE") {
     return "Votre demande a été acceptée après analyse bancaire. Un conseiller BH vous contactera pour les prochaines étapes.";

@@ -18,10 +18,8 @@ if SCRAPER_PACKAGE_DIR not in sys.path:
 
 from real_estate_scraper.source_dates import normalize_source_datetime, parse_source_datetime
 
-
-# =========================
 # CONFIG
-# =========================
+
 DB_CONFIG = {
     "host": os.getenv("MYSQL_HOST", "127.0.0.1"),
     "port": int(os.getenv("MYSQL_PORT", "3306")),
@@ -55,10 +53,8 @@ PURGE_OLD_DUPLICATE_LOGS = False
 COMMIT_EVERY = int(os.getenv("CLEANER_COMMIT_EVERY", "500"))
 PROGRESS_EVERY = int(os.getenv("CLEANER_PROGRESS_EVERY", "1000"))
 
-
-# =========================
 # RENT FILTER
-# =========================
+
 RENT_KEYWORDS = [
     "for rent",
     "rent",
@@ -94,9 +90,7 @@ RENT_KEYWORDS = [
 ]
 
 
-# =========================
 # TUNISIA LOCATION HELPERS
-# =========================
 COUNTRY_ALIASES = {
     "tunisia": ["tunisia", "tunisie", "تونس"],
 }
@@ -188,9 +182,8 @@ GOVERNORATE_ALIASES = {
 }
 
 
-# =========================
 # DESCRIPTION DEDUPE NORMALIZATION
-# =========================
+
 COMMON_REAL_ESTATE_WORDS = {
     "appartement", "villa", "maison", "studio", "terrain", "immeuble",
     "vente", "vendre", "a", "à", "de", "du", "des", "dans", "avec",
@@ -221,9 +214,8 @@ DESCRIPTION_NOISE_PHRASES = [
 ]
 
 
-# =========================
 # DATA MODEL
-# =========================
+
 @dataclass
 class Candidate:
     raw_id: int
@@ -247,9 +239,8 @@ class Candidate:
     source_published_raw: Optional[str]
 
 
-# =========================
 # BASIC HELPERS
-# =========================
+
 def clean_spaces(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
@@ -420,9 +411,8 @@ def is_too_old(source_date: Any) -> bool:
     return dt < cutoff_datetime()
 
 
-# =========================
-# RENT DETECTION
-# =========================
+#  DETECTION LOUER 
+
 def is_for_rent(title: str, description: str, price_raw: str = "") -> bool:
     text = normalize_text(f"{title} {description} {price_raw}")
     for word in RENT_KEYWORDS:
@@ -431,9 +421,9 @@ def is_for_rent(title: str, description: str, price_raw: str = "") -> bool:
     return False
 
 
-# =========================
+
 # COUNTRY / GOVERNORATE DETECTION
-# =========================
+
 def detect_country_governorate(text: str) -> Tuple[Optional[str], Optional[str]]:
     text_norm = normalize_text(text)
 
@@ -481,9 +471,8 @@ def candidate_matches_target(country: Optional[str], governorate: Optional[str])
     return True
 
 
-# =========================
 # DESCRIPTION DEDUPE HELPERS
-# =========================
+
 def normalize_description_for_dedupe(text: str) -> str:
     text = normalize_text(text)
 
@@ -515,9 +504,8 @@ def desc_similarity_strict(a: Candidate, b: Candidate) -> float:
     return min(score_ratio, score_sort)
 
 
-# =========================
-# FACT EXTRACTION / CONTRADICTIONS
-# =========================
+# FACT EXTRACTION 
+
 def extract_surface(text: str) -> Optional[float]:
     if not text:
         return None
@@ -601,9 +589,8 @@ def contradictory_facts(a: Candidate, b: Candidate) -> bool:
     return False
 
 
-# =========================
 # DUPLICATE LOGIC
-# =========================
+
 def same_exact_key(a: Candidate, b: Candidate) -> bool:
     return a.dedupe_key == b.dedupe_key
 
@@ -658,9 +645,8 @@ def is_duplicate(candidate: Candidate, existing: Candidate) -> Tuple[bool, str, 
     return False, "", None
 
 
-# =========================
 # DB HELPERS
-# =========================
+
 def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
 
@@ -945,9 +931,8 @@ def purge_old_live_data(conn):
     cur.close()
 
 
-# =========================
 # BUILD CANDIDATE
-# =========================
+
 def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     title = clean_spaces(raw_row.get("title", ""))
     location = clean_spaces(raw_row.get("location", ""))
@@ -1001,9 +986,8 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     )
 
 
-# =========================
 # MAIN
-# =========================
+
 def main():
     conn = get_connection()
 
