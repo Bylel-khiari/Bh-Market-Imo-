@@ -9,6 +9,7 @@ import {
   FaLock,
 } from 'react-icons/fa';
 import { resetPasswordApi } from '../features/auth/api/authApi';
+import loginBackground from '../assets/BackgroundLogin.jpg';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
@@ -123,6 +124,7 @@ const ResetPassword = () => {
       </div>
 
       <div className="login-right">
+        <img src={loginBackground} alt="" className="login-right-bg" aria-hidden="true" />
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Nouveau mot de passe</h2>

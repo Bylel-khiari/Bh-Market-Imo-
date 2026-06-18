@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaUniversity, FaLock, FaEye, FaEyeSlash, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import { loginApi, saveAuthSession } from '../features/auth/api/authApi';
+import loginBackground from '../assets/BackgroundLogin.jpg';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
@@ -94,6 +95,7 @@ const Login = () => {
       </div>
 
       <div className="login-right">
+        <img src={loginBackground} alt="" className="login-right-bg" aria-hidden="true" />
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Connexion</h2>

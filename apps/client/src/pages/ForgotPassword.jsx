@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaEnvelope, FaHome, FaCalculator, FaChartLine } from 'react-icons/fa';
 import { requestPasswordResetApi } from '../features/auth/api/authApi';
+import loginBackground from '../assets/BackgroundLogin.jpg';
 import logo from '../assets/favicon.ico';
 import '../styles/Login.css';
 
@@ -77,6 +78,7 @@ const ForgotPassword = () => {
       </div>
 
       <div className="login-right">
+        <img src={loginBackground} alt="" className="login-right-bg" aria-hidden="true" />
         <div className="login-form-wrapper">
           <div className="login-form-header">
             <h2>Mot de passe oublié</h2>
