@@ -14,7 +14,7 @@ import {
   submitCreditApplicationApi,
 } from '../api/creditApi';
 
-// Document types configuration - must match backend documentTypes.js
+
 const DOCUMENT_TYPES = {
   BH_FORM: {
     key: "BH_FORM",

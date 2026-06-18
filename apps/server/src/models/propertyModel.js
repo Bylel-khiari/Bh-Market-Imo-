@@ -157,7 +157,7 @@ function collectImageList(...values) {
           add(JSON.parse(trimmed));
           return;
         } catch {
-          // Fall through and treat the value as a plain URL.
+
         }
       }
 

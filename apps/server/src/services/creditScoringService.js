@@ -58,9 +58,7 @@ async function callPythonScoringApi(scoringData) {
   }
 }
 
-/**
- * Calculate annual income from gross income and period
- */
+
 function normalizeFiniteNumber(value) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -434,7 +432,7 @@ export function scoreCreditApplicationLocally(scoringRequest = {}) {
   };
 }
 
-//agent de scoring  
+
 
 export async function scoreCreditApplication(applicationData) {
   const { scoringRequest, sources } = prepareCreditScoringRequest(applicationData);
@@ -466,7 +464,7 @@ export async function scoreCreditApplication(applicationData) {
   };
 }
 
-//resultat de scoring 
+
 export function generateScoringDecision(scoringResult) {
   const { decision, score, niveau_risque, resume, scoring_input_sources: sources } = scoringResult;
 

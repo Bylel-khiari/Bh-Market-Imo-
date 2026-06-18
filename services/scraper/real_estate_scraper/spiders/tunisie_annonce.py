@@ -64,7 +64,7 @@ class TunisieAnnonceSpider(scrapy.Spider):
 
         candidate_category = (query.get("rech_cod_cat") or [None])[0]
 
-        # Keep crawling in the same listing stream and avoid category branching.
+
         if current_category:
             if candidate_category and candidate_category != current_category:
                 return None

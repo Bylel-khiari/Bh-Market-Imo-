@@ -47,7 +47,7 @@ export function getApiBaseUrl() {
       return `${protocol}//${hostname}:5000`;
     }
 
-    // In deployed environments, prefer same-origin requests unless explicitly configured.
+
     return '';
   }
 

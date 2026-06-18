@@ -459,7 +459,7 @@ async function terminateCurrentChildProcess() {
         try {
           child.kill();
         } catch {
-          // Ignore kill fallback errors.
+
         }
         finish();
       });

@@ -18,7 +18,7 @@ if SCRAPER_PACKAGE_DIR not in sys.path:
 
 from real_estate_scraper.source_dates import normalize_source_datetime, parse_source_datetime
 
-# CONFIG
+
 
 DB_CONFIG = {
     "host": os.getenv("MYSQL_HOST", "127.0.0.1"),
@@ -32,7 +32,7 @@ DB_CONFIG = {
 RAW_TABLE = os.getenv("RAW_TABLE", "raw_properties")
 
 TARGET_COUNTRY = "tunisia"
-TARGET_GOVERNORATE = None  # e.g. "tunis" or None for all Tunisia
+TARGET_GOVERNORATE = None
 
 STATUS_NEW = 0
 STATUS_ACCEPTED = 1
@@ -53,7 +53,7 @@ PURGE_OLD_DUPLICATE_LOGS = False
 COMMIT_EVERY = int(os.getenv("CLEANER_COMMIT_EVERY", "500"))
 PROGRESS_EVERY = int(os.getenv("CLEANER_PROGRESS_EVERY", "1000"))
 
-# RENT FILTER
+
 
 RENT_KEYWORDS = [
     "for rent",
@@ -90,7 +90,7 @@ RENT_KEYWORDS = [
 ]
 
 
-# TUNISIA LOCATION HELPERS
+
 COUNTRY_ALIASES = {
     "tunisia": ["tunisia", "tunisie", "تونس"],
 }
@@ -182,7 +182,7 @@ GOVERNORATE_ALIASES = {
 }
 
 
-# DESCRIPTION DEDUPE NORMALIZATION
+
 
 COMMON_REAL_ESTATE_WORDS = {
     "appartement", "villa", "maison", "studio", "terrain", "immeuble",
@@ -214,7 +214,7 @@ DESCRIPTION_NOISE_PHRASES = [
 ]
 
 
-# DATA MODEL
+
 
 @dataclass
 class Candidate:
@@ -239,7 +239,7 @@ class Candidate:
     source_published_raw: Optional[str]
 
 
-# BASIC HELPERS
+
 
 def clean_spaces(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
@@ -393,9 +393,9 @@ def hash_key(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
-# =========================
-# DATETIME HELPERS
-# =========================
+
+
+
 def parse_datetime(value: Any) -> Optional[datetime]:
     return parse_source_datetime(value)
 
@@ -411,7 +411,7 @@ def is_too_old(source_date: Any) -> bool:
     return dt < cutoff_datetime()
 
 
-#  DETECTION LOUER 
+
 
 def is_for_rent(title: str, description: str, price_raw: str = "") -> bool:
     text = normalize_text(f"{title} {description} {price_raw}")
@@ -422,7 +422,7 @@ def is_for_rent(title: str, description: str, price_raw: str = "") -> bool:
 
 
 
-# COUNTRY / GOVERNORATE DETECTION
+
 
 def detect_country_governorate(text: str) -> Tuple[Optional[str], Optional[str]]:
     text_norm = normalize_text(text)
@@ -471,7 +471,7 @@ def candidate_matches_target(country: Optional[str], governorate: Optional[str])
     return True
 
 
-# DESCRIPTION DEDUPE HELPERS
+
 
 def normalize_description_for_dedupe(text: str) -> str:
     text = normalize_text(text)
@@ -504,7 +504,7 @@ def desc_similarity_strict(a: Candidate, b: Candidate) -> float:
     return min(score_ratio, score_sort)
 
 
-# FACT EXTRACTION 
+
 
 def extract_surface(text: str) -> Optional[float]:
     if not text:
@@ -589,7 +589,7 @@ def contradictory_facts(a: Candidate, b: Candidate) -> bool:
     return False
 
 
-# DUPLICATE LOGIC
+
 
 def same_exact_key(a: Candidate, b: Candidate) -> bool:
     return a.dedupe_key == b.dedupe_key
@@ -634,18 +634,18 @@ def is_duplicate(candidate: Candidate, existing: Candidate) -> Tuple[bool, str, 
         )
         desc_score = desc_similarity_strict(candidate, existing)
 
-        # very strong description alone
+
         if desc_score >= 97:
             return True, "strict_description", round(desc_score, 2)
 
-        # both title and description must be strong
+
         if title_score >= 96 and desc_score >= 94:
             return True, "strict_title_desc", round((title_score + desc_score) / 2, 2)
 
     return False, "", None
 
 
-# DB HELPERS
+
 
 def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
@@ -676,7 +676,7 @@ def ensure_column(conn, table_name: str, column_name: str, definition: str):
 
 
 def ensure_runtime_schema(conn):
-    # raw_properties compatibility
+
     ensure_column(conn, RAW_TABLE, "processed", "TINYINT NOT NULL DEFAULT 0")
     ensure_column(conn, RAW_TABLE, "scraped_at", "DATETIME NULL")
     ensure_column(conn, RAW_TABLE, "source_published_at", "DATETIME NULL")
@@ -695,11 +695,11 @@ def ensure_runtime_schema(conn):
     try:
         cur.execute(f"CREATE INDEX idx_{RAW_TABLE}_processed ON {RAW_TABLE}(processed)")
     except mysql.connector.Error:
-        # Ignore if index already exists.
+
         pass
     cur.close()
 
-    # clean_listings compatibility
+
     if table_exists(conn, "clean_listings"):
         ensure_column(conn, "clean_listings", "raw_id", "BIGINT NULL")
         ensure_column(conn, "clean_listings", "normalized_title", "TEXT NULL")
@@ -710,7 +710,7 @@ def ensure_runtime_schema(conn):
         ensure_column(conn, "clean_listings", "source_published_at", "DATETIME NULL")
         ensure_column(conn, "clean_listings", "source_published_raw", "VARCHAR(255) NULL")
 
-    # duplicates_log table required by cleaner
+
     if not table_exists(conn, "duplicates_log"):
         cur = conn.cursor()
         cur.execute(
@@ -931,7 +931,7 @@ def purge_old_live_data(conn):
     cur.close()
 
 
-# BUILD CANDIDATE
+
 
 def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     title = clean_spaces(raw_row.get("title", ""))
@@ -986,7 +986,7 @@ def build_candidate(raw_row: Dict[str, Any]) -> Candidate:
     )
 
 
-# MAIN
+
 
 def main():
     conn = get_connection()
@@ -1041,7 +1041,7 @@ def main():
 
             found_duplicate = False
 
-            # Only compare within the same governorate bucket for expensive fuzzy checks.
+
             scope = existing_by_governorate.get(candidate.governorate or "", [])
             for clean_id, existing in scope:
                 if candidate.price_value is not None and existing.price_value is not None:

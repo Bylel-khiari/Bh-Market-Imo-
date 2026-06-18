@@ -21,8 +21,8 @@ class FiDariSpider(scrapy.Spider):
     def parse(self, response):
         self._seen_pages.add(response.url)
 
-        # Fi-Dari listing pages are heavily JS-rendered. The sitemap contains
-        # server-side project detail URLs that can be crawled reliably.
+
+
         if "sitemap.xml" in response.url:
             for loc in response.xpath("//*[local-name()='loc']/text()").getall():
                 if "/en/projet/" not in loc:
@@ -46,7 +46,7 @@ class FiDariSpider(scrapy.Spider):
             self._seen_details.add(detail_url)
             yield response.follow(detail_url, callback=self.parse_detail)
 
-        # Some pages are loaded with query-string pagination.
+
         for href in response.css("a[href]::attr(href)").getall():
             if not href:
                 continue
@@ -65,7 +65,7 @@ class FiDariSpider(scrapy.Spider):
         if isinstance(title, str):
             title = title.replace("| Fidari", "").strip()
 
-        # Ignore script/style text nodes to avoid Next.js hydration payload noise.
+
         visible_text = " ".join(
             t.strip()
             for t in response.xpath("//body//*[not(self::script) and not(self::style)]/text()").getall()

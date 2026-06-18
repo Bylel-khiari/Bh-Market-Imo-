@@ -55,8 +55,8 @@ def generate_reply(message, history=None, context=None):
         }
 
     if _llm_enabled():
-        # Placeholder for a future provider. The rule-based engine remains the default
-        # so the service works without any LLM key or network dependency.
+
+
         pass
 
     intent_name = detect_intent(cleaned_message)

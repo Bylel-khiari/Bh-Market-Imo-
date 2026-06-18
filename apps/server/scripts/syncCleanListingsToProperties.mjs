@@ -246,7 +246,7 @@ async function main() {
     try {
       await connection.rollback();
     } catch {
-      // Ignore rollback errors if no active transaction.
+
     }
 
     throw error;

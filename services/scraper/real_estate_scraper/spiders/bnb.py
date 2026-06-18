@@ -25,7 +25,7 @@ class BnbSpider(scrapy.Spider):
     def parse(self, response):
         self._seen_pages.add(response.url)
 
-        # Follow pagination only inside the vente section.
+
         for href in response.css("a.page-numbers::attr(href), a.next::attr(href), a[href*='/contract/vente/page/']::attr(href)").getall():
             url = response.urljoin(href)
             if "/contract/vente/page/" in url:
@@ -34,7 +34,7 @@ class BnbSpider(scrapy.Spider):
                 self._seen_pages.add(url)
                 yield response.follow(url, callback=self.parse)
 
-        # Extract detail links from listing cards only (faster than broad site discovery).
+
         detail_selectors = [
             ".property-item a::attr(href)",
             ".property-wrap a::attr(href)",

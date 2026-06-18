@@ -1044,7 +1044,7 @@ export async function createCreditApplication({
   const normalizedTypedDocuments = normalizeTypedDocuments(documents);
   const normalizedFinalSubmission = Boolean(finalSubmission);
 
-  // Determine the status: use initialStatus if provided, otherwise "SOUMIS"
+
   const applicationStatus = normalizeOptionalString(initialStatus) || "SOUMIS";
   const initialDecisionMotif = isDecisionStatus(applicationStatus)
     ? buildDecisionMotif(applicationStatus, {
@@ -1064,7 +1064,7 @@ export async function createCreditApplication({
     throw httpError(400, "Missing required credit application fields");
   }
 
-  // Validate that all required documents are present
+
   const documentCompletion = validateDocumentCompleteness(normalizedTypedDocuments);
   if (!documentCompletion.isComplete) {
     throw httpError(400, `Missing required documents: ${documentCompletion.missing.join(", ")}`);

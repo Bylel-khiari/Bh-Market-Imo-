@@ -41,7 +41,7 @@ function collectImages(...values) {
           add(JSON.parse(trimmed));
           return;
         } catch {
-          // Keep plain URL handling below.
+
         }
       }
 

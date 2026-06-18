@@ -1,11 +1,11 @@
-/* ===== LOGIN PAGE - SPLIT SCREEN LAYOUT ===== */
+
 .login-page {
   display: flex;
   min-height: 100vh;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* ===== LEFT PANEL - BRANDING ===== */
+
 .login-left {
   position: relative;
   flex: 2;
@@ -54,7 +54,7 @@
   box-sizing: border-box;
 }
 
-/* Brand */
+
 .login-brand {
   margin-bottom: 32px;
 }
@@ -91,7 +91,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-/* Features */
+
 .login-features {
   display: flex;
   flex-direction: column;
@@ -149,7 +149,7 @@
   font-weight: 400;
 }
 
-/* Trust Section */
+
 .login-trust {
   padding-top: 36px;
   margin-top: 36px;
@@ -204,7 +204,7 @@
   color: #4caf50;
 }
 
-/* ===== RIGHT PANEL - FORM WITH BACKGROUND IMAGE ===== */
+
 .login-right {
   flex: 4;
   display: flex;
@@ -240,7 +240,7 @@
   width: 100%;
 }
 
-/* Form Header */
+
 .login-form-header {
   margin-bottom: 36px;
 }
@@ -258,7 +258,7 @@
   margin: 0;
 }
 
-/* Input Groups */
+
 .login-input-group {
   position: relative;
   display: flex;
@@ -321,7 +321,7 @@
   color: #003366;
 }
 
-/* Options Row */
+
 .login-options {
   display: flex;
   justify-content: space-between;
@@ -357,7 +357,7 @@
   color: #cc0000;
 }
 
-/* Submit Button */
+
 .login-submit-btn {
   width: 100%;
   padding: 16px;
@@ -425,7 +425,7 @@
   transform: translateY(0);
 }
 
-/* Divider */
+
 .login-divider {
   display: flex;
   align-items: center;
@@ -448,7 +448,7 @@
   letter-spacing: 1px;
 }
 
-/* Account note */
+
 .login-account-note {
   text-align: center;
 }
@@ -470,7 +470,7 @@
   color: #ff0000;
 }
 
-/* Back to Home */
+
 .login-back-home {
   text-align: center;
   margin-top: 32px;
@@ -487,7 +487,7 @@
   color: #003366;
 }
 
-/* ===== RESPONSIVE ===== */
+
 @media (max-width: 968px) {
   .login-page {
     flex-direction: column;

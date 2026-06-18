@@ -1,4 +1,4 @@
-/* ── BH Bank Corporate Home Page ── */
+
 
 .home {
   --home-navbar-height: 191px;
@@ -6,7 +6,7 @@
   min-height: 100vh;
 }
 
-/* ── Hero Section ── */
+
 
 .hero-section {
   background-color: #071a30;
@@ -121,7 +121,7 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* ── Content Wrapper ── */
+
 
 .content-wrapper {
   max-width: 1200px;
@@ -132,7 +132,7 @@
   gap: 50px;
 }
 
-/* ── Services Section ── */
+
 
 .services-section {
   display: flex;
@@ -279,7 +279,7 @@
   color: white;
 }
 
-/* ── Properties Section ── */
+
 
 .properties-section-home {
   display: flex;
@@ -407,7 +407,7 @@
   font-size: 13px;
 }
 
-/* ── Slider Controls ── */
+
 
 .properties-section-home .slick-dots {
   bottom: -36px;
@@ -452,7 +452,7 @@
   opacity: 0.5;
 }
 
-/* ── Responsive ── */
+
 
 @media (max-width: 1024px) {
   .services-grid {

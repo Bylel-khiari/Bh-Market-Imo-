@@ -17,7 +17,7 @@ const Home = () => {
   return (
     <div className="home">
 
-      {/* ── Hero Section ── */}
+
       <div className="hero-section" style={{ backgroundImage: HERO_BACKGROUND }}>
         <div className="hero-container">
           <h1>Votre plateforme <span className="hero-accent">immobilière</span> de confiance</h1>
@@ -36,10 +36,10 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Main Content ── */}
+
       <div className="content-wrapper">
 
-        {/* ── Tunisia Map Section ── */}
+
         <div className="map-section-home">
           <div className="section-header">
             <div>
@@ -52,7 +52,7 @@ const Home = () => {
 
         <PropertyCarousel />
 
-        {/* ── Services Section ── */}
+
         <div className="services-section">
           <div className="section-header">
             <div>

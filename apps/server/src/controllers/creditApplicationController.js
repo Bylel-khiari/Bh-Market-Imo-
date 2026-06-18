@@ -62,7 +62,7 @@ export async function submitCreditApplication(req, res) {
 
   const persistedDocuments = await persistCreditApplicationDocuments(req.body?.documents);
 
-  // Prepare application data
+
   const applicationData = {
     clientUserId: req.user?.sub,
     propertyId: req.body?.property_id,

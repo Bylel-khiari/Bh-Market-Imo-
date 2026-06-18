@@ -97,7 +97,7 @@ export function renderAgentCreditApplicationList(res, payload) {
     count: applications.length,
     summary: {
       ...summary,
-      // Add localized status labels
+
       statuses: {
         SOUMIS: "Soumises",
         DOCUMENTS_MANQUANTS: "Documents manquants",

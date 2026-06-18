@@ -135,7 +135,7 @@ def main():
 
     load_env_files()
 
-    # Import after loading env files so listing_cleaner sees the same runtime config.
+
     from listing_cleaner import parse_price
 
     connection = get_connection()

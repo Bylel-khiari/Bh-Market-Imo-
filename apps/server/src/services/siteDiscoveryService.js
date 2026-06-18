@@ -68,7 +68,7 @@ function parseDiscoveryOutput(stdout) {
     try {
       return JSON.parse(line);
     } catch {
-      // Keep scanning from the end because the Python agent may log before JSON.
+
     }
   }
 

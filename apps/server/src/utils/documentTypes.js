@@ -49,37 +49,22 @@ export const REQUIRED_DOCUMENTS = Object.values(DOCUMENT_TYPES)
   .filter(doc => doc.required)
   .map(doc => doc.key);
 
-/**
- * Get document type by key
- * @param {string} key
- * @returns {object|null}
- */
+
 export function getDocumentType(key) {
   return DOCUMENT_TYPES[key] || null;
 }
 
-/**
- * Validate document type key
- * @param {string} key
- * @returns {boolean}
- */
+
 export function isValidDocumentType(key) {
   return DOCUMENT_TYPE_KEYS.includes(key);
 }
 
-/**
- * Get all required document keys
- * @returns {string[]}
- */
+
 export function getRequiredDocumentKeys() {
   return REQUIRED_DOCUMENTS;
 }
 
-/**
- * Check if all required documents are present
- * @param {Array<{type: string, name: string}>} documents
- * @returns {object} { isComplete: boolean, missing: string[] }
- */
+
 export function validateDocumentCompleteness(documents) {
   if (!Array.isArray(documents)) {
     return {

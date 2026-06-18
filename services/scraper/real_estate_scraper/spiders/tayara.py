@@ -121,7 +121,7 @@ class TayaraSpider(scrapy.Spider):
             if not ad_url and ad_id is not None:
                 ad_url = self._normalize_url(response, f"/item/{ad_id}")
             if not ad_url:
-                # Avoid assigning page URL as listing identity when ad payload lacks a stable URL/id.
+
                 continue
 
             yield {
