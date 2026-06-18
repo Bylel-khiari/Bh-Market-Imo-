@@ -605,7 +605,6 @@ const MesDemandes = () => {
           <div>
             <span className="mes-demandes-eyebrow">Espace client</span>
             <h1>Mes demandes</h1>
-            <p>Suivi bancaire des demandes de crédit déposées sur BH Market Imo.</p>
           </div>
           <div className="mes-demandes-header-actions">
             <span className={`mes-demandes-readonly-pill${selectedCanEdit ? ' is-editable' : ''}`}>
